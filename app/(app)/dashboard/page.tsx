@@ -1,13 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { AllocationChart } from "@/features/dashboard/components/allocation-chart"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
-import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
+import { loadPortfolioView, namesFrom } from "@/features/portfolios/portfolio-view"
 import { formatCurrency } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
@@ -22,7 +23,9 @@ export default async function DashboardPage({
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
 
-  const { holdings, summary, transactions } = await loadPortfolioView(active.id)
+  const { holdings, summary, transactions, quotes, marketDataError } =
+    await loadPortfolioView(active.id)
+  const names = namesFrom(quotes)
   const currency = active.currency
   const ranked = [...holdings].sort((a, b) => b.returnPct - a.returnPct)
   const best = ranked[0]
@@ -45,6 +48,21 @@ export default async function DashboardPage({
           <ArrowRight className="size-3.5" aria-hidden />
         </Button>
       </div>
+
+      {marketDataError ? (
+        <Alert>
+          <AlertDescription>
+            {marketDataError} Holdings below are valued at cost until prices return.
+          </AlertDescription>
+        </Alert>
+      ) : summary.staleCount > 0 ? (
+        <Alert>
+          <AlertDescription>
+            No live price for {summary.staleCount} holding{summary.staleCount === 1 ? "" : "s"}; those
+            are valued at cost.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {transactions.length === 0 ? (
         <div className="rounded-xl border">
@@ -69,9 +87,30 @@ export default async function DashboardPage({
               label="Portfolio value"
               value={formatCurrency(summary.marketValue, currency)}
               emphasis
-              hint={<Delta value={summary.unrealizedPnl} currency={currency} percent={summary.returnPct} />}
+              hint={
+                <span className="text-muted-foreground">
+                  {formatCurrency(summary.investedValue, currency)} invested
+                </span>
+              }
             />
-            <StatCard label="Invested" value={formatCurrency(summary.investedValue, currency)} emphasis />
+            <StatCard
+              label="Today"
+              value={
+                summary.todayPnl === null ? (
+                  <span className="text-muted-foreground text-lg">N/A</span>
+                ) : (
+                  <Delta value={summary.todayPnl} currency={currency} />
+                )
+              }
+              emphasis
+              hint={
+                summary.todayReturnPct === null ? (
+                  <span className="text-muted-foreground">No previous close</span>
+                ) : (
+                  <Percent value={summary.todayReturnPct} />
+                )
+              }
+            />
             <StatCard
               label="Unrealized P&L"
               value={<Delta value={summary.unrealizedPnl} currency={currency} />}
@@ -152,12 +191,12 @@ export default async function DashboardPage({
             <ul className="divide-y overflow-hidden rounded-xl border">
               {holdings.slice(0, 5).map((h) => (
                 <li key={h.symbol} className="bg-card flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{h.symbol}</p>
-                    <p className="text-muted-foreground tabular text-xs">
-                      {h.quantity} @ {formatCurrency(h.averageCost, currency)}
+                  <Link href={`/stocks/${h.symbol}`} className="min-w-0 flex-1">
+                    <p className="font-medium underline-offset-4 hover:underline">{h.symbol}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {names[h.symbol] ?? `${h.quantity} @ ${formatCurrency(h.averageCost, currency)}`}
                     </p>
-                  </div>
+                  </Link>
                   <div className="text-right">
                     <p className="tabular font-medium">{formatCurrency(h.marketValue, currency)}</p>
                     <Delta value={h.unrealizedPnl} currency={currency} percent={h.returnPct} />

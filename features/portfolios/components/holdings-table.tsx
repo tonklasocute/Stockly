@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { Search, Wallet } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
@@ -109,12 +110,12 @@ export function HoldingsTable({
             {visible.map((h) => (
               <li key={h.symbol} className="bg-card rounded-xl border p-3.5">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{h.symbol}</p>
+                  <Link href={`/stocks/${h.symbol}`} className="min-w-0">
+                    <p className="font-semibold underline-offset-4 hover:underline">{h.symbol}</p>
                     <p className="text-muted-foreground truncate text-xs">
                       {names[h.symbol] ?? `${formatQuantity(h.quantity)} shares`}
                     </p>
-                  </div>
+                  </Link>
                   <div className="text-right">
                     <p className="tabular font-semibold">
                       {formatCurrency(h.marketValue, currency)}
@@ -168,7 +169,12 @@ export function HoldingsTable({
                 {visible.map((h) => (
                   <TableRow key={h.symbol}>
                     <TableCell>
-                      <span className="font-medium">{h.symbol}</span>
+                      <Link
+                        href={`/stocks/${h.symbol}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {h.symbol}
+                      </Link>
                       {names[h.symbol] && (
                         <span className="text-muted-foreground ml-2 text-xs">{names[h.symbol]}</span>
                       )}

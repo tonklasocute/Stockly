@@ -54,3 +54,32 @@ export function toneOf(value: number): "gain" | "loss" | "flat" {
   if (value < 0) return "loss"
   return "flat"
 }
+
+/** Compact money for market cap and volume: $4.4T, 38.0M. Null renders as an em dash. */
+export function formatCompact(value: number | null, currency?: string): string {
+  if (value === null || !Number.isFinite(value)) return "—"
+  const formatted = new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value)
+  return currency ? `${formatted} ${currency}` : formatted
+}
+
+/** For provider fields that may legitimately be missing — never show a fabricated 0. */
+export function formatOptional(
+  value: number | null | undefined,
+  format: (value: number) => string,
+): string {
+  return value === null || value === undefined || !Number.isFinite(value) ? "N/A" : format(value)
+}
+
+export function formatTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return "—"
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  }).format(date)
+}

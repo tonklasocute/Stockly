@@ -1,4 +1,10 @@
-import type { DomainTransaction, Holding, PortfolioSummary, Position } from "./types"
+import type {
+  DomainTransaction,
+  Holding,
+  PortfolioSummary,
+  Position,
+  PricePoint,
+} from "./types"
 
 /**
  * Cost basis method: weighted average cost.
@@ -74,15 +80,20 @@ export function canSell(
 
 export function priceHoldings(
   positions: readonly Position[],
-  priceOf: (symbol: string) => number | undefined,
+  quoteOf: (symbol: string) => PricePoint | undefined,
 ): Holding[] {
   const open = positions.filter((p) => p.quantity > 0)
   const priced = open.map((p) => {
-    // No quote yet (Phase 1 mock data, or a symbol the provider does not know): fall back to cost,
-    // which shows a flat position rather than a fabricated loss.
-    const currentPrice = priceOf(p.symbol) ?? p.averageCost
+    const quote = quoteOf(p.symbol)
+    // No quote (unknown symbol, or the provider is down): fall back to cost, which shows a flat
+    // position rather than a fabricated loss, and flag it so the UI can say the price is stale.
+    const stale = quote === undefined
+    const currentPrice = quote?.price ?? p.averageCost
     const marketValue = p.quantity * currentPrice
     const unrealizedPnl = marketValue - p.investedValue
+    // Today's move needs yesterday's close; without it the number is unknown, not zero.
+    const todayPnl =
+      quote?.previousClose !== undefined ? p.quantity * (currentPrice - quote.previousClose) : null
     return {
       ...p,
       currentPrice,
@@ -90,6 +101,12 @@ export function priceHoldings(
       unrealizedPnl,
       returnPct: p.investedValue > 0 ? (unrealizedPnl / p.investedValue) * 100 : 0,
       weight: 0,
+      todayPnl,
+      todayReturnPct:
+        quote?.previousClose !== undefined && quote.previousClose > 0
+          ? ((currentPrice - quote.previousClose) / quote.previousClose) * 100
+          : null,
+      stale,
     }
   })
 
@@ -106,6 +123,13 @@ export function summarize(
   const marketValue = holdings.reduce((s, h) => s + h.marketValue, 0)
   const investedValue = holdings.reduce((s, h) => s + h.investedValue, 0)
   const unrealizedPnl = marketValue - investedValue
+
+  // Only the holdings with a previous close contribute; if none do, today's move is unknown rather
+  // than a misleading zero. The percentage is against yesterday's value of those same holdings.
+  const withToday = holdings.filter((h) => h.todayPnl !== null)
+  const todayPnl = withToday.length ? withToday.reduce((s, h) => s + (h.todayPnl ?? 0), 0) : null
+  const yesterdayValue = withToday.reduce((s, h) => s + (h.marketValue - (h.todayPnl ?? 0)), 0)
+
   return {
     marketValue,
     investedValue,
@@ -113,15 +137,19 @@ export function summarize(
     realizedPnl: positions.reduce((s, p) => s + p.realizedPnl, 0),
     returnPct: investedValue > 0 ? (unrealizedPnl / investedValue) * 100 : 0,
     holdingsCount: holdings.length,
+    todayPnl,
+    todayReturnPct:
+      todayPnl !== null && yesterdayValue > 0 ? (todayPnl / yesterdayValue) * 100 : null,
+    staleCount: holdings.filter((h) => h.stale).length,
   }
 }
 
 /** One call for the common case: transactions + quotes in, everything the UI needs out. */
 export function buildPortfolio(
   transactions: readonly DomainTransaction[],
-  priceOf: (symbol: string) => number | undefined,
+  quoteOf: (symbol: string) => PricePoint | undefined,
 ): { positions: Position[]; holdings: Holding[]; summary: PortfolioSummary } {
   const positions = computePositions(transactions)
-  const holdings = priceHoldings(positions, priceOf)
+  const holdings = priceHoldings(positions, quoteOf)
   return { positions, holdings, summary: summarize(positions, holdings) }
 }

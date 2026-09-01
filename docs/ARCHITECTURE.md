@@ -64,7 +64,7 @@ FIFO is ever needed for tax reporting, it becomes a second function in `domain/`
 `domain/` staying pure is what makes the numbers testable and what would make a future extraction
 (Go service, background job, CSV importer) cheap. It is the one boundary worth being strict about.
 
-## 4. Data model (initial)
+## 4. Data model
 
 ```
 auth.users (Supabase)
@@ -76,12 +76,18 @@ auth.users (Supabase)
        └─ dividends      id, portfolio_id, user_id, symbol, pay_date,
                          amount_per_share numeric, quantity numeric, tax numeric
 
-watchlist_items   id, user_id, symbol, market, target_buy_price, note
-alerts            id, user_id, symbol, kind(price|target_buy|stop_loss|take_profit),
-                  threshold numeric, active bool, triggered_at
-instruments       symbol, market, name, sector, currency        -- cached metadata
-quotes_cache      symbol, market, price, change, change_pct, as_of  -- short-lived
+watchlist_items   id, user_id, symbol, market, name, exchange, target_price, notes
+                  unique (user_id, market, symbol)
 ```
+
+Planned but not built: `alerts` (phase 5).
+
+**No `instruments` or `quotes_cache` table.** Phase 0 sketched both; neither earned its place. The
+Next Data Cache already deduplicates and expires provider responses across instances, so a database
+cache would be a second cache to keep coherent, plus a table, RLS policies and a write path — for no
+behaviour the HTTP cache does not already provide. `watchlist_items.name`/`exchange` are snapshots
+taken at insert time: that one denormalization means the watchlist renders instantly and still lists
+your stocks when the provider is down. Prices are never stored.
 
 Notes:
 - `user_id` is denormalized onto every child table so RLS policies are a single-column check with no
@@ -106,22 +112,65 @@ The service-role key bypasses RLS. It is used only in server-only code for share
 
 ## 6. Market data
 
-```ts
-interface MarketDataProvider {
-  getQuote(symbol: string, market: Market): Promise<Quote>
-  getHistoricalPrices(symbol: string, market: Market, range: Range): Promise<Candle[]>
-  searchSymbol(query: string): Promise<InstrumentSummary[]>
-  getCompanyProfile(symbol: string, market: Market): Promise<CompanyProfile>
-}
+```
+UI (server component or TanStack Query)
+      ↓
+Route handler /api/stocks/**            ← auth, validation, shared error envelope
+      ↓
+getMarketDataProvider()                 ← the only place a provider is named
+      ↓
+MarketDataProvider  (services/market-data/types.ts)
+      ↓
+TwelveDataProvider  ← Zod-parses the raw payload into the domain model
+      ↓
+fetchJson (http.ts) ← timeout, Next Data Cache, latency logging
+      ↓
+api.twelvedata.com
 ```
 
-- Exactly one implementation to begin with; the provider is chosen in one place in
-  `services/market-data/index.ts`. The rest of the app depends only on the interface.
-- Provider responses are Zod-parsed at the boundary — free APIs return nulls and surprises.
-- Server-side only. The client asks our route handler, which holds the key and can cache and
-  rate-limit. Quotes are cached briefly (`quotes_cache`) so one page render is one upstream call.
-- Free tiers have hard rate limits. Batch symbols where the provider supports it; degrade to stale
-  cached prices with an `as_of` timestamp rather than failing the page.
+### Why Twelve Data
+
+| | free tier | quote | history | search | profile |
+|---|---|---|---|---|---|
+| **Twelve Data** | 8 credits/min, 800/day | ✅ batch | ✅ intraday + daily | ✅ | plan-dependent |
+| Finnhub | 60 calls/min | ✅ | ❌ candles are paid | ✅ | ✅ |
+| Alpha Vantage | 25 requests/**day** | ✅ | ✅ | ✅ | ✅ |
+| Polygon | 5 calls/min | end-of-day | ✅ | ✅ | ✅ |
+
+The price chart is a phase 2 deliverable, and Twelve Data is the only one of these whose free tier
+still serves historical series at a usable request rate. Finnhub's rate limit is far more generous
+and would be the better pick if charts ever move to a paid plan — that swap is one adapter file.
+
+### Limits that shaped the design
+
+- **A batch quote costs one credit per symbol**, not per request. Batching saves round trips and
+  latency, not quota. *Caching* is what protects the quota.
+- 8 credits per minute is low. A fifty-holding dashboard would blow the per-minute budget on a single
+  uncached render, so the Next Data Cache (shared across serverless instances, unlike an in-process
+  Map) fronts every call. Cold starts still get a warm price.
+- `/profile` is not on every plan. A 4xx there degrades to search metadata rather than failing.
+- Market status comes from the provider's `market_state`, never from the browser clock.
+
+### Cache lifetimes
+
+| data | TTL | why |
+|---|---|---|
+| quote | 60s | the only thing that moves within a session |
+| history, intraday (1D/1W) | 5 min | moves during the session |
+| history, 1M and longer | 6 h | only changes after the close |
+| symbol search | 24 h | a query's results do not change within a day |
+| company profile | 24 h | near-static |
+
+### Failure policy
+
+Every method resolves or throws `MarketDataError`. The distinction that matters: a **missing symbol**
+is `null` or `[]` (normal), while a **rate limit or outage** is an error (exceptional). A single
+unknown ticker in a portfolio must not blank the dashboard; a rate limit must not be silently
+mistaken for "no data", which would price the whole portfolio at cost without telling anyone.
+
+When quotes fail, `loadPortfolioView` still returns: the engine falls back to average cost, marks
+those holdings `stale`, and the page shows a banner. A portfolio tracker that shows nothing when a
+third party is down is worse than one that shows cost basis and says so.
 
 ## 7. Rendering and state
 
@@ -144,7 +193,14 @@ interface MarketDataProvider {
 - iOS specifics: `apple-touch-icon` (the manifest icons are ignored), `viewport-fit=cover`, and
   `env(safe-area-inset-bottom)` on the bottom navigation.
 
-## 9. What phase 1 actually shipped
+## 9. Watchlist
+
+One implicit list per user — `watchlist_items` keyed by `(user_id, market, symbol)` — rather than
+`watchlists` + `watchlist_items`. Named lists are speculative; adding a `list_id` later is a
+migration, not a redesign. The unique constraint, not application code, is what prevents duplicates;
+the API only translates `23505` into a sentence.
+
+## 10. What phase 1 actually shipped
 
 `profiles`, `portfolios` and `transactions` with RLS; email/password auth via Supabase Auth;
 portfolio and transaction CRUD behind Route Handlers; the calculation engine and its tests; the
@@ -152,8 +208,21 @@ dashboard, portfolio and transactions pages; the app shell with light/dark and a
 manifest and icons. Prices come from `mockMarketDataProvider` behind the real `MarketDataProvider`
 interface, so phase 2 swaps the implementation and nothing else.
 
-## 10. What is deliberately not here yet
+## 11. What phase 2 added
 
-Multi-currency conversion, FIFO cost basis, background jobs, push notifications, CSV import,
-sector allocation, an event bus, a caching layer, and any Go service. Each has a clear insertion
-point above; none is built until the phase that needs it.
+`MarketDataProvider` with a Twelve Data adapter and the mock kept as a first-class option (the app is
+fully usable with `MARKET_DATA_PROVIDER=mock` and no account); `lib/env.server.ts` so the key cannot
+reach the browser bundle; global ⌘K stock search, debounced; `/stocks/[symbol]` with a live quote
+header, a range-switching price chart, overview metrics, company profile and your position;
+`watchlist_items` with CRUD; today's P&L across the dashboard and portfolio; and cost-basis fallback
+with a stale banner when the provider is unavailable.
+
+Symbols are normalised through `lib/symbol.ts` and keyed by `market:symbol`, so adding SET later does
+not collide with a US ticker of the same name. `market` and `currency` are on every relevant row, but
+no FX conversion is performed — a portfolio reports in its own currency only.
+
+## 12. What is deliberately not here yet
+
+FX conversion, FIFO cost basis, SET listings, background jobs, push notifications, CSV import,
+sector allocation, an event bus, and any Go service. Each has a clear insertion point above; none is
+built until the phase that needs it.

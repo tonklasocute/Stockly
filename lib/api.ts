@@ -3,6 +3,7 @@ import "server-only"
 import { NextResponse } from "next/server"
 import { ZodError, type ZodType } from "zod"
 import { isSupabaseConfigured } from "@/lib/env"
+import { isMarketDataError } from "@/services/market-data/errors"
 import { getUser } from "@/lib/supabase/server"
 
 export const ERROR_CODES = {
@@ -12,6 +13,11 @@ export const ERROR_CODES = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   INTERNAL_ERROR: 500,
+  MARKET_DATA_UNAVAILABLE: 503,
+  MARKET_DATA_RATE_LIMITED: 429,
+  MARKET_DATA_TIMEOUT: 504,
+  MARKET_DATA_NOT_CONFIGURED: 500,
+  MARKET_DATA_INVALID_RESPONSE: 502,
 } as const
 
 export type ErrorCode = keyof typeof ERROR_CODES
@@ -72,6 +78,11 @@ export async function guarded(
   } catch (error) {
     if (error instanceof ValidationError) return fail(error.code, error.message, error.details)
     if (error instanceof ApiError) return fail(error.code, error.message)
+    // The message is already written for a user; the provider detail stays in `cause`.
+    if (isMarketDataError(error)) {
+      console.error("[api] market data", error.code, error.cause)
+      return fail(error.code, error.message)
+    }
     console.error("[api]", error)
     return fail("INTERNAL_ERROR", "Something went wrong. Please try again.")
   }

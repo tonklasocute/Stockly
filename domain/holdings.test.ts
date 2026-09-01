@@ -148,7 +148,8 @@ describe("buildPortfolio", () => {
     tx("SOFI", "sell", 20, 15, 0, "2025-02-01", 4),
   ]
   const prices: Record<string, number> = { NVDA: 180, AAPL: 210, SOFI: 14 }
-  const { holdings, summary } = buildPortfolio(transactions, (s) => prices[s])
+  const quote = (s: string) => (prices[s] === undefined ? undefined : { price: prices[s] })
+  const { holdings, summary } = buildPortfolio(transactions, quote)
 
   it("prices each holding and computes its return", () => {
     const nvda = holdings.find((h) => h.symbol === "NVDA")!
@@ -176,21 +177,73 @@ describe("buildPortfolio", () => {
     expect(summary.holdingsCount).toBe(3)
   })
 
-  it("falls back to average cost when a symbol has no quote", () => {
-    const { holdings: h } = buildPortfolio([tx("XYZ", "buy", 3, 50)], () => undefined)
+  it("falls back to average cost when a symbol has no quote, and flags it stale", () => {
+    const { holdings: h, summary: s } = buildPortfolio([tx("XYZ", "buy", 3, 50)], () => undefined)
     near(h[0].currentPrice, 50)
     near(h[0].unrealizedPnl, 0)
     near(h[0].returnPct, 0)
+    expect(h[0].stale).toBe(true)
+    expect(h[0].todayPnl).toBeNull()
+    expect(s.staleCount).toBe(1)
+    expect(s.todayPnl).toBeNull()
   })
 
   it("returns a zeroed summary for an empty portfolio", () => {
-    expect(buildPortfolio([], () => 1).summary).toEqual({
+    expect(buildPortfolio([], () => ({ price: 1 })).summary).toEqual({
       marketValue: 0,
       investedValue: 0,
       unrealizedPnl: 0,
       realizedPnl: 0,
       returnPct: 0,
       holdingsCount: 0,
+      todayPnl: null,
+      todayReturnPct: null,
+      staleCount: 0,
     })
+  })
+})
+
+describe("today's change", () => {
+  const holdingsOf = (prev: number | undefined, price: number) =>
+    buildPortfolio([tx("NVDA", "buy", 10, 100)], () => ({ price, previousClose: prev }))
+
+  it("is the move from yesterday's close, not from cost", () => {
+    const { holdings, summary } = holdingsOf(175, 180)
+    near(holdings[0].todayPnl!, 50) // 10 * (180 - 175)
+    near(holdings[0].todayReturnPct!, 2.857142857)
+    near(summary.todayPnl!, 50)
+    near(summary.todayReturnPct!, 2.857142857)
+  })
+
+  it("goes negative on a down day", () => {
+    const { summary } = holdingsOf(185, 180)
+    near(summary.todayPnl!, -50)
+  })
+
+  it("is unknown, not zero, when the provider gave no previous close", () => {
+    const { holdings, summary } = holdingsOf(undefined, 180)
+    expect(holdings[0].todayPnl).toBeNull()
+    expect(summary.todayPnl).toBeNull()
+    expect(summary.todayReturnPct).toBeNull()
+  })
+
+  it("sums only the holdings that have a previous close", () => {
+    const prices: Record<string, { price: number; previousClose?: number }> = {
+      NVDA: { price: 180, previousClose: 175 },
+      AAPL: { price: 210 }, // provider returned no previous close for this one
+    }
+    const { summary } = buildPortfolio(
+      [tx("NVDA", "buy", 10, 100, 0, "2025-01-01", 1), tx("AAPL", "buy", 5, 200, 0, "2025-01-02", 2)],
+      (s) => prices[s],
+    )
+    near(summary.todayPnl!, 50)
+    // 10 * 175 = 1750 of yesterday value, AAPL excluded from both sides.
+    near(summary.todayReturnPct!, (50 / 1750) * 100)
+  })
+
+  it("reports a flat day as zero, which is different from unknown", () => {
+    const { summary } = holdingsOf(180, 180)
+    expect(summary.todayPnl).toBe(0)
+    near(summary.todayReturnPct!, 0)
   })
 })

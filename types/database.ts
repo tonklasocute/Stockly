@@ -29,6 +29,19 @@ export type TransactionRow = {
   updated_at: string
 }
 
+export type WatchlistItemRow = {
+  id: string
+  user_id: string
+  symbol: string
+  market: string
+  name: string | null
+  exchange: string | null
+  target_price: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -57,6 +70,12 @@ export type Database = {
         Row: TransactionRow
         Insert: Omit<TransactionRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Omit<TransactionRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      watchlist_items: {
+        Row: WatchlistItemRow
+        Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<WatchlistItemRow, "id" | "user_id" | Timestamps>>
         Relationships: []
       }
     }

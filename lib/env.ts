@@ -1,8 +1,7 @@
 /**
- * Read env through here, never `process.env` directly, so a missing variable fails with a message
- * that names it instead of a downstream "undefined is not a string".
- *
- * Deliberately lazy: `next build` runs without secrets present, so validation happens on first use.
+ * Client-safe environment only. Anything read here may end up inlined in the browser bundle, so
+ * only NEXT_PUBLIC_* values belong in this file. Server-only config lives in lib/env.server.ts,
+ * which imports "server-only" so the compiler rejects an accidental client import.
  */
 function required(name: string, value: string | undefined): string {
   if (!value) {
@@ -19,9 +18,6 @@ export const env = {
   },
   get supabaseAnonKey() {
     return required("NEXT_PUBLIC_SUPABASE_ANON_KEY", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-  },
-  get marketDataProvider() {
-    return process.env.MARKET_DATA_PROVIDER ?? "mock"
   },
 }
 

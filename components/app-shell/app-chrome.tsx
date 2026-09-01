@@ -7,6 +7,7 @@ import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { PortfolioDialog } from "@/features/portfolios/components/portfolio-dialog"
+import { StockSearch } from "@/features/stocks/components/stock-search"
 import type { PortfolioRow } from "@/types/database"
 import { MobileTabBar, SidebarNav } from "./sidebar-nav"
 import { PortfolioSwitcher } from "./portfolio-switcher"
@@ -70,6 +71,7 @@ export function AppChrome({
           </span>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <StockSearch />
             <PortfolioSwitcher
               portfolios={portfolios}
               activeId={activeId}

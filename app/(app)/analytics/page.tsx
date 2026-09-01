@@ -12,7 +12,7 @@ export default function AnalyticsPage() {
         <EmptyState
           icon={BarChart3}
           title="Coming in phase 3"
-          description="This page is part of a later phase. Your portfolio, transactions and dashboard are ready to use now."
+          description="Allocation breakdowns, performance over time and dividend tracking are part of the next phase."
         />
       </div>
     </div>

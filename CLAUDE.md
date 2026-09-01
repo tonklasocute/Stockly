@@ -10,8 +10,9 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 1 (MVP) complete.** Auth, portfolios, transaction CRUD, the holdings/P&L engine and
-the dashboard are implemented. Prices come from a mock provider. See [Development Phases](#development-phases).
+**Status: Phase 2 complete.** On top of the phase 1 MVP: live market data behind a provider
+interface, stock search, stock detail pages with price charts, and the watchlist. See
+[Development Phases](#development-phases).
 
 ## Commands
 
@@ -38,9 +39,10 @@ No E2E runner is installed yet; add Playwright in the phase that writes the firs
 | Server state | TanStack Query | the default for anything from the network |
 | Client state | Zustand | only when state is shared across unrelated trees; not a default |
 | Forms | React Hook Form + Zod | one Zod schema reused by form and API route |
-| Charts | Recharts (allocation, performance) / Lightweight Charts (price series) | see `docs/ARCHITECTURE.md` |
+| Charts | Recharts | one library covers the donut and the price area chart; Lightweight Charts only earns its place when candlesticks do |
 | Backend | Next.js Route Handlers | no separate service; see extraction path below |
 | DB / Auth | Supabase (PostgreSQL + Auth + RLS) | RLS is the primary authorization boundary |
+| Market data | Twelve Data, behind `MarketDataProvider` | free tier: 8 credits/min, 800/day, **1 credit per symbol** |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Deploy | Vercel | |
 
@@ -56,11 +58,17 @@ Read `docs/ARCHITECTURE.md` before designing anything non-trivial. The decisions
    that can drift out of sync. `features/portfolios/portfolio-view.ts` is the only caller.
 2. **Calculations live in `domain/`** — pure functions, no React, no Supabase, no `fetch`. Everything
    money-related is unit-testable without a database. UI components never compute P&L inline.
-3. **Market data goes through one interface.** `services/market-data/` exposes a `MarketDataProvider`
-   (`getQuote`, `getHistoricalPrices`, `searchSymbol`, `getCompanyProfile`). No provider name (Finnhub,
-   Twelve Data, …) may appear outside that folder. Provider calls are **server-side only** — API keys
-   never reach the client.
-4. **Every user-owned table carries `user_id` and has RLS enabled**, default-deny. Do not rely on
+3. **Market data goes through one interface.** `services/market-data/types.ts` defines
+   `MarketDataProvider`; `index.ts` picks the implementation from `MARKET_DATA_PROVIDER`. No provider
+   name may appear outside that folder, and no provider payload shape may escape its adapter — every
+   response is Zod-parsed into the domain model at the boundary.
+   Provider calls are **server-side only**: the key is read through `lib/env.server.ts`, which imports
+   `server-only`, so a client import is a build error rather than a leak.
+4. **Every upstream call is cached by TTL, never by component render.** `services/market-data/http.ts`
+   is the single fetch, using the Next Data Cache (`next: { revalidate }`), which is shared across
+   serverless instances. Quotes 60s, history 5 min–6 h, search and profiles 24 h. One batched quote
+   call prices a whole portfolio.
+5. **Every user-owned table carries `user_id` and has RLS enabled**, default-deny. Do not rely on
    route handlers alone to scope queries.
 
 ### Folder structure
@@ -101,6 +109,9 @@ Do not create new folders or abstractions "for later". Add them when the second 
 - Handle errors explicitly. No empty `catch`. No swallowed promise rejections.
 - Money and quantities: never accumulate through JS floats across many rows. Aggregate in SQL
   (`numeric`) or via the shared helpers in `domain/`, and format only at the edge.
+- A provider field that may be missing is `null`, never `0`, all the way to the UI, where it renders
+  as `N/A`. A fabricated zero in a financial figure is worse than an admitted gap.
+- Symbols pass through `normalizeSymbol` before they are used as a key, a query param, or a row value.
 
 ## Naming Convention
 
@@ -115,6 +126,20 @@ Database          snake_case          tables plural, columns singular
 API routes        kebab-case          /api/cash-transactions
 Zod schemas       xxxSchema           createTransactionSchema
 ```
+
+## Market Data Rules
+
+- Add a provider by writing an adapter next to `twelve-data-provider.ts` and adding one `case` to
+  `getMarketDataProvider()`. Nothing outside `services/market-data/` changes.
+- Never call a provider from a client component or from a loop over holdings. Batch through
+  `getQuotes`, once, on the server.
+- Every method resolves or throws `MarketDataError`. A missing symbol is `null` or `[]`, not an error;
+  a rate limit or an outage is an error. Route handlers turn those into the shared envelope with a
+  `MARKET_DATA_*` code, and the raw provider text is logged, never returned.
+- Market data must never take a page down: `loadPortfolioView` falls back to cost, flags the holdings
+  `stale`, and the page says so.
+- Do not infer market status from the browser clock. Ask the provider, or show "unavailable".
+- Client polling is opt-in per component, only while the market is open, and never in a background tab.
 
 ## API Rules
 
@@ -190,7 +215,7 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 |---|---|
 | 0 ✅ | Foundation: CLAUDE.md, architecture doc, folder structure, `.env.example` |
 | 1 ✅ | MVP: auth, portfolios, transactions, derived holdings, dashboard, P&L |
-| 2 | Market data: symbol search, quotes, historical prices, charts, watchlist |
+| 2 ✅ | Market data: symbol search, quotes, historical prices, charts, watchlist |
 | 3 | Analytics: allocation, performance, dividends, realized/unrealized breakdown |
 | 4 | PWA: service worker, offline fallback (manifest, icons and metadata already shipped in phase 1) |
 | 5 | Alerts: price / target buy / stop loss / take profit, notifications |

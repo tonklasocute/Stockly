@@ -36,4 +36,14 @@ select p.id, p.user_id, v.symbol, v.side::public.transaction_side,
    ('SOFI', 'sell',  20,  20,  15, 1.0, 'Trimmed')
  ) as v(symbol, side, days_ago, quantity, price, fee, notes);
 
-select count(*) as seeded_transactions from public.transactions where user_id = :'seed_user_id';
+delete from public.watchlist_items where user_id = :'seed_user_id';
+
+insert into public.watchlist_items (user_id, symbol, market, name, exchange, target_price)
+values
+  (:'seed_user_id', 'PLTR', 'US', 'Palantir Technologies Inc.', 'NASDAQ', 140),
+  (:'seed_user_id', 'AMD',  'US', 'Advanced Micro Devices, Inc.', 'NASDAQ', null),
+  (:'seed_user_id', 'TSLA', 'US', 'Tesla, Inc.', 'NASDAQ', 220);
+
+select
+  (select count(*) from public.transactions   where user_id = :'seed_user_id') as seeded_transactions,
+  (select count(*) from public.watchlist_items where user_id = :'seed_user_id') as seeded_watchlist;
