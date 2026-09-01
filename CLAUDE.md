@@ -10,11 +10,10 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 0 (foundation).** No feature code exists yet. See [Development Phases](#development-phases).
+**Status: Phase 1 (MVP) complete.** Auth, portfolios, transaction CRUD, the holdings/P&L engine and
+the dashboard are implemented. Prices come from a mock provider. See [Development Phases](#development-phases).
 
 ## Commands
-
-Nothing is scaffolded yet. Once Phase 1 initializes the Next.js app, the intended commands are:
 
 ```bash
 npm run dev              # dev server
@@ -22,13 +21,13 @@ npm run build            # production build
 npm run lint             # eslint
 npm run typecheck        # tsc --noEmit
 npm test                 # vitest (unit)
-npm test -- portfolio    # single test file / pattern
-npm run test:e2e         # playwright
-npx supabase db diff -f <name>   # generate a migration from local schema changes
-npx supabase gen types typescript --local > types/supabase.ts
+npm test -- holdings     # a single test file / pattern
+npx supabase gen types typescript --local > types/database.ts   # once a project exists
 ```
 
 Keep this section accurate — update it in the same change that adds or renames a script.
+
+No E2E runner is installed yet; add Playwright in the phase that writes the first spec, not before.
 
 ## Tech Stack
 
@@ -42,7 +41,7 @@ Keep this section accurate — update it in the same change that adds or renames
 | Charts | Recharts (allocation, performance) / Lightweight Charts (price series) | see `docs/ARCHITECTURE.md` |
 | Backend | Next.js Route Handlers | no separate service; see extraction path below |
 | DB / Auth | Supabase (PostgreSQL + Auth + RLS) | RLS is the primary authorization boundary |
-| Tests | Vitest + Testing Library, Playwright | |
+| Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Deploy | Vercel | |
 
 **No Go microservice.** Business logic lives in `domain/` with zero framework imports so it can be
@@ -52,9 +51,9 @@ ported later if the app ever outgrows Route Handlers. Do not pre-build for that 
 
 Read `docs/ARCHITECTURE.md` before designing anything non-trivial. The decisions that matter most:
 
-1. **Transactions are the source of truth.** Holdings, average cost, realized/unrealized P&L and cash
-   balance are *derived*, never stored as independently mutable rows that can drift out of sync.
-   Start with a SQL view; only materialize if profiling demands it.
+1. **Transactions are the source of truth.** Holdings, average cost and realized/unrealized P&L are
+   *derived* on every request by `domain/holdings.ts`, never stored as independently mutable rows
+   that can drift out of sync. `features/portfolios/portfolio-view.ts` is the only caller.
 2. **Calculations live in `domain/`** — pure functions, no React, no Supabase, no `fetch`. Everything
    money-related is unit-testable without a database. UI components never compute P&L inline.
 3. **Market data goes through one interface.** `services/market-data/` exposes a `MarketDataProvider`
@@ -76,9 +75,10 @@ domain/      pure business logic + calculations. No framework imports. Heavily t
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/).
 types/       shared types, generated types/supabase.ts.
-supabase/    migrations/, seed.sql, config.
-tests/       e2e specs. Unit tests live next to the source as *.test.ts.
+supabase/    migrations/, seed.sql.
 docs/        architecture and design docs.
+
+Unit tests live next to the source as *.test.ts. Add a tests/ folder when the first E2E spec exists.
 ```
 
 Deliberately **not** top-level: `hooks/`, `utils/`, `schemas/`. Hooks and schemas belong to the feature
@@ -189,10 +189,10 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | Phase | Scope |
 |---|---|
 | 0 ✅ | Foundation: CLAUDE.md, architecture doc, folder structure, `.env.example` |
-| 1 | MVP: auth, portfolios, transactions, derived holdings, dashboard, P&L |
+| 1 ✅ | MVP: auth, portfolios, transactions, derived holdings, dashboard, P&L |
 | 2 | Market data: symbol search, quotes, historical prices, charts, watchlist |
 | 3 | Analytics: allocation, performance, dividends, realized/unrealized breakdown |
-| 4 | PWA: manifest, service worker, installability, offline fallback, mobile polish |
+| 4 | PWA: service worker, offline fallback (manifest, icons and metadata already shipped in phase 1) |
 | 5 | Alerts: price / target buy / stop loss / take profit, notifications |
 | 6 | Advanced: technical indicators, screener, AI analysis, multi-market, multi-currency |
 
@@ -202,3 +202,13 @@ Do not start the next phase without being asked.
 
 UX/functionality inspiration only: https://saph-set.pages.dev/ — do not copy its source, assets,
 branding, or reproduce its design pixel-for-pixel. Stockly's UI is our own.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
