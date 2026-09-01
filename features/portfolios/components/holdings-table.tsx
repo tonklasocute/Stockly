@@ -110,7 +110,7 @@ export function HoldingsTable({
             {visible.map((h) => (
               <li key={h.symbol} className="bg-card rounded-xl border p-3.5">
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/stocks/${h.symbol}`} className="min-w-0">
+                  <Link href={`/stocks/${h.symbol}`} className="tap min-w-0 flex-col !items-start">
                     <p className="font-semibold underline-offset-4 hover:underline">{h.symbol}</p>
                     <p className="text-muted-foreground truncate text-xs">
                       {names[h.symbol] ?? `${formatQuantity(h.quantity)} shares`}
@@ -171,7 +171,7 @@ export function HoldingsTable({
                     <TableCell>
                       <Link
                         href={`/stocks/${h.symbol}`}
-                        className="font-medium underline-offset-4 hover:underline"
+                        className="tap font-medium underline-offset-4 hover:underline"
                       >
                         {h.symbol}
                       </Link>

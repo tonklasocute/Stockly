@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { LineChart } from "lucide-react"
@@ -12,6 +12,21 @@ import { cn } from "@/lib/utils"
 import type { Candle, Range } from "@/services/market-data/types"
 
 const RANGES: Range[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]
+
+/**
+ * A 390px screen cannot show 252 daily closes — the extra points are sub-pixel, and every one of
+ * them is an SVG path segment to lay out and repaint. Keeping roughly one point per two pixels drops
+ * the work without changing what the chart says; the first and last candle always survive, so the
+ * range's endpoints stay exact.
+ */
+function downsample(candles: Candle[], maxPoints: number): Candle[] {
+  if (candles.length <= maxPoints) return candles
+  const step = Math.ceil(candles.length / maxPoints)
+  const out = candles.filter((_, index) => index % step === 0)
+  const last = candles[candles.length - 1]
+  if (out[out.length - 1] !== last) out.push(last)
+  return out
+}
 
 function labelFor(date: string, range: Range): string {
   const parsed = new Date(date.includes("T") || date.includes(" ") ? date : `${date}T00:00:00Z`)
@@ -43,7 +58,13 @@ export function PriceChart({
     retry: false,
   })
 
-  const candles = data?.candles ?? []
+  const raw = data?.candles ?? []
+  // Measured once per render rather than on resize: the difference between 150 and 250 points is
+  // invisible, so re-downsampling as the window changes would be work for nothing.
+  const candles = useMemo(() => {
+    const width = typeof window === "undefined" ? 1024 : window.innerWidth
+    return downsample(raw, width < 640 ? 160 : width < 1024 ? 240 : 400)
+  }, [raw])
   const closes = candles.map((c) => c.close)
   // A chart of prices should not start at zero — it flattens every real move.
   const min = closes.length ? Math.min(...closes) : 0
@@ -54,7 +75,11 @@ export function PriceChart({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1" role="tablist" aria-label="Chart range">
+      <div
+        className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Chart range"
+      >
         {RANGES.map((value) => (
           <button
             key={value}
@@ -63,7 +88,7 @@ export function PriceChart({
             aria-selected={range === value}
             onClick={() => setRange(value)}
             className={cn(
-              "min-h-8 rounded-lg px-2.5 text-xs font-medium transition-colors",
+              "min-h-8 shrink-0 rounded-lg px-2.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-3",
               range === value
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground hover:bg-accent/60",

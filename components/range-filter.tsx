@@ -24,7 +24,7 @@ export function RangeFilter({ current }: { current: TimeRange }) {
     <div
       role="tablist"
       aria-label="Time range"
-      className="flex flex-wrap gap-1 overflow-x-auto"
+      className="-mx-1 flex max-w-full snap-x gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {TIME_RANGES.map((range) => (
         <button
@@ -34,7 +34,7 @@ export function RangeFilter({ current }: { current: TimeRange }) {
           aria-selected={current === range}
           onClick={() => select(range)}
           className={cn(
-            "min-h-8 shrink-0 rounded-lg px-2.5 text-xs font-medium transition-colors",
+            "min-h-8 shrink-0 snap-start rounded-lg px-2.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:px-3",
             current === range
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent/60",

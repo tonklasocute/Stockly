@@ -101,7 +101,7 @@ export function TransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} noValidate>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit transaction" : "Add transaction"}</DialogTitle>

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Delta, Percent } from "@/components/value"
 import { toTimeRange, withinRange, type TimeRange } from "@/domain/analytics"
 import { RangeFilter } from "@/components/range-filter"
-import { AllocationDonut, PerformanceChart } from "@/features/analytics/components/charts"
+import { AllocationDonut, PerformanceChart } from "@/features/analytics/components/lazy-charts"
 import { AllocationTable } from "@/features/analytics/components/allocation-table"
 import { ExportMenu } from "@/features/analytics/components/export-menu"
 import { loadAnalytics, recordSnapshot } from "@/features/analytics/portfolio-analytics"
@@ -446,7 +446,7 @@ function MoverList({
           />
           <Link
             href={`/stocks/${mover.symbol}`}
-            className="flex-1 font-medium underline-offset-4 hover:underline"
+            className="tap flex-1 font-medium underline-offset-4 hover:underline"
           >
             {mover.symbol}
           </Link>

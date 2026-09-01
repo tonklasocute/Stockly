@@ -6,7 +6,9 @@ import { useSearchParams } from "next/navigation"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { cn } from "@/lib/utils"
 import { PortfolioDialog } from "@/features/portfolios/components/portfolio-dialog"
+import { NetworkStatus } from "@/features/pwa/components/network-status"
 import { StockSearch } from "@/features/stocks/components/stock-search"
 import type { PortfolioRow } from "@/types/database"
 import { MobileTabBar, SidebarNav } from "./sidebar-nav"
@@ -14,13 +16,18 @@ import { PortfolioSwitcher } from "./portfolio-switcher"
 import { ThemeToggle } from "./theme-toggle"
 import { UserMenu } from "./user-menu"
 
-function Wordmark() {
+function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5">
+    <Link
+      href="/dashboard"
+      className="flex items-center gap-2.5 pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:py-2"
+    >
       <span className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-xs font-bold">
         S
       </span>
-      <span className="font-semibold tracking-tight">Stockly</span>
+      <span className={cn("font-semibold tracking-tight", compact && "max-sm:sr-only")}>
+        Stockly
+      </span>
     </Link>
   )
 }
@@ -63,11 +70,15 @@ export function AppChrome({
                 <Wordmark />
               </div>
               <SidebarNav onNavigate={() => setMenuOpen(false)} />
+              <div className="mt-4 flex items-center justify-between border-t px-3 pt-4 sm:hidden">
+                <span className="text-muted-foreground text-sm">Appearance</span>
+                <ThemeToggle />
+              </div>
             </SheetContent>
           </Sheet>
 
           <span className="lg:hidden">
-            <Wordmark />
+            <Wordmark compact />
           </span>
 
           <div className="ml-auto flex items-center gap-1.5">
@@ -77,10 +88,14 @@ export function AppChrome({
               activeId={activeId}
               onCreate={() => setCreating(true)}
             />
-            <ThemeToggle />
+            <span className="max-sm:hidden">
+              <ThemeToggle />
+            </span>
             <UserMenu email={email} />
           </div>
         </header>
+
+        <NetworkStatus />
 
         {/* Bottom padding clears the mobile tab bar. */}
         <main className="min-w-0 flex-1 px-4 pt-5 pb-24 sm:px-6 lg:pb-8">{children}</main>

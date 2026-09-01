@@ -10,9 +10,9 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 3 complete.** On top of phases 1–2: analytics (allocation, concentration,
-contribution, trade and fee statistics), dividend tracking with two distinct yields, cash management,
-portfolio snapshots and CSV export. See [Development Phases](#development-phases).
+**Status: Phase 4 complete.** On top of phases 1–3: an installable PWA with a service worker,
+offline app shell, install flows for iOS and Android, and a touch-first mobile pass. See
+[Development Phases](#development-phases).
 
 ## Commands
 
@@ -23,6 +23,7 @@ npm run lint             # eslint
 npm run typecheck        # tsc --noEmit
 npm test                 # vitest (unit)
 npm test -- holdings     # a single test file / pattern
+npm start                # serve the production build (PWA needs a real build, not `next dev`)
 npx supabase gen types typescript --local > types/database.ts   # once a project exists
 ```
 
@@ -211,15 +212,28 @@ Always: parse `process.env` once through `lib/env.ts` and fail fast at startup o
 
 ## PWA Rules
 
-- Manifest via `app/manifest.ts` (Next.js native). `display: standalone`, theme + background colours
-  matching light/dark.
-- Icons: 192 / 512 / 512-maskable, plus `apple-touch-icon` (iOS ignores the manifest icons).
-- Service worker registered from a small client component; cache the app shell and static assets, and
-  serve an offline fallback page. **Never cache quotes, holdings, or any authenticated API response.**
-- Respect iOS: `viewport-fit=cover` and `env(safe-area-inset-*)` padding on fixed headers and the
-  bottom navigation. Touch targets ≥ 44px.
-- Mobile-first: bottom navigation on small screens, tables become cards, charts stay readable at 375px.
-- Light and dark mode are both first-class.
+Full detail in [`docs/PWA.md`](docs/PWA.md).
+
+- **Nothing authenticated is ever written to a cache.** The service worker does not intercept
+  `/api/**`, `/auth/**`, non-GET requests, other origins, or any navigation response. Adding a cache
+  rule that touches user data is the one change that needs a second opinion.
+- Navigations are network-only with `/offline` as the fallback. Quotes and history are cached on the
+  **server** by TTL, where the cache is not tied to a device that may have several users.
+- Sign-out clears the query cache and every service-worker cache before ending the session.
+- The worker is registered as `/sw.js?v=<APP_VERSION>` from `lib/version.ts` — bump that one constant
+  to invalidate caches. Never hardcode a version inside `sw.js`.
+- An update is offered, never forced: a reload mid-form loses the user's input.
+- Manifest via `app/manifest.ts`. iOS ignores it, so `appleWebApp` metadata and `apple-touch-icon`
+  carry the iOS install path; Safari has no install API, so iOS gets instructions, not a fake button.
+- **Touch targets use `pointer-coarse:`, not a width breakpoint.** A 768px iPad is a touch device and
+  a 640px desktop window is not. ≥44px whenever the pointer is coarse.
+- Dialogs are bottom sheets on touch-sized screens, centred from `sm` up.
+- Mobile-first: bottom tab bar (four items), tables become cards below `lg`, no horizontal page
+  scroll at 390px. Light and dark mode are both first-class.
+- Charts load through `next/dynamic` with `ssr: false`. The login page must never pull the chart
+  library.
+- Every PWA capability degrades: no service worker, blocked storage or no install event costs a
+  feature and nothing else.
 
 ## Git Convention
 
@@ -245,7 +259,7 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 1 ✅ | MVP: auth, portfolios, transactions, derived holdings, dashboard, P&L |
 | 2 ✅ | Market data: symbol search, quotes, historical prices, charts, watchlist |
 | 3 ✅ | Analytics: allocation, performance, dividends, cash, realized/unrealized breakdown |
-| 4 | PWA: service worker, offline fallback (manifest, icons and metadata already shipped in phase 1) |
+| 4 ✅ | PWA: service worker, offline shell, install flows, mobile/touch pass |
 | 5 | Alerts: price / target buy / stop loss / take profit, notifications |
 | 6 | Advanced: technical indicators, screener, AI analysis, multi-market, multi-currency |
 

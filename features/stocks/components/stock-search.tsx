@@ -84,7 +84,7 @@ export function StockSearch() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="top-[10dvh] max-h-[80dvh] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogContent className="gap-0 p-0 sm:top-[12dvh] sm:max-w-lg sm:translate-y-0">
           <DialogTitle className="sr-only">Search stocks</DialogTitle>
 
           <div className="flex items-center gap-2.5 border-b px-4">
@@ -99,7 +99,7 @@ export function StockSearch() {
             {isFetching && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-hidden />}
           </div>
 
-          <div className="max-h-[60dvh] overflow-y-auto p-1.5">
+          <div className="max-h-[55dvh] overflow-y-auto p-1.5 sm:max-h-[60dvh]">
             {trimmed.length < 2 && (
               <p className="text-muted-foreground px-3 py-8 text-center text-sm">
                 Type at least two characters to search.

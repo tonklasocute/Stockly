@@ -3,10 +3,13 @@
 Personal stock portfolio tracker — a Next.js web app that installs as a PWA. Record buy and sell
 transactions; Stockly derives your holdings, average cost, and realized and unrealized profit and loss.
 
-**Phases 1–3 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
+**Phases 1–4 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
 engine, the dashboard; live market data — stock search, quotes, price charts, company profiles and a
 watchlist; and analytics — allocation, concentration, contribution, trade and fee statistics,
-dividend tracking, cash management and CSV export.
+dividend tracking, cash management and CSV export; and an installable PWA with an offline app shell.
+
+Install it from Chrome (Install app) or iOS Safari (Share → Add to Home Screen). The service worker
+only runs in a production build — use `npm run build && npm start` to try it locally.
 
 ## Getting started
 

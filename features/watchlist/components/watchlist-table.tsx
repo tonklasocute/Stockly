@@ -155,7 +155,7 @@ export function WatchlistTable({
           <ul className="grid gap-2 lg:hidden">
             {visible.map((item) => (
               <li key={item.id} className="bg-card flex items-center gap-3 rounded-xl border p-3.5">
-                <Link href={`/stocks/${item.symbol}`} className="min-w-0 flex-1">
+                <Link href={`/stocks/${item.symbol}`} className="tap min-w-0 flex-1 flex-col !items-start">
                   <span className="block font-semibold">{item.symbol}</span>
                   <span className="text-muted-foreground block truncate text-xs">
                     {item.name ?? item.exchange ?? "—"}
@@ -188,7 +188,7 @@ export function WatchlistTable({
                     <TableCell>
                       <Link
                         href={`/stocks/${item.symbol}`}
-                        className="font-medium underline-offset-4 hover:underline"
+                        className="tap font-medium underline-offset-4 hover:underline"
                       >
                         {item.symbol}
                       </Link>

@@ -234,7 +234,7 @@ export function createTwelveDataProvider(config: {
       return out
     },
 
-    async getHistoricalPrices(symbol, range, market = "US") {
+    async getHistoricalPrices(symbol, range) {
       const normalized = normalizeSymbol(symbol)
       if (!normalized) return []
       const { interval, outputsize } = RANGE_QUERY[range]

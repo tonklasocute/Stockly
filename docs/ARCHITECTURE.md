@@ -195,15 +195,26 @@ third party is down is worse than one that shows cost basis and says so.
 
 ## 8. PWA
 
-- `app/manifest.ts` (Next.js native) — no plugin needed for the manifest.
-- Phase 1 ships the manifest, icons, `apple-touch-icon`, theme colour and `viewport-fit=cover` only.
-  No service worker yet — that is phase 4, and an unversioned one caching an authenticated app is
-  worse than none.
-- When it arrives: precache the shell and static assets, network-first for pages, an offline fallback
-  route, and **never cache authenticated API responses** — a stale portfolio value is worse than no
-  value. `ponytail:` ceiling — move to Serwist if precaching and versioning get fiddly.
-- iOS specifics: `apple-touch-icon` (the manifest icons are ignored), `viewport-fit=cover`, and
-  `env(safe-area-inset-bottom)` on the bottom navigation.
+Full detail in [PWA.md](PWA.md). The decision that shaped everything else:
+
+**The service worker caches no authenticated data — none.** Every page in Stockly is server-rendered
+per user, so a cached page is another user's portfolio waiting to be replayed on a shared device. The
+worker therefore skips `/api/**`, `/auth/**`, every non-GET request, every other origin, and every
+navigation response. It holds exactly two things: the precached `/offline` page with the icons, and
+content-hashed `_next/static` output.
+
+That is also why it is hand-written rather than generated. A runtime-caching plugin's defaults are
+tuned for content sites; here a wrong default is a data leak, and the whole worker is 120 lines.
+
+Quote and history caching stays on the **server**, in the Next Data Cache, where entries are keyed by
+request rather than by device and no session is involved.
+
+Versioning: registered as `/sw.js?v=<APP_VERSION>`. A changed URL is a different worker, so a release
+rolls out on its own and `lib/version.ts` remains the single source of truth — no build step rewrites
+`sw.js`. Updates are offered, never forced; reloading mid-form would discard the user's input.
+
+`ponytail:` ceiling — move to Serwist only if precaching manifests or navigation preload become
+necessary. Neither is today.
 
 ## 9. Watchlist
 

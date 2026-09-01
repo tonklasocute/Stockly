@@ -1,6 +1,9 @@
 "use client"
 
-import { LogOut, User } from "lucide-react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { Loader2, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,8 +13,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { clearServiceWorkerCaches } from "@/features/pwa/components/service-worker"
+import { clearInstallDismissal } from "@/features/pwa/use-pwa"
 
 export function UserMenu({ email }: { email: string }) {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const [signingOut, setSigningOut] = useState(false)
+
+  /**
+   * Signing out clears everything this device holds for the user before the session ends.
+   *
+   * No authenticated response is ever written to the service worker cache, so this is
+   * belt-and-braces — but on a shared device the cost of being wrong is another person's portfolio,
+   * and the cost of being careful is three lines.
+   */
+  async function signOut() {
+    setSigningOut(true)
+    queryClient.clear()
+    await clearServiceWorkerCaches()
+    clearInstallDismissal()
+    // A POST, so a prefetch or a crawler can never sign the user out.
+    await fetch("/auth/signout", { method: "POST" })
+    router.replace("/login")
+    router.refresh()
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Account menu" />}>
@@ -23,13 +50,21 @@ export function UserMenu({ email }: { email: string }) {
           <span className="truncate text-sm font-medium">{email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* A POST, so a prefetch or a crawler can never sign the user out. */}
-        <form action="/auth/signout" method="post">
-          <DropdownMenuItem render={<button type="submit" />} className="w-full gap-2">
+        <DropdownMenuItem
+          className="gap-2"
+          disabled={signingOut}
+          onSelect={(event) => {
+            event.preventDefault()
+            void signOut()
+          }}
+        >
+          {signingOut ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
             <LogOut className="size-4" aria-hidden />
-            Sign out
-          </DropdownMenuItem>
-        </form>
+          )}
+          Sign out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

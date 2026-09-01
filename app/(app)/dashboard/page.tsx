@@ -6,7 +6,7 @@ import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
-import { AllocationChart } from "@/features/dashboard/components/allocation-chart"
+import { AllocationChart } from "@/features/dashboard/components/lazy-allocation-chart"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { namesFrom } from "@/features/portfolios/portfolio-view"
@@ -205,7 +205,7 @@ export default async function DashboardPage({
               <h2 className="text-sm font-semibold">Top holdings</h2>
               <Link
                 href={`/portfolio?p=${active.id}`}
-                className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
               >
                 View all
               </Link>
@@ -213,7 +213,7 @@ export default async function DashboardPage({
             <ul className="divide-y overflow-hidden rounded-xl border">
               {holdings.slice(0, 5).map((h) => (
                 <li key={h.symbol} className="bg-card flex items-center gap-3 px-4 py-3">
-                  <Link href={`/stocks/${h.symbol}`} className="min-w-0 flex-1">
+                  <Link href={`/stocks/${h.symbol}`} className="tap min-w-0 flex-1 flex-col !items-start">
                     <p className="font-medium underline-offset-4 hover:underline">{h.symbol}</p>
                     <p className="text-muted-foreground truncate text-xs">
                       {names[h.symbol] ?? `${h.quantity} @ ${formatCurrency(h.averageCost, currency)}`}

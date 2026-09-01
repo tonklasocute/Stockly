@@ -144,6 +144,18 @@
     font-feature-settings: "tnum";
   }
 
+  /* Inline links inside a dense list row are only as tall as their text. On a touch device they
+     grow to a real target without moving anything, because the extra height is negative margin. */
+  @media (pointer: coarse) {
+    .tap {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.75rem;
+      margin-block: -0.5rem;
+      padding-block: 0.5rem;
+    }
+  }
+
   /* Installed as a PWA the app fills the screen, including the notch and the home indicator. */
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
