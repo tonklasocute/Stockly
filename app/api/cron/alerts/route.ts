@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { isAuthorizedCronRequest } from "@/features/alerts/cron-auth"
 import { evaluateAllAlerts } from "@/features/alerts/evaluate"
+import { sweepExpiredAIData } from "@/features/ai/queries"
 import { refreshSnapshots } from "@/features/technical/snapshots"
 import { serverEnv } from "@/lib/env.server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -37,9 +38,17 @@ export async function GET(request: Request) {
     const technical = await refreshSnapshots(supabase, 12)
     const summary = await evaluateAllAlerts(supabase)
 
+    // Retention. Two indexed deletes that almost always match nothing, riding a job that already
+    // holds the only service-role credential in the app — rather than a second scheduler, a second
+    // secret and a second endpoint to protect.
+    const retention = await sweepExpiredAIData(supabase).catch((error: unknown) => {
+      console.error("[cron:alerts] ai retention sweep failed", error)
+      return null
+    })
+
     // Structured, and free of anything identifying: counters only, no user ids or symbols.
-    console.info("[cron:alerts]", JSON.stringify({ ...summary, technical }))
-    return NextResponse.json({ success: true, data: { ...summary, technical } })
+    console.info("[cron:alerts]", JSON.stringify({ ...summary, technical, retention }))
+    return NextResponse.json({ success: true, data: { ...summary, technical, retention } })
   } catch (error) {
     console.error("[cron:alerts] failed", error)
     return NextResponse.json(

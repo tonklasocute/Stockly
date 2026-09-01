@@ -227,6 +227,45 @@ export type SavedScreenRow = {
   updated_at: string
 }
 
+export type AIConversationRow = {
+  id: string
+  user_id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+export type AIMessageRole = "user" | "assistant"
+
+export type AIMessageRow = {
+  id: string
+  conversation_id: string
+  user_id: string
+  role: AIMessageRole
+  content: string
+  /** The grounded payload the UI renders as cards. Null for user turns. */
+  data: unknown
+  intent: string | null
+  symbols: string[]
+  created_at: string
+}
+
+export type AIUsageRow = {
+  id: string
+  user_id: string
+  provider: string
+  model: string
+  intent: string | null
+  symbols: string[]
+  input_tokens: number
+  output_tokens: number
+  estimated_cost: number | null
+  latency_ms: number | null
+  status: "ok" | "error"
+  error_code: string | null
+  created_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -315,6 +354,25 @@ export type Database = {
         Row: SavedScreenRow
         Insert: Omit<SavedScreenRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Omit<SavedScreenRow, "id" | "user_id" | Timestamps>>
+        Relationships: []
+      }
+      ai_conversations: {
+        Row: AIConversationRow
+        Insert: Omit<AIConversationRow, "id" | Timestamps> & { id?: string }
+        // updated_at is settable: touching a conversation is how the history list stays ordered.
+        Update: Partial<Omit<AIConversationRow, "id" | "user_id" | "created_at">>
+        Relationships: []
+      }
+      ai_messages: {
+        Row: AIMessageRow
+        Insert: Omit<AIMessageRow, "id" | "created_at"> & { id?: string }
+        Update: never
+        Relationships: []
+      }
+      ai_usage: {
+        Row: AIUsageRow
+        Insert: Omit<AIUsageRow, "id" | "created_at"> & { id?: string }
+        Update: never
         Relationships: []
       }
       watchlist_items: {

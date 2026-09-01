@@ -7,6 +7,7 @@ import {
   Eye,
   LayoutDashboard,
   Settings,
+  Sparkles,
   Telescope,
   Wallet,
 } from "lucide-react"
@@ -22,6 +23,7 @@ export const NAV_ITEMS = [
   { href: "/portfolio", label: "Portfolio", icon: Wallet, mobile: true, badge: null },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight, mobile: true, badge: null },
   { href: "/notifications", label: "Notifications", icon: Bell, mobile: true, badge: "unread" },
+  { href: "/ai", label: "Stockly AI", icon: Sparkles, mobile: false, badge: null },
   { href: "/analytics", label: "Analytics", icon: BarChart3, mobile: false, badge: null },
   { href: "/alerts", label: "Alerts", icon: Bell, mobile: false, badge: null },
   { href: "/screener", label: "Screener", icon: Telescope, mobile: false, badge: null },

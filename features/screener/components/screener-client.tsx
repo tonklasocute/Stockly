@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
+import { NaturalLanguageScreener } from "@/features/ai/components/nl-screener"
 import {
   CROSSABLE_METRICS,
   METRIC_LABELS,
@@ -94,7 +95,13 @@ function suffixFor(metric: ScreenerMetric): string {
   return ""
 }
 
-export function ScreenerClient({ savedScreens }: { savedScreens: SavedScreenRow[] }) {
+export function ScreenerClient({
+  savedScreens,
+  aiEnabled = false,
+}: {
+  savedScreens: SavedScreenRow[]
+  aiEnabled?: boolean
+}) {
   const [definition, setDefinition] = useState<ScreenerDefinition>(
     SCREENER_PRESETS[0]?.definition ?? EMPTY,
   )
@@ -285,6 +292,10 @@ export function ScreenerClient({ savedScreens }: { savedScreens: SavedScreenRow[
 
   return (
     <div className="space-y-6">
+      {/* The AI only ever fills in the editor below. Running the screen stays a deliberate press
+          of "Run screener", against the same endpoint a hand-built screen uses. */}
+      <NaturalLanguageScreener enabled={aiEnabled} onApply={setDefinition} />
+
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Presets</h2>
         <p className="text-muted-foreground text-xs">

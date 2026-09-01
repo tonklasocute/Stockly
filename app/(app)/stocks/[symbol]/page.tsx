@@ -8,6 +8,7 @@ import { CompanyProfileCard } from "@/features/stocks/components/company-profile
 import { LiveQuote } from "@/features/stocks/components/live-quote"
 import { PriceChart } from "@/features/stocks/components/lazy-price-chart"
 import { StockOverview } from "@/features/stocks/components/stock-overview"
+import { StockAIPanel } from "@/features/ai/components/stock-ai-panel"
 import { TechnicalPanel } from "@/features/technical/components/technical-panel"
 import { QuickAlert } from "@/features/alerts/components/quick-alert"
 import { listAlerts } from "@/features/alerts/queries"
@@ -17,6 +18,7 @@ import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
 import { formatCurrency, formatQuantity } from "@/lib/format"
 import { isValidSymbol, normalizeSymbol } from "@/lib/symbol"
+import { isAIEnabled } from "@/services/ai"
 import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
 import type { CompanyProfile, Quote } from "@/services/market-data/types"
 
@@ -99,6 +101,11 @@ export default async function StockPage({ params, searchParams }: Props) {
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="mb-4 text-sm font-semibold">Technical overview</h2>
         <TechnicalPanel symbol={symbol} currency={currency} />
+      </section>
+
+      <section className="bg-card rounded-xl border p-4 sm:p-5">
+        <h2 className="mb-4 text-sm font-semibold">Stockly AI</h2>
+        <StockAIPanel symbol={symbol} enabled={isAIEnabled()} />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">

@@ -12,10 +12,17 @@ export const screenerFilterSchema = z.object({
   metric: z.enum(SCREENER_METRICS),
   operator: z.enum(SCREENER_OPERATORS),
   // A number, or one of the three trend names. Nothing else is representable.
-  value: z.union([
-    z.coerce.number<number>().finite("Enter a number.").min(-1e12).max(1e15),
-    z.enum(["bullish", "bearish", "neutral"]),
-  ]),
+  //
+  // `null` and booleans are turned into NaN before coercion so they fail rather than becoming 0.
+  // Coercion exists because the filter editor sends numbers as form strings; it is not licence for
+  // "no value" to arrive as a threshold of zero, which would silently screen for RSI above 0.
+  value: z.preprocess(
+    (input) => (input === null || typeof input === "boolean" ? Number.NaN : input),
+    z.union([
+      z.coerce.number<number>().finite("Enter a number.").min(-1e12).max(1e15),
+      z.enum(["bullish", "bearish", "neutral"]),
+    ]),
+  ),
 })
 
 export const screenerDefinitionSchema = z.object({

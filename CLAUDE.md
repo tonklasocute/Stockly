@@ -10,9 +10,11 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 6 complete.** On top of phases 1–5: a technical indicator engine, explainable
-technical scoring, a structured stock screener with saved screens, and technical alerts riding the
-existing alert engine. See [Development Phases](#development-phases).
+**Status: Phase 7 complete.** On top of phases 1–6: an AI research assistant that answers questions
+about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
+never in the model's memory — plus a natural-language screener that proposes filters for you to
+review. It ships switched off (`AI_ENABLED=false`) and every other feature works unchanged without
+it. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -47,6 +49,7 @@ No E2E runner is installed yet; add Playwright in the phase that writes the firs
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
+| AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
 | Scheduling | Vercel Cron → `/api/cron/alerts` | secret-guarded; any external scheduler works too |
 | Deploy | Vercel | |
 
@@ -89,9 +92,10 @@ features/    feature slices (portfolio/, transactions/, watchlist/, …).
 domain/      pure business logic. No framework imports. Heavily tested.
              money.ts (precision) · holdings.ts (cost basis, P&L) · cash.ts · dividends.ts ·
              analytics.ts (allocation, concentration, contribution, trade + fee statistics) ·
-             alerts.ts (crossing + state machine) · indicators.ts · technical.ts · screener.ts
+             alerts.ts (crossing + state machine) · indicators.ts · technical.ts · screener.ts ·
+             ai.ts (intent, symbol validation, safety vocabulary, data coverage)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
-services/    external integrations behind interfaces (market-data/).
+services/    external integrations behind interfaces (market-data/, ai/).
 types/       shared types, generated types/supabase.ts.
 supabase/    migrations/, seed.sql.
 docs/        architecture and design docs.
@@ -180,6 +184,40 @@ Full detail in [`docs/TECHNICAL-ANALYSIS.md`](docs/TECHNICAL-ANALYSIS.md).
   live price without saying which is which.
 - Technical alerts reuse the phase 5 engine. There is one alert engine; a new condition is a new
   reading, not a new evaluator.
+
+## AI Rules
+
+Full detail in [`docs/AI.md`](docs/AI.md), [`docs/AI-ARCHITECTURE.md`](docs/AI-ARCHITECTURE.md),
+[`docs/AI-SECURITY.md`](docs/AI-SECURITY.md) and [`docs/AI-PROMPTS.md`](docs/AI-PROMPTS.md).
+
+- **The model writes prose; it never produces a number.** The response schema has five text fields
+  and no numeric one. Every figure on screen is retrieved from Stockly's engines and rendered from a
+  structured payload beside the text. Never add a numeric field to that schema.
+- **AI is an interpretation layer, never a source of truth.** Prices come from
+  `services/market-data`, indicators from `technical_snapshots`, the score breakdown from
+  `scoreTechnicals`, portfolio figures from `loadAnalytics`, pass/fail from `matchesFilter`. If the
+  assistant and the dashboard could disagree about a number, the retrieval is wrong.
+- **Stockly AI describes; it never advises and never predicts.** No buy, sell, hold, rating, price
+  target, forecast or guarantee. Stated in the system prompt *and* enforced by `FORBIDDEN_PATTERNS`
+  after generation — a prompt is a request, a check is a guarantee. A non-compliant reply is
+  rewritten once, then the text is withheld and the data is published on its own.
+- **A missing reading is `null` and renders as "unavailable", all the way into the prompt.** A model
+  handed `RSI: 0` will describe a stock as maximally oversold and be right to.
+- **The model gets no tools.** Retrieval finishes before it is called. It cannot query, fetch or
+  execute anything, which is why a prompt injection cannot reach another user's data.
+- **Model output is untrusted input.** Zod-validate it, repair once, then reject. Render it only as
+  React text nodes — no markdown parser, no sanitiser, no `dangerouslySetInnerHTML` in `features/ai`.
+- **The user's words are never part of the system prompt.** `AIMessage` has no `system` role.
+- **Intent detection is a rule, not a model call.** Routing decides what to retrieve, and retrieval
+  must be deterministic. Only what the intent needs is retrieved — an RSI question loads no portfolio.
+- **Every prompt lives in `features/ai/prompts.ts`.** Never assemble one in a route handler.
+- **Natural language becomes a proposal, never an execution.** The screener translator returns
+  `{ metric, operator, value }` through the same closed enums a hand-built screen uses; the user
+  reviews them and the existing `/api/screener` runs them. AI never creates an alert.
+- **The daily limit is counted in `ai_usage`, not in memory**, and fails closed. The in-memory
+  limiter is a per-minute brake, nothing more.
+- **`AI_ENABLED=false` must leave every other feature working**, and both configurations must build.
+- Log what happened, never what was said: no prompt, no answer, no key, no portfolio figure.
 
 ## Alert Rules
 
@@ -312,7 +350,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 4 ✅ | PWA: service worker, offline shell, install flows, mobile/touch pass |
 | 5 ✅ | Alerts: price, percentage, portfolio and position alerts; notification centre; Web Push |
 | 6 ✅ | Technical analysis: indicators, technical score, screener, technical alerts |
-| 7 | Advanced: AI analysis, multi-market, multi-currency |
+| 7 ✅ | AI: provider abstraction, grounded research assistant, natural-language screener, usage and cost controls |
+| 8 | Advanced: multi-market, multi-currency, FX |
 
 Do not start the next phase without being asked.
 

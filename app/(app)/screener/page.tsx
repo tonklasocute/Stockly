@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { ScreenerClient } from "@/features/screener/components/screener-client"
 import { MAX_UNIVERSE_SIZE } from "@/features/technical/universe"
 import { createClient } from "@/lib/supabase/server"
+import { isAIEnabled } from "@/services/ai"
 
 export const metadata: Metadata = { title: "Screener" }
 
@@ -30,7 +31,7 @@ export default async function ScreenerPage() {
         </p>
       )}
 
-      <ScreenerClient savedScreens={screens ?? []} />
+      <ScreenerClient savedScreens={screens ?? []} aiEnabled={isAIEnabled()} />
     </div>
   )
 }

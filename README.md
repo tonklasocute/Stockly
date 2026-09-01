@@ -3,12 +3,14 @@
 Personal stock portfolio tracker — a Next.js web app that installs as a PWA. Record buy and sell
 transactions; Stockly derives your holdings, average cost, and realized and unrealized profit and loss.
 
-**Phases 1–6 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
+**Phases 1–7 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
 engine, the dashboard; live market data — stock search, quotes, price charts, company profiles and a
 watchlist; and analytics — allocation, concentration, contribution, trade and fee statistics,
 dividend tracking, cash management and CSV export; an installable PWA with an offline app shell; server-side alerts with a notification centre and Web
-Push; and technical analysis — indicators, an explainable technical score, a stock screener and
-technical alerts.
+Push; technical analysis — indicators, an explainable technical score, a stock screener and
+technical alerts; and Stockly AI — a research assistant that answers questions about your stocks,
+portfolio and watchlist in plain language, grounded in Stockly's own data, plus a natural-language
+screener. AI ships switched off; everything else works without it.
 
 Install it from Chrome (Install app) or iOS Safari (Share → Add to Home Screen). The service worker
 only runs in a production build — use `npm run build && npm start` to try it locally.
@@ -49,6 +51,25 @@ The free tier allows 8 API credits per minute and 800 per day, and **a batch quo
 per symbol**. Responses are cached server-side (quotes 60s, history and profiles far longer), which
 is what keeps a normal portfolio comfortably inside that budget. See
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full caching table.
+
+### Stockly AI
+
+Off by default. Everything else works exactly the same with it off, and the production build
+succeeds either way.
+
+```bash
+AI_ENABLED=true
+AI_PROVIDER=anthropic          # or openai (also covers local models via AI_BASE_URL), or mock
+AI_API_KEY=your-key            # server-only; never prefix an AI variable with NEXT_PUBLIC_
+AI_MODEL=claude-opus-5
+```
+
+`AI_PROVIDER=mock` needs no account: it returns a clearly-labelled placeholder narrative beside
+entirely real data, which is how the feature and its tests run without spending anything.
+
+The assistant explains and compares; it never gives investment advice, price targets or forecasts,
+and every figure it shows comes from Stockly's own engines rather than from the model. See
+[`docs/AI.md`](docs/AI.md), and [`docs/AI-SECURITY.md`](docs/AI-SECURITY.md) for the limits.
 
 ## Commands
 

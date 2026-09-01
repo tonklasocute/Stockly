@@ -4,4 +4,4 @@
  *
  * Used for support and debugging, not shown in the UI except on the settings page.
  */
-export const APP_VERSION = "0.4.0"
+export const APP_VERSION = "0.5.0"

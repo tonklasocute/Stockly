@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { ZodError, type ZodType } from "zod"
 import { isSupabaseConfigured } from "@/lib/env"
 import { rateLimit } from "@/lib/rate-limit"
+import { isAIError } from "@/services/ai/errors"
 import { isMarketDataError } from "@/services/market-data/errors"
 import { getUser } from "@/lib/supabase/server"
 
@@ -20,6 +21,13 @@ export const ERROR_CODES = {
   MARKET_DATA_NOT_CONFIGURED: 500,
   MARKET_DATA_INVALID_RESPONSE: 502,
   RATE_LIMITED: 429,
+  AI_DISABLED: 503,
+  AI_NOT_CONFIGURED: 500,
+  AI_UNAVAILABLE: 503,
+  AI_RATE_LIMITED: 429,
+  AI_TIMEOUT: 504,
+  AI_INVALID_RESPONSE: 502,
+  AI_QUOTA_EXCEEDED: 429,
 } as const
 
 export type ErrorCode = keyof typeof ERROR_CODES
@@ -84,6 +92,12 @@ export async function guarded(
     // The message is already written for a user; the provider detail stays in `cause`.
     if (isMarketDataError(error)) {
       console.error("[api] market data", error.code, error.cause)
+      return fail(error.code, error.message)
+    }
+    // Same rule for the AI layer: the sentence is written for a user, and whatever the provider
+    // actually said stays in the log. A provider's error text can echo the prompt back.
+    if (isAIError(error)) {
+      console.error("[api] ai", error.code, error.cause)
       return fail(error.code, error.message)
     }
     console.error("[api]", error)

@@ -65,9 +65,16 @@ describe("screener throughput", () => {
       return performance.now() - started
     }
 
+    // Best of several runs at each size. A single 100-item pass takes tens of microseconds, so one
+    // scheduler hiccup on the baseline was enough to make this ratio meaningless — and it did,
+    // intermittently, under a loaded parallel test run. The minimum is the least noise-sensitive
+    // statistic available here, and the property under test is unchanged.
+    const best = (set: ScreenerCandidate[]) =>
+      Math.min(...Array.from({ length: 5 }, () => timeOf(set)))
+
     timeOf(small) // warm up
-    const t1 = Math.max(timeOf(small), 0.01)
-    const t10 = timeOf(large)
+    const t1 = Math.max(best(small), 0.05)
+    const t10 = best(large)
     // Ten times the data must not cost anywhere near a hundred times the work.
     expect(t10 / t1).toBeLessThan(40)
   })

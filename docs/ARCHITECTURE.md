@@ -11,7 +11,8 @@ Browser / installed PWA
        ├─ Server Components ──────────┐
        ├─ Route Handlers (/api/**) ───┼─→ domain/     (pure calculations)
        │                              ├─→ Supabase    (Postgres + Auth + RLS)
-       │                              └─→ services/market-data → external quote provider
+       │                              ├─→ services/market-data → external quote provider
+       │                              └─→ services/ai          → LLM provider (optional, off by default)
        └─ Client Components + TanStack Query
 ```
 
@@ -353,9 +354,48 @@ reading is 1 on the bar the cross happened and 0 otherwise, against a target of 
 `technical_snapshots` is the first table of **shared reference data**: NVDA's RSI is the same for
 every user, so it is computed once and readable by any signed-in user, written only by the job.
 
-## 17. What is deliberately not here yet
+## 17. The AI research assistant (phase 7)
+
+Full detail in [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md). Four decisions shaped it:
+
+**The model writes prose; it never produces a number.** The schema it fills in has five text fields
+and no numeric one. Price, RSI, ADX, the technical score and every component, portfolio value,
+weights and returns are retrieved from the engines that own them and rendered *beside* the generated
+text, not inside it. A hallucinated figure is not unlikely here; it is unrepresentable. That single
+choice removed most of the risk the rest of the feature would otherwise have had to manage.
+
+**The model gets no tools.** Retrieval runs to completion, under the caller's own session, before a
+token is generated. So the honest answer to "can a prompt injection read another user's portfolio"
+is that there is nothing to read it with — not that the prompt discourages it.
+
+**AI sits above the source of truth, never beside it.** `services/market-data` still owns prices,
+`technical_snapshots` still owns indicators, `scoreTechnicals` still owns the score breakdown,
+`loadAnalytics` still owns portfolio figures, `matchesFilter` still owns pass/fail. The assistant
+reads all five and computes none of them, so it cannot disagree with the dashboard.
+
+**Natural language produces a proposal, not an execution.** The screener translator returns
+`{ metric, operator, value }` through the phase-6 enums; the user sees the filters and presses Run.
+The same rule governs alerts: the assistant can describe the supported conditions, and creating one
+is still the existing dialog.
+
+`services/ai/` mirrors `services/market-data/` exactly — one interface, adapters behind it, one
+`switch` naming a vendor, `server-only` on the module that reads the key. Anthropic uses the official
+SDK, because it already implements the timeout, the bounded retry and the typed errors; the
+OpenAI-compatible adapter is one `fetch`, because that shape is spoken by four vendors and by every
+local model, and a second SDK for one request body would be a dependency bought for nothing.
+
+There is deliberately **no answer cache**: an answer depends on a question, a portfolio, live prices
+and a snapshot timestamp, and a key that missed one of those would serve yesterday's prices as
+today's. What was expensive was already cached before phase 7 — quotes for 60s, indicators on a
+schedule.
+
+The whole feature is behind `AI_ENABLED`, default off. With it off, nothing else changes, and the
+production build succeeds either way.
+
+## 18. What is deliberately not here yet
 
 FX conversion, FIFO cost basis, time- and money-weighted return, benchmark comparison, SET listings,
 a market-wide screener universe, price prediction of any kind, email and LINE notification channels,
-offline mutation queues, CSV import, an event bus, and any Go service. Each has a clear insertion
+offline mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI
+answer cache, and any autonomous action taken on a user's behalf. Each has a clear insertion
 point above; none is built until the phase that needs it.
