@@ -1,6 +1,7 @@
 import { ApiError, guarded, ok, parseBody } from "@/lib/api"
 import { listWatchlist } from "@/features/watchlist/queries"
 import { watchlistInputSchema } from "@/features/watchlist/schema"
+import { invalidateWatchlist } from "@/lib/cache"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
       throw new ApiError("CONFLICT", `${body.symbol} is already on your watchlist.`)
     }
     if (error) throw error
+
+    invalidateWatchlist()
     return ok(data, 201)
   })
 }

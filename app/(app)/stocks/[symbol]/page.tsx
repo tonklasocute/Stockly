@@ -130,6 +130,7 @@ export default async function StockPage({ params, searchParams }: Props) {
             <p className="text-muted-foreground text-sm">You don&apos;t own this stock.</p>
             {active && (
               <Button
+                nativeButton={false}
                 render={<Link href={`/transactions?p=${active.id}`} />}
                 variant="outline"
                 size="sm"

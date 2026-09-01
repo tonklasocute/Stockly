@@ -3,9 +3,10 @@
 Personal stock portfolio tracker — a Next.js web app that installs as a PWA. Record buy and sell
 transactions; Stockly derives your holdings, average cost, and realized and unrealized profit and loss.
 
-**Phases 1–2 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
-engine, the dashboard, plus live market data — stock search, quotes, price charts, company profiles
-and a watchlist.
+**Phases 1–3 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
+engine, the dashboard; live market data — stock search, quotes, price charts, company profiles and a
+watchlist; and analytics — allocation, concentration, contribution, trade and fee statistics,
+dividend tracking, cash management and CSV export.
 
 ## Getting started
 
@@ -63,6 +64,10 @@ deleting a transaction can never leave a stale position behind.
 
 Market data sits behind a `MarketDataProvider` interface, so swapping Twelve Data for Finnhub or
 Polygon is one adapter file plus one line in `services/market-data/index.ts`.
+
+Every financial formula is specified in
+[`docs/PORTFOLIO-CALCULATIONS.md`](docs/PORTFOLIO-CALCULATIONS.md) — cost basis, the two dividend
+yields, win rate, and why a deposit is not a return.
 
 See [`CLAUDE.md`](CLAUDE.md) for the conventions and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 for the reasoning behind them.

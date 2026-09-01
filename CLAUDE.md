@@ -10,9 +10,9 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 2 complete.** On top of the phase 1 MVP: live market data behind a provider
-interface, stock search, stock detail pages with price charts, and the watchlist. See
-[Development Phases](#development-phases).
+**Status: Phase 3 complete.** On top of phases 1–2: analytics (allocation, concentration,
+contribution, trade and fee statistics), dividend tracking with two distinct yields, cash management,
+portfolio snapshots and CSV export. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -44,6 +44,7 @@ No E2E runner is installed yet; add Playwright in the phase that writes the firs
 | DB / Auth | Supabase (PostgreSQL + Auth + RLS) | RLS is the primary authorization boundary |
 | Market data | Twelve Data, behind `MarketDataProvider` | free tier: 8 credits/min, 800/day, **1 credit per symbol** |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
+| Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
 | Deploy | Vercel | |
 
 **No Go microservice.** Business logic lives in `domain/` with zero framework imports so it can be
@@ -64,11 +65,14 @@ Read `docs/ARCHITECTURE.md` before designing anything non-trivial. The decisions
    response is Zod-parsed into the domain model at the boundary.
    Provider calls are **server-side only**: the key is read through `lib/env.server.ts`, which imports
    `server-only`, so a client import is a build error rather than a leak.
-4. **Every upstream call is cached by TTL, never by component render.** `services/market-data/http.ts`
+4. **Money never accumulates through raw floats.** `domain/money.ts` sums over scaled integers;
+   `sumBy` replaces `reduce((a, b) => a + b)` for anything monetary. Formulas are unchanged — only the
+   accumulation points. See [`docs/PORTFOLIO-CALCULATIONS.md`](docs/PORTFOLIO-CALCULATIONS.md).
+5. **Every upstream call is cached by TTL, never by component render.** `services/market-data/http.ts`
    is the single fetch, using the Next Data Cache (`next: { revalidate }`), which is shared across
    serverless instances. Quotes 60s, history 5 min–6 h, search and profiles 24 h. One batched quote
    call prices a whole portfolio.
-5. **Every user-owned table carries `user_id` and has RLS enabled**, default-deny. Do not rely on
+6. **Every user-owned table carries `user_id` and has RLS enabled**, default-deny. Do not rely on
    route handlers alone to scope queries.
 
 ### Folder structure
@@ -79,7 +83,9 @@ components/  shared presentational UI. components/ui/ = shadcn primitives.
 features/    feature slices (portfolio/, transactions/, watchlist/, …).
              Each owns its components/, hooks/, schema.ts, api.ts. Cross-feature
              imports go through the feature's index, or the code belongs in lib/.
-domain/      pure business logic + calculations. No framework imports. Heavily tested.
+domain/      pure business logic. No framework imports. Heavily tested.
+             money.ts (precision) · holdings.ts (cost basis, P&L) · cash.ts · dividends.ts ·
+             analytics.ts (allocation, concentration, contribution, trade + fee statistics)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/).
 types/       shared types, generated types/supabase.ts.
@@ -126,6 +132,28 @@ Database          snake_case          tables plural, columns singular
 API routes        kebab-case          /api/cash-transactions
 Zod schemas       xxxSchema           createTransactionSchema
 ```
+
+## Analytics Rules
+
+- Every formula is specified in [`docs/PORTFOLIO-CALCULATIONS.md`](docs/PORTFOLIO-CALCULATIONS.md).
+  Changing a number on screen means changing that file, the domain function and its test together.
+- **A capital flow is not a return.** Deposits and withdrawals change the balance without changing
+  performance; anything that measures performance subtracts invested capital on both sides.
+- **Two yields, two names.** "Yield on current value" and "yield on cost" share a numerator and
+  nothing else. Never label either one just "dividend yield".
+- Metrics that cannot be computed honestly return `null` and render `N/A` — win rate with no sells,
+  average hold time with no closed position, today's change with no previous close. Never 0.
+- Provider metadata that is missing becomes "Unknown" and stays in the total. Never drop a holding
+  from a chart.
+- Portfolio insights describe, never advise. "Technology is 61% of your portfolio" — not "reduce your
+  technology exposure".
+- Colour never carries meaning alone: every gain or loss also shows its sign and its percentage.
+- One aggregation per request. `loadAnalytics` is `cache()`d so a page and all its sections share one
+  database pass and one batched quote call.
+- Any write that changes portfolio numbers calls `invalidatePortfolio()` from `lib/cache.ts`. Do not
+  scatter `revalidatePath`.
+- Lists that grow without bound (transactions, dividends, cash) are paginated server-side. The
+  calculation engine still reads the full history — a portfolio computed from one page would be wrong.
 
 ## Market Data Rules
 
@@ -216,7 +244,7 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 0 ✅ | Foundation: CLAUDE.md, architecture doc, folder structure, `.env.example` |
 | 1 ✅ | MVP: auth, portfolios, transactions, derived holdings, dashboard, P&L |
 | 2 ✅ | Market data: symbol search, quotes, historical prices, charts, watchlist |
-| 3 | Analytics: allocation, performance, dividends, realized/unrealized breakdown |
+| 3 ✅ | Analytics: allocation, performance, dividends, cash, realized/unrealized breakdown |
 | 4 | PWA: service worker, offline fallback (manifest, icons and metadata already shipped in phase 1) |
 | 5 | Alerts: price / target buy / stop loss / take profit, notifications |
 | 6 | Advanced: technical indicators, screener, AI analysis, multi-market, multi-currency |

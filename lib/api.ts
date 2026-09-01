@@ -64,8 +64,8 @@ export class ApiError extends Error {
  * messages never reach the client — they are logged instead.
  */
 export async function guarded(
-  fn: (userId: string) => Promise<NextResponse>,
-): Promise<NextResponse> {
+  fn: (userId: string) => Promise<Response>,
+): Promise<Response> {
   // Without credentials getUser() throws, which would surface as a meaningless 500.
   if (!isSupabaseConfigured()) {
     return fail("INTERNAL_ERROR", "Supabase is not configured. Fill in .env.local and restart.")

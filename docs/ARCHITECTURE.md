@@ -76,11 +76,23 @@ auth.users (Supabase)
        └─ dividends      id, portfolio_id, user_id, symbol, pay_date,
                          amount_per_share numeric, quantity numeric, tax numeric
 
+       ├─ dividends      id, portfolio_id, user_id, symbol, payment_date, shares,
+       │                  dividend_per_share, tax, fee, currency, notes
+       ├─ cash_transactions  id, portfolio_id, user_id, kind(deposit|withdrawal),
+       │                     amount, currency, occurred_on, notes
+       └─ portfolio_snapshots  id, portfolio_id, user_id, snapshot_date, total_value,
+                               invested_value, cash_value, realized_pnl, unrealized_pnl
+                               unique (portfolio_id, snapshot_date)
+
 watchlist_items   id, user_id, symbol, market, name, exchange, target_price, notes
                   unique (user_id, market, symbol)
 ```
 
 Planned but not built: `alerts` (phase 5).
+
+`dividends` carries no ex-date or record-date: Stockly records payments actually received, and
+neither date affects any figure it computes. `cash_transactions.amount` is always positive — the
+direction lives in `kind`, so one movement cannot be expressed two ways.
 
 **No `instruments` or `quotes_cache` table.** Phase 0 sketched both; neither earned its place. The
 Next Data Cache already deduplicates and expires provider responses across instances, so a database
@@ -208,7 +220,50 @@ dashboard, portfolio and transactions pages; the app shell with light/dark and a
 manifest and icons. Prices come from `mockMarketDataProvider` behind the real `MarketDataProvider`
 interface, so phase 2 swaps the implementation and nothing else.
 
-## 11. What phase 2 added
+## 11. Analytics and snapshots (phase 3)
+
+Every formula is specified in [PORTFOLIO-CALCULATIONS.md](PORTFOLIO-CALCULATIONS.md). The three
+decisions worth repeating here:
+
+**Money precision.** `domain/money.ts` accumulates over scaled integers. `0.1 + 0.2` is exactly `0.3`
+and a thousand additions of `0.01` is exactly `10`. No dependency, no rewrite of the formulas — only
+the accumulation points changed. Ceiling: exact below ~$9bn at six decimal places; decimal.js if that
+is ever exceeded, and every call site already goes through this one module.
+
+**Capital flow is not performance.** A $10,000 deposit raises portfolio value by $10,000 and earns
+nothing. So performance is measured as `totalValue − (investedValue + cashValue)`: a contribution
+moves both sides and cancels. This is why cash is modelled at all.
+
+**Snapshot strategy: write-on-read, daily, idempotent.**
+
+```
+analytics page renders → quotes already fetched → upsert today's snapshot
+                                                   on (portfolio_id, snapshot_date)
+```
+
+Not a cron: a nightly job would fan out over every portfolio of every user and need a quote per
+symbol — at 8 credits a minute that job cannot finish, for users who may not open the app that week.
+Not on-transaction: a portfolio's value moves with the market, not with the user's typing, so it
+would miss every day nobody traded.
+
+Write-on-read costs nothing extra and captures a day exactly when the user cared about it. A snapshot
+is skipped when market data failed or any holding is stale, so a fallback valuation is never baked
+into history. `ponytail:` ceiling — history only accumulates on days the user visits; a Vercel Cron
+route calling the same idempotent upsert is the upgrade, and nothing else changes.
+
+The consequence, stated in the UI rather than hidden: the performance chart starts the first time
+analytics is opened. Invested capital and P&L need no history and are exact from the first
+transaction.
+
+## 12. Cache invalidation
+
+There is no stored aggregate. Pages recompute from Supabase on every request, so invalidation means
+re-rendering routes, and it lives in one place — `lib/cache.ts`. `invalidatePortfolio()` revalidates
+dashboard, portfolio, transactions, analytics, dividends and cash together, because they all derive
+from the same rows. Market-data responses are cached separately by tag, so a new transaction does not
+discard a quote that is still fresh.
+
+## 13. What phase 2 added
 
 `MarketDataProvider` with a Twelve Data adapter and the mock kept as a first-class option (the app is
 fully usable with `MARKET_DATA_PROVIDER=mock` and no account); `lib/env.server.ts` so the key cannot
@@ -221,8 +276,21 @@ Symbols are normalised through `lib/symbol.ts` and keyed by `market:symbol`, so 
 not collide with a US ticker of the same name. `market` and `currency` are on every relevant row, but
 no FX conversion is performed — a portfolio reports in its own currency only.
 
-## 12. What is deliberately not here yet
+## 14. What phase 3 added
 
-FX conversion, FIFO cost basis, SET listings, background jobs, push notifications, CSV import,
-sector allocation, an event bus, and any Go service. Each has a clear insertion point above; none is
-built until the phase that needs it.
+`domain/money.ts`, `cash.ts`, `dividends.ts` and `analytics.ts`, all pure and tested;
+`dividends`, `cash_transactions` and `portfolio_snapshots` with RLS; dividend and cash CRUD; the
+analytics page (performance, allocation, sector/industry/country/currency, concentration, movers,
+contribution, trade and fee statistics); CSV export; server-side pagination; and a shared date-range
+control that every dated view reads from the URL.
+
+`services/benchmark/types.ts` defines `BenchmarkProvider` and the rebasing rule, with **no
+implementation and no UI** — index series (^GSPC, ^IXIC, SET) are not on the provider's free tier, and
+a chart that can never load is worse than an absent one. The shape is settled now because that is the
+part that would be expensive to change later.
+
+## 15. What is deliberately not here yet
+
+FX conversion, FIFO cost basis, time- and money-weighted return, benchmark comparison, SET listings,
+background jobs, push notifications, CSV import, an event bus, and any Go service. Each has a clear
+insertion point above; none is built until the phase that needs it.

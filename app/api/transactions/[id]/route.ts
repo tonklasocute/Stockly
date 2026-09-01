@@ -2,6 +2,7 @@ import { ApiError, fail, guarded, ok, parseBody } from "@/lib/api"
 import { canSell } from "@/domain/holdings"
 import { listTransactions, toDomain } from "@/features/transactions/queries"
 import { transactionUpdateSchema } from "@/features/transactions/schema"
+import { invalidatePortfolio } from "@/lib/cache"
 import { createClient } from "@/lib/supabase/server"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -60,6 +61,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error) throw error
+    if (data) invalidatePortfolio()
     return data ? ok(data) : fail("NOT_FOUND", "Transaction not found.")
   })
 }
@@ -76,6 +78,7 @@ export async function DELETE(_request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error) throw error
+    if (data) invalidatePortfolio()
     return data ? ok({ id: data.id }) : fail("NOT_FOUND", "Transaction not found.")
   })
 }

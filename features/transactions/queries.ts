@@ -1,5 +1,6 @@
 import "server-only"
 
+import { pageRange, toPageResult, type Page, PAGE_SIZE } from "@/lib/pagination"
 import { createClient } from "@/lib/supabase/server"
 import type { DomainTransaction } from "@/domain/types"
 import type { TransactionRow } from "@/types/database"
@@ -35,4 +36,33 @@ export function toDomain(rows: readonly TransactionRow[]): DomainTransaction[] {
     fee: row.fee,
     sequence: Date.parse(row.created_at),
   }))
+}
+
+/**
+ * One page of transactions for the table. Separate from listTransactions on purpose: holdings and
+ * P&L must be computed from every row, so the engine never uses this.
+ */
+export async function listTransactionsPage(
+  portfolioId: string,
+  page: number,
+  pageSize = PAGE_SIZE,
+): Promise<Page<TransactionRow>> {
+  const supabase = await createClient()
+  const { from, to } = pageRange(page, pageSize)
+  const { data, error, count } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact" })
+    .eq("portfolio_id", portfolioId)
+    .order("trade_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .range(from, to)
+
+  if (error) throw error
+  const rows = (data ?? []).map((row) => ({
+    ...row,
+    quantity: Number(row.quantity),
+    price: Number(row.price),
+    fee: Number(row.fee),
+  }))
+  return toPageResult(rows, count ?? rows.length, page, pageSize)
 }

@@ -8,7 +8,8 @@ import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { AllocationChart } from "@/features/dashboard/components/allocation-chart"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
-import { loadPortfolioView, namesFrom } from "@/features/portfolios/portfolio-view"
+import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
+import { namesFrom } from "@/features/portfolios/portfolio-view"
 import { formatCurrency } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
@@ -23,8 +24,11 @@ export default async function DashboardPage({
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
 
-  const { holdings, summary, transactions, quotes, marketDataError } =
-    await loadPortfolioView(active.id)
+  // One aggregation for the whole page: holdings, cash, dividends and fees come from a single pass
+  // and a single batched quote call, so the dashboard cannot disagree with analytics.
+  const bundle = await loadAnalytics(active.id)
+  const { holdings, summary, cash, totalValue, quotes, marketDataError, dividends, fees } = bundle
+  const transactions = { length: bundle.transactionCount }
   const names = namesFrom(quotes)
   const currency = active.currency
   const ranked = [...holdings].sort((a, b) => b.returnPct - a.returnPct)
@@ -39,6 +43,7 @@ export default async function DashboardPage({
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
         <Button
+          nativeButton={false}
           render={<Link href={`/transactions?p=${active.id}`} />}
           variant="outline"
           size="sm"
@@ -72,6 +77,7 @@ export default async function DashboardPage({
             description="Add your first transaction and your portfolio value, cost basis and profit and loss appear here."
             action={
               <Button
+                nativeButton={false}
                 render={<Link href={`/transactions?p=${active.id}`} />}
                 className="gap-2 max-sm:h-11"
               >
@@ -85,11 +91,12 @@ export default async function DashboardPage({
           <StatGrid>
             <StatCard
               label="Portfolio value"
-              value={formatCurrency(summary.marketValue, currency)}
+              value={formatCurrency(totalValue, currency)}
               emphasis
               hint={
                 <span className="text-muted-foreground">
-                  {formatCurrency(summary.investedValue, currency)} invested
+                  {formatCurrency(summary.marketValue, currency)} stocks ·{" "}
+                  {formatCurrency(cash.balance, currency)} cash
                 </span>
               }
             />
@@ -128,6 +135,21 @@ export default async function DashboardPage({
               }
             />
           </StatGrid>
+
+          {/* The figures that are not P&L, kept out of the headline row so it stays readable. */}
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
+            {[
+              { label: "Invested capital", value: formatCurrency(summary.investedValue, currency) },
+              { label: "Net contributed", value: formatCurrency(cash.netContributed, currency) },
+              { label: "Dividends received", value: formatCurrency(dividends.summary.totalNet, currency) },
+              { label: "Total fees", value: formatCurrency(fees.total, currency) },
+            ].map((item) => (
+              <div key={item.label} className="bg-card space-y-0.5 p-4">
+                <dt className="text-muted-foreground text-xs">{item.label}</dt>
+                <dd className="tabular font-semibold">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="bg-card rounded-xl border p-4 sm:p-5">

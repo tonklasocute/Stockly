@@ -1,6 +1,7 @@
 import { ApiError, guarded, ok, parseBody } from "@/lib/api"
 import { portfolioInputSchema } from "@/features/portfolios/schema"
 import { listPortfolios } from "@/features/portfolios/queries"
+import { invalidatePortfolio } from "@/lib/cache"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
@@ -22,6 +23,8 @@ export async function POST(request: Request) {
       throw new ApiError("CONFLICT", "You already have a portfolio with that name.")
     }
     if (error) throw error
+
+    invalidatePortfolio()
     return ok(data, 201)
   })
 }

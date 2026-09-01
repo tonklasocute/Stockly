@@ -2,6 +2,7 @@ import { ApiError, guarded, ok, parseBody } from "@/lib/api"
 import { canSell } from "@/domain/holdings"
 import { listTransactions, toDomain } from "@/features/transactions/queries"
 import { transactionInputSchema } from "@/features/transactions/schema"
+import { invalidatePortfolio } from "@/lib/cache"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: Request) {
@@ -58,6 +59,8 @@ export async function POST(request: Request) {
       throw new ApiError("VALIDATION_ERROR", "That transaction violates a data rule.")
     }
     if (error) throw error
+
+    invalidatePortfolio()
     return ok(data, 201)
   })
 }

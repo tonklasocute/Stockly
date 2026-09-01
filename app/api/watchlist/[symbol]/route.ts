@@ -1,5 +1,6 @@
 import { fail, guarded, ok } from "@/lib/api"
 import { isValidSymbol, normalizeSymbol, toMarket } from "@/lib/symbol"
+import { invalidateWatchlist } from "@/lib/cache"
 import { createClient } from "@/lib/supabase/server"
 
 type Ctx = { params: Promise<{ symbol: string }> }
@@ -20,6 +21,7 @@ export async function DELETE(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error) throw error
+    if (data) invalidateWatchlist()
     return data ? ok({ id: data.id }) : fail("NOT_FOUND", "That stock is not on your watchlist.")
   })
 }
