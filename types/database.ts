@@ -100,6 +100,16 @@ export type AlertType =
   | "POSITION_WEIGHT_ABOVE"
   | "POSITION_WEIGHT_BELOW"
   | "DIVIDEND_RECEIVED"
+  | "RSI_ABOVE"
+  | "RSI_BELOW"
+  | "MACD_BULLISH_CROSS"
+  | "MACD_BEARISH_CROSS"
+  | "PRICE_ABOVE_EMA"
+  | "PRICE_BELOW_EMA"
+  | "EMA_CROSS_BULLISH"
+  | "EMA_CROSS_BEARISH"
+  | "RELATIVE_VOLUME_ABOVE"
+  | "ADX_ABOVE"
 
 export type AlertState = "armed" | "triggered" | "cooldown"
 
@@ -167,6 +177,52 @@ export type PushSubscriptionRow = {
   auth: string
   user_agent: string | null
   last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TechnicalSnapshotRow = {
+  symbol: string
+  market: string
+  timeframe: string
+  source_timestamp: string | null
+  calculated_at: string
+  price: number | null
+  rsi: number | null
+  macd: number | null
+  macd_signal: number | null
+  macd_histogram: number | null
+  macd_cross: "bullish" | "bearish" | null
+  ema_cross_50_200: "bullish" | "bearish" | null
+  adx: number | null
+  plus_di: number | null
+  minus_di: number | null
+  atr: number | null
+  atr_pct: number | null
+  relative_volume: number | null
+  average_volume: number | null
+  ema_20: number | null
+  ema_50: number | null
+  ema_200: number | null
+  sma_50: number | null
+  sma_200: number | null
+  bollinger_upper: number | null
+  bollinger_middle: number | null
+  bollinger_lower: number | null
+  trend: "bullish" | "bearish" | "neutral" | null
+  stage: string | null
+  score: number | null
+  score_version: string
+  signals: string[]
+  candle_count: number
+  data_issues: string[]
+}
+
+export type SavedScreenRow = {
+  id: string
+  user_id: string
+  name: string
+  definition: unknown
   created_at: string
   updated_at: string
 }
@@ -247,6 +303,18 @@ export type Database = {
         Row: PushSubscriptionRow
         Insert: Omit<PushSubscriptionRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Omit<PushSubscriptionRow, "id" | "user_id" | Timestamps>>
+        Relationships: []
+      }
+      technical_snapshots: {
+        Row: TechnicalSnapshotRow
+        Insert: TechnicalSnapshotRow
+        Update: Partial<TechnicalSnapshotRow>
+        Relationships: []
+      }
+      saved_screens: {
+        Row: SavedScreenRow
+        Insert: Omit<SavedScreenRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<SavedScreenRow, "id" | "user_id" | Timestamps>>
         Relationships: []
       }
       watchlist_items: {

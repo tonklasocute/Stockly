@@ -30,21 +30,37 @@ import { formatCurrency, formatOptional } from "@/lib/format"
 import type { Quote } from "@/services/market-data/types"
 import type { WatchlistItemRow } from "@/types/database"
 
-type SortKey = "added" | "symbol" | "change"
+type SortKey = "added" | "symbol" | "change" | "score" | "rsi" | "rvol" | "adx"
 
 const SORT_LABELS: Record<SortKey, string> = {
   added: "Recently added",
   symbol: "Symbol",
   change: "Biggest move",
+  score: "Technical score",
+  rsi: "RSI",
+  rvol: "Relative volume",
+  adx: "ADX",
+}
+
+/** A technical figure for one row, as of the last snapshot refresh. */
+export type RowTechnicals = {
+  rsi: number | null
+  adx: number | null
+  relativeVolume: number | null
+  score: number | null
+  trend: string
+  stale: boolean
 }
 
 export function WatchlistTable({
   items,
   quotes,
+  technicals = {},
 }: {
   items: WatchlistItemRow[]
   /** Serialisable across the server boundary; a Map is not. */
   quotes: Record<string, Quote>
+  technicals?: Record<string, RowTechnicals>
 }) {
   const router = useRouter()
   const [query, setQuery] = useState("")
@@ -55,14 +71,28 @@ export function WatchlistTable({
     const filtered = items.filter(
       (item) => !q || item.symbol.includes(q) || (item.name ?? "").toUpperCase().includes(q),
     )
+    // Rows with no value for the chosen metric sort last, whatever the direction.
+    const byMetric = (pick: (t: RowTechnicals | undefined) => number | null) => (a: WatchlistItemRow, b: WatchlistItemRow) => {
+      const av = pick(technicals[a.symbol])
+      const bv = pick(technicals[b.symbol])
+      if (av === null && bv === null) return 0
+      if (av === null) return 1
+      if (bv === null) return -1
+      return bv - av
+    }
+
     return [...filtered].sort((a, b) => {
       if (sort === "symbol") return a.symbol.localeCompare(b.symbol)
       if (sort === "change") {
         return Math.abs(quotes[b.symbol]?.changePct ?? 0) - Math.abs(quotes[a.symbol]?.changePct ?? 0)
       }
+      if (sort === "score") return byMetric((t) => t?.score ?? null)(a, b)
+      if (sort === "rsi") return byMetric((t) => t?.rsi ?? null)(a, b)
+      if (sort === "rvol") return byMetric((t) => t?.relativeVolume ?? null)(a, b)
+      if (sort === "adx") return byMetric((t) => t?.adx ?? null)(a, b)
       return b.created_at.localeCompare(a.created_at)
     })
-  }, [items, query, sort, quotes])
+  }, [items, query, sort, quotes, technicals])
 
   const remove = useMutation({
     mutationFn: (item: WatchlistItemRow) =>
@@ -178,6 +208,9 @@ export function WatchlistTable({
                   <TableHead>Company</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Change</TableHead>
+                  <TableHead className="text-right">RSI</TableHead>
+                  <TableHead className="text-right">RVOL</TableHead>
+                  <TableHead>Trend</TableHead>
                   <TableHead className="text-right">Target buy</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
@@ -198,6 +231,20 @@ export function WatchlistTable({
                     </TableCell>
                     <TableCell className="text-right">{priceCell(item)}</TableCell>
                     <TableCell className="text-right">{changeCell(item)}</TableCell>
+                    <TableCell className="tabular text-muted-foreground text-right">
+                      {technicals[item.symbol]?.rsi?.toFixed(0) ?? "—"}
+                    </TableCell>
+                    <TableCell className="tabular text-muted-foreground text-right">
+                      {technicals[item.symbol]?.relativeVolume
+                        ? `${technicals[item.symbol]!.relativeVolume!.toFixed(1)}×`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs capitalize">
+                      {/* A glyph as well as the word, so trend is never colour alone. */}
+                      {technicals[item.symbol]
+                        ? `${technicals[item.symbol]!.trend === "bullish" ? "▲" : technicals[item.symbol]!.trend === "bearish" ? "▼" : "■"} ${technicals[item.symbol]!.trend}`
+                        : "—"}
+                    </TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
                       {formatOptional(item.target_price, (v) => formatCurrency(v))}
                     </TableCell>

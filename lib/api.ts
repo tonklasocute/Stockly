@@ -68,12 +68,13 @@ export class ApiError extends Error {
 export async function guarded(
   fn: (userId: string) => Promise<Response>,
 ): Promise<Response> {
-  // Without credentials getUser() throws, which would surface as a meaningless 500.
-  if (!isSupabaseConfigured()) {
-    return fail("INTERNAL_ERROR", "Supabase is not configured. Fill in .env.local and restart.")
-  }
-
   try {
+    // Without credentials getUser() throws, which would surface as a meaningless 500. Checked
+    // inside the try so every path out of this function goes through the error mapping below.
+    if (!isSupabaseConfigured()) {
+      return fail("INTERNAL_ERROR", "Supabase is not configured. Fill in .env.local and restart.")
+    }
+
     const user = await getUser()
     if (!user) return fail("UNAUTHENTICATED", "You must be signed in.")
     return await fn(user.id)

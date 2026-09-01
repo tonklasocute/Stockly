@@ -1,6 +1,7 @@
 import "server-only"
 
 import { createClient } from "@/lib/supabase/server"
+import { readSnapshots, type StoredSnapshot } from "@/features/technical/snapshots"
 import { getMarketDataProvider, isMarketDataError, type Quote } from "@/services/market-data"
 import type { WatchlistItemRow } from "@/types/database"
 
@@ -22,19 +23,28 @@ export async function listWatchlist(): Promise<WatchlistItemRow[]> {
 export async function loadWatchlist(): Promise<{
   items: WatchlistItemRow[]
   quotes: Map<string, Quote>
+  technicals: Map<string, StoredSnapshot>
   marketDataError: string | null
 }> {
   const items = await listWatchlist()
-  if (items.length === 0) return { items, quotes: new Map(), marketDataError: null }
+  if (items.length === 0) {
+    return { items, quotes: new Map(), technicals: new Map(), marketDataError: null }
+  }
+
+  const symbols = items.map((i) => i.symbol)
+  // Snapshots come from the cache, so adding technical columns costs a database read and no
+  // upstream requests at all.
+  const technicals = await readSnapshots(symbols)
 
   try {
-    const quotes = await getMarketDataProvider().getQuotes(items.map((i) => i.symbol))
-    return { items, quotes, marketDataError: null }
+    const quotes = await getMarketDataProvider().getQuotes(symbols)
+    return { items, quotes, technicals, marketDataError: null }
   } catch (error) {
     console.error("[watchlist] quotes failed", error)
     return {
       items,
       quotes: new Map(),
+      technicals,
       marketDataError: isMarketDataError(error)
         ? error.message
         : "Unable to load market data. Please try again later.",

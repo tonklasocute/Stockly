@@ -324,8 +324,38 @@ only from behind the cron secret. Every interactive path still goes through the 
 `DIVIDEND_RECEIVED` is raised from the write that creates the dividend rather than polled: the event
 is a row appearing, and a cron would have to diff the table against itself to notice.
 
-## 16. What is deliberately not here yet
+## 16. Technical analysis and the screener (phase 6)
+
+Full detail in [TECHNICAL-ANALYSIS.md](TECHNICAL-ANALYSIS.md). The decisions that shaped it:
+
+**Indicators are pure and index-aligned.** Every series comes back the same length as its input with
+`null` for the warm-up, because crossing detection compares index *i* against *i−1* across two
+different indicators — dropping warm-up values would silently shift them apart. RSI is verified
+against Wilder's published worked example rather than against a screenshot.
+
+**The screener's universe is what this deployment already tracks**, and that is a data-source
+consequence stated plainly rather than hidden. Indicators need an OHLCV history: one request per
+symbol, no batching, eight a minute on the free tier. Screening five thousand names would take ten
+hours and twenty times the daily quota. So the universe is holdings + watchlist + alerted symbols +
+a default list, capped at 60, cached in `technical_snapshots` by the scheduled job.
+
+That cache is what makes the feature affordable at all: running a screen costs a database query and
+**zero upstream requests**, however often a user presses the button.
+
+**Filters are closed enums, never expressions.** `{ metric, operator, value }`, validated by Zod and
+looked up in a table. There is no field a client can put SQL or JavaScript into, because there is no
+field that is ever interpreted — an unrecognised metric reads as `null` and matches nothing.
+
+**Technical alerts reuse the phase 5 engine unchanged.** The neat part is the cross types: their
+reading is 1 on the bar the cross happened and 0 otherwise, against a target of 0.5, so the existing
+`armed → triggered` rule fires exactly once per event with no special case anywhere.
+
+`technical_snapshots` is the first table of **shared reference data**: NVDA's RSI is the same for
+every user, so it is computed once and readable by any signed-in user, written only by the job.
+
+## 17. What is deliberately not here yet
 
 FX conversion, FIFO cost basis, time- and money-weighted return, benchmark comparison, SET listings,
-email and LINE notification channels, offline mutation queues, CSV import, an event bus, and any Go
-service. Each has a clear insertion point above; none is built until the phase that needs it.
+a market-wide screener universe, price prediction of any kind, email and LINE notification channels,
+offline mutation queues, CSV import, an event bus, and any Go service. Each has a clear insertion
+point above; none is built until the phase that needs it.

@@ -31,6 +31,16 @@ delivery failure that loses the fact that the alert fired at all.
 | `PORTFOLIO_TOTAL_RETURN_ABOVE` / `_BELOW` | portfolio return since purchase | percent |
 | `POSITION_WEIGHT_ABOVE` / `_BELOW` | one holding's share of the portfolio | percent |
 | `DIVIDEND_RECEIVED` | a dividend row being written | — |
+| `RSI_ABOVE` / `RSI_BELOW` | RSI(14) | index |
+| `ADX_ABOVE` | ADX(14) | index |
+| `RELATIVE_VOLUME_ABOVE` | volume ÷ its 20-day average | multiple |
+| `PRICE_ABOVE_EMA` / `PRICE_BELOW_EMA` | price distance from the 200 EMA | percent |
+| `MACD_BULLISH_CROSS` / `_BEARISH_CROSS` | the crossing itself | — |
+| `EMA_CROSS_BULLISH` / `_BEARISH` | the 50/200 crossing itself | — |
+
+The technical types (phase 6) read a cached snapshot rather than a quote; see
+[TECHNICAL-ANALYSIS.md](TECHNICAL-ANALYSIS.md). They use the same engine, the same crossing rule and
+the same cooldown — a cross type's reading is simply 1 on the bar it happened and 0 otherwise.
 
 **Daily change and total return are separate types on purpose.** A portfolio can be up 2% today and
 down 15% since purchase; a single "gain %" would be ambiguous in the database, the API and the UI.

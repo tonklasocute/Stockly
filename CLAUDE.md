@@ -10,9 +10,9 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 5 complete.** On top of phases 1–4: a server-side alert engine with crossing logic
-and cooldown, a notification centre, Web Push, and scheduled evaluation behind a cron secret. See
-[Development Phases](#development-phases).
+**Status: Phase 6 complete.** On top of phases 1–5: a technical indicator engine, explainable
+technical scoring, a structured stock screener with saved screens, and technical alerts riding the
+existing alert engine. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -88,7 +88,8 @@ features/    feature slices (portfolio/, transactions/, watchlist/, …).
              imports go through the feature's index, or the code belongs in lib/.
 domain/      pure business logic. No framework imports. Heavily tested.
              money.ts (precision) · holdings.ts (cost basis, P&L) · cash.ts · dividends.ts ·
-             analytics.ts (allocation, concentration, contribution, trade + fee statistics)
+             analytics.ts (allocation, concentration, contribution, trade + fee statistics) ·
+             alerts.ts (crossing + state machine) · indicators.ts · technical.ts · screener.ts
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/).
 types/       shared types, generated types/supabase.ts.
@@ -157,6 +158,28 @@ Zod schemas       xxxSchema           createTransactionSchema
   scatter `revalidatePath`.
 - Lists that grow without bound (transactions, dividends, cash) are paginated server-side. The
   calculation engine still reads the full history — a portfolio computed from one page would be wrong.
+
+## Technical Analysis Rules
+
+Full detail in [`docs/TECHNICAL-ANALYSIS.md`](docs/TECHNICAL-ANALYSIS.md).
+
+- **Stockly describes, it never predicts.** No signal, score or label may imply an action. The signal
+  vocabulary contains no buy, sell, target or guarantee, and a test enforces that.
+- Indicators return an array **the same length as the input**, `null` for the warm-up. Crossing
+  detection compares adjacent indices across series; dropping warm-up values breaks the alignment.
+- `null` is "not computable", never 0. A stock with too little history has no RSI — it does not have
+  an RSI of 0, and it is excluded from a screen rather than counted as extreme.
+- Every threshold is a named constant in `THRESHOLDS`. No bare numeric literal in a scoring rule.
+- The technical score is scored **out of the components that could be computed**, and every component
+  carries the sentence that produced it. `SCORE_VERSION` is stored so an old score stays readable.
+- **Screener filters are closed enums — metric, operator, value.** Never an expression, never a
+  string the server interprets. Adding a metric means adding it to the enum and the lookup table.
+- Screens run against cached snapshots and cost **zero upstream requests**. Never compute indicators
+  per stock inside a request that a user can repeat.
+- A snapshot older than 90 minutes is labelled delayed. Never present a cached indicator beside a
+  live price without saying which is which.
+- Technical alerts reuse the phase 5 engine. There is one alert engine; a new condition is a new
+  reading, not a new evaluator.
 
 ## Alert Rules
 
@@ -288,7 +311,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 3 ✅ | Analytics: allocation, performance, dividends, cash, realized/unrealized breakdown |
 | 4 ✅ | PWA: service worker, offline shell, install flows, mobile/touch pass |
 | 5 ✅ | Alerts: price, percentage, portfolio and position alerts; notification centre; Web Push |
-| 6 | Advanced: technical indicators, screener, AI analysis, multi-market, multi-currency |
+| 6 ✅ | Technical analysis: indicators, technical score, screener, technical alerts |
+| 7 | Advanced: AI analysis, multi-market, multi-currency |
 
 Do not start the next phase without being asked.
 

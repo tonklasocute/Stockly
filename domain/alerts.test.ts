@@ -249,6 +249,80 @@ describe("readings", () => {
   })
 })
 
+describe("technical alerts — same engine, different reading", () => {
+  const technicals = new Map([
+    [
+      "NVDA",
+      {
+        rsi: 28,
+        adx: 31,
+        relativeVolume: 2.4,
+        priceVsEma200Pct: 12,
+        macdCross: "bullish" as const,
+        emaCross50200: null,
+        asOf: FRESH,
+      },
+    ],
+  ])
+
+  it("reads RSI from the technical snapshot", () => {
+    const out = readingFor(alert({ type: "RSI_BELOW", targetValue: 30 }), new Map(), null, technicals)
+    expect(out).toEqual({ value: 28, asOf: FRESH })
+  })
+
+  it("fires an RSI alert through the ordinary crossing rule", () => {
+    const rule = alert({ type: "RSI_BELOW", targetValue: 30, state: "armed" })
+    expect(evaluateAlert(rule, { value: 28, asOf: FRESH }, ctx()).action).toBe("trigger")
+    // Still below the next run: already fired, so it holds. No new engine, no special case.
+    expect(evaluateAlert({ ...rule, state: "triggered" }, { value: 25, asOf: FRESH }, ctx()).action).toBe("hold")
+  })
+
+  it("turns a MACD cross into a one-bar reading so it fires exactly once", () => {
+    const crossed = readingFor(alert({ type: "MACD_BULLISH_CROSS" }), new Map(), null, technicals)
+    expect(crossed?.value).toBe(1)
+
+    const notCrossed = readingFor(
+      alert({ type: "MACD_BEARISH_CROSS" }),
+      new Map(),
+      null,
+      technicals,
+    )
+    expect(notCrossed?.value).toBe(0)
+  })
+
+  it("has no reading when the symbol has no snapshot", () => {
+    expect(readingFor(alert({ type: "ADX_ABOVE", symbol: "ZZZZ" }), new Map(), null, technicals)).toBeNull()
+  })
+
+  it("reads relative volume and the distance from the 200 EMA", () => {
+    expect(readingFor(alert({ type: "RELATIVE_VOLUME_ABOVE" }), new Map(), null, technicals)?.value).toBe(2.4)
+    expect(readingFor(alert({ type: "PRICE_ABOVE_EMA" }), new Map(), null, technicals)?.value).toBe(12)
+  })
+
+  it("refuses a stale snapshot, exactly like a stale quote", () => {
+    const stale = new Map([["NVDA", { ...technicals.get("NVDA")!, asOf: STALE }]])
+    const reading = readingFor(alert({ type: "RSI_BELOW", targetValue: 30 }), new Map(), null, stale)
+    expect(evaluateAlert(alert({ type: "RSI_BELOW", targetValue: 30 }), reading, ctx())).toMatchObject({
+      action: "skip",
+      reason: "stale-reading",
+    })
+  })
+
+  it("names the technical figure in the message — it is public market data", () => {
+    const m = messageFor(alert({ type: "RSI_BELOW", targetValue: 30 }), 28)
+    expect(m.title).toContain("NVDA")
+    expect(m.title).toContain("28")
+  })
+
+  it("renders each unit correctly in the rule description", () => {
+    expect(describeAlert(alert({ type: "RSI_BELOW", targetValue: 30 }))).toBe("NVDA · rsi falls below 30")
+    expect(describeAlert(alert({ type: "RELATIVE_VOLUME_ABOVE", targetValue: 2 }))).toContain("2.0×")
+    expect(describeAlert(alert({ type: "MACD_BULLISH_CROSS" }))).toBe(
+      "NVDA · macd crosses above its signal",
+    )
+  })
+})
+
 describe("symbol deduplication", () => {
   it("collapses many alerts on the same symbol into one fetch", () => {
     // A hundred users watching NVDA is one upstream call, not a hundred.

@@ -6,10 +6,13 @@ import {
   messageFor,
   readingFor,
   symbolsToFetch,
+  TECHNICAL_ALERT_TYPES,
   type AlertRule,
   type PortfolioReading,
   type QuoteReading,
+  type TechnicalReading,
 } from "@/domain/alerts"
+import { readSnapshots, toTechnicalReading } from "@/features/technical/snapshots"
 import { buildPortfolio } from "@/domain/holdings"
 import { toDomain } from "@/features/transactions/queries"
 import { createNotificationService } from "@/services/notifications"
@@ -43,16 +46,17 @@ export type EvaluationSummary = {
   pushExpired: number
   symbolsFetched: number
   portfoliosPriced: number
+  technicalSnapshotsRead: number
   marketDataError: string | null
   durationMs: number
 }
 
-const CATEGORY_FOR_TYPE = (type: AlertRow["type"]): NotificationCategory =>
-  type.startsWith("PRICE_") || type.startsWith("PERCENT_")
-    ? "price"
-    : type === "DIVIDEND_RECEIVED"
-      ? "dividend"
-      : "portfolio"
+const CATEGORY_FOR_TYPE = (type: AlertRow["type"]): NotificationCategory => {
+  if (type === "DIVIDEND_RECEIVED") return "dividend"
+  if (type.startsWith("PORTFOLIO_") || type.startsWith("POSITION_")) return "portfolio"
+  // Technical conditions are about one stock's chart, so they belong with the price notifications.
+  return "price"
+}
 
 function toRule(row: AlertRow): AlertRule {
   return {
@@ -86,6 +90,7 @@ export async function evaluateAllAlerts(
     pushExpired: 0,
     symbolsFetched: 0,
     portfoliosPriced: 0,
+    technicalSnapshotsRead: 0,
     marketDataError: null,
     durationMs: 0,
   }
@@ -208,6 +213,24 @@ export async function evaluateAllAlerts(
     }
   }
 
+  // ---- technical readings, from the cached snapshots the refresh job computed
+  //
+  // Read, never computed here: an OHLCV history per symbol is one request each with no batching,
+  // which would blow the provider's minute budget on the first handful of alerts.
+  const technicalSymbols = [
+    ...new Set(
+      (rows ?? [])
+        .filter((row) => row.symbol && TECHNICAL_ALERT_TYPES.includes(row.type))
+        .map((row) => row.symbol as string),
+    ),
+  ]
+  const technicals = new Map<string, TechnicalReading>()
+  if (technicalSymbols.length > 0) {
+    const stored = await readSnapshots(technicalSymbols, supabase)
+    for (const [symbol, entry] of stored) technicals.set(symbol, toTechnicalReading(entry))
+    summary.technicalSnapshotsRead = stored.size
+  }
+
   // ---- evaluate, then write
   const notifications = createNotificationService(supabase)
   const triggeredRequests: Array<{ row: AlertRow; rule: AlertRule; triggerValue: number; key: string }> = []
@@ -215,7 +238,7 @@ export async function evaluateAllAlerts(
   for (const row of rows ?? []) {
     const rule = toRule(row)
     const portfolio = row.portfolio_id ? (portfolios.get(row.portfolio_id) ?? null) : null
-    const reading = readingFor(rule, quotes, portfolio)
+    const reading = readingFor(rule, quotes, portfolio, technicals)
     const outcome = evaluateAlert(rule, reading, { now, marketOpen })
 
     if (outcome.action === "skip") {

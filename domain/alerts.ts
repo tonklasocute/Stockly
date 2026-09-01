@@ -21,6 +21,18 @@ export const ALERT_TYPES = [
   "POSITION_WEIGHT_ABOVE",
   "POSITION_WEIGHT_BELOW",
   "DIVIDEND_RECEIVED",
+  // Phase 6 — technical conditions. They ride the same engine: the same crossing rule, the same
+  // state machine, the same cooldown and idempotency. Only the reading differs.
+  "RSI_ABOVE",
+  "RSI_BELOW",
+  "MACD_BULLISH_CROSS",
+  "MACD_BEARISH_CROSS",
+  "PRICE_ABOVE_EMA",
+  "PRICE_BELOW_EMA",
+  "EMA_CROSS_BULLISH",
+  "EMA_CROSS_BEARISH",
+  "RELATIVE_VOLUME_ABOVE",
+  "ADX_ABOVE",
 ] as const
 
 export type AlertType = (typeof ALERT_TYPES)[number]
@@ -42,6 +54,16 @@ export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   POSITION_WEIGHT_ABOVE: "Position weight rises above",
   POSITION_WEIGHT_BELOW: "Position weight falls below",
   DIVIDEND_RECEIVED: "A dividend is recorded",
+  RSI_ABOVE: "RSI rises above",
+  RSI_BELOW: "RSI falls below",
+  MACD_BULLISH_CROSS: "MACD crosses above its signal",
+  MACD_BEARISH_CROSS: "MACD crosses below its signal",
+  PRICE_ABOVE_EMA: "Price rises above its EMA by",
+  PRICE_BELOW_EMA: "Price falls below its EMA by",
+  EMA_CROSS_BULLISH: "50 EMA crosses above the 200 EMA",
+  EMA_CROSS_BEARISH: "50 EMA crosses below the 200 EMA",
+  RELATIVE_VOLUME_ABOVE: "Relative volume rises above",
+  ADX_ABOVE: "ADX rises above",
 }
 
 /** Which alerts need a symbol, and which are about the portfolio as a whole. */
@@ -52,6 +74,46 @@ export const SYMBOL_ALERT_TYPES: readonly AlertType[] = [
   "PERCENT_CHANGE_BELOW",
   "POSITION_WEIGHT_ABOVE",
   "POSITION_WEIGHT_BELOW",
+  "RSI_ABOVE",
+  "RSI_BELOW",
+  "MACD_BULLISH_CROSS",
+  "MACD_BEARISH_CROSS",
+  "PRICE_ABOVE_EMA",
+  "PRICE_BELOW_EMA",
+  "EMA_CROSS_BULLISH",
+  "EMA_CROSS_BEARISH",
+  "RELATIVE_VOLUME_ABOVE",
+  "ADX_ABOVE",
+]
+
+/**
+ * Types whose reading comes from a technical snapshot rather than a quote. They need an OHLCV
+ * history, which is a different (and far more expensive) fetch than a batched quote — see
+ * docs/TECHNICAL-ANALYSIS.md for how the job keeps that affordable.
+ */
+export const TECHNICAL_ALERT_TYPES: readonly AlertType[] = [
+  "RSI_ABOVE",
+  "RSI_BELOW",
+  "MACD_BULLISH_CROSS",
+  "MACD_BEARISH_CROSS",
+  "PRICE_ABOVE_EMA",
+  "PRICE_BELOW_EMA",
+  "EMA_CROSS_BULLISH",
+  "EMA_CROSS_BEARISH",
+  "RELATIVE_VOLUME_ABOVE",
+  "ADX_ABOVE",
+]
+
+/**
+ * Types that are already a crossing in their own right. Their reading is 1 on the bar the cross
+ * happened and 0 otherwise, so the engine's `armed → triggered` rule fires exactly once per event
+ * with no special case — the same machinery, a different input.
+ */
+export const CROSS_EVENT_ALERT_TYPES: readonly AlertType[] = [
+  "MACD_BULLISH_CROSS",
+  "MACD_BEARISH_CROSS",
+  "EMA_CROSS_BULLISH",
+  "EMA_CROSS_BEARISH",
 ]
 
 /** Types measured in percent rather than currency — it changes the input's suffix and validation. */
@@ -64,7 +126,39 @@ export const PERCENT_ALERT_TYPES: readonly AlertType[] = [
   "PORTFOLIO_TOTAL_RETURN_BELOW",
   "POSITION_WEIGHT_ABOVE",
   "POSITION_WEIGHT_BELOW",
+  "PRICE_ABOVE_EMA",
+  "PRICE_BELOW_EMA",
 ]
+
+/**
+ * What the target value is measured in. It decides the input's suffix, its validation range and how
+ * the number is rendered — an RSI of 30 is not 30% and not $30.
+ */
+export type AlertUnit = "currency" | "percent" | "index" | "multiple" | "none"
+
+export const ALERT_UNITS: Record<AlertType, AlertUnit> = {
+  PRICE_ABOVE: "currency",
+  PRICE_BELOW: "currency",
+  PERCENT_CHANGE_ABOVE: "percent",
+  PERCENT_CHANGE_BELOW: "percent",
+  PORTFOLIO_DAILY_CHANGE_ABOVE: "percent",
+  PORTFOLIO_DAILY_CHANGE_BELOW: "percent",
+  PORTFOLIO_TOTAL_RETURN_ABOVE: "percent",
+  PORTFOLIO_TOTAL_RETURN_BELOW: "percent",
+  POSITION_WEIGHT_ABOVE: "percent",
+  POSITION_WEIGHT_BELOW: "percent",
+  DIVIDEND_RECEIVED: "none",
+  RSI_ABOVE: "index",
+  RSI_BELOW: "index",
+  MACD_BULLISH_CROSS: "none",
+  MACD_BEARISH_CROSS: "none",
+  PRICE_ABOVE_EMA: "percent",
+  PRICE_BELOW_EMA: "percent",
+  EMA_CROSS_BULLISH: "none",
+  EMA_CROSS_BEARISH: "none",
+  RELATIVE_VOLUME_ABOVE: "multiple",
+  ADX_ABOVE: "index",
+}
 
 /** Types the scheduled job evaluates. DIVIDEND_RECEIVED is raised by the write that causes it. */
 export const SCHEDULED_ALERT_TYPES: readonly AlertType[] = ALERT_TYPES.filter(
@@ -221,6 +315,21 @@ export type QuoteReading = {
   asOf: string
 }
 
+/**
+ * The technical facts an alert can be measured against. Deliberately a small, flat shape rather
+ * than the whole snapshot: the engine should depend on what it reads, not on how it was computed.
+ */
+export type TechnicalReading = {
+  rsi: number | null
+  adx: number | null
+  relativeVolume: number | null
+  /** Price distance from the 200 EMA, in percent. Positive means above. */
+  priceVsEma200Pct: number | null
+  macdCross: "bullish" | "bearish" | null
+  emaCross50200: "bullish" | "bearish" | null
+  asOf: string
+}
+
 export type PortfolioReading = {
   dailyChangePct: number | null
   totalReturnPct: number
@@ -236,10 +345,24 @@ export type PortfolioReading = {
  * alternative — session open — drifts as the day goes on and would make "+5% today" mean something
  * different at 10am and at 3pm. Null when the provider gave no previous close: unknown, not zero.
  */
+/**
+ * A crossing type reads 1 on the bar the cross happened and 0 otherwise, against a target of 0.5.
+ * That makes the engine's ordinary `armed → triggered` rule fire exactly once per event, with no
+ * special-casing anywhere — the same machinery as a price alert, a different input.
+ */
+function crossReading(
+  cross: "bullish" | "bearish" | null,
+  wanted: "bullish" | "bearish",
+  asOf: string,
+): AlertReading {
+  return { value: cross === wanted ? 1 : 0, asOf }
+}
+
 export function readingFor(
   alert: AlertRule,
   quotes: Map<string, QuoteReading>,
   portfolio: PortfolioReading | null,
+  technicals: Map<string, TechnicalReading> = new Map(),
 ): AlertReading | null {
   const symbol = alert.symbol?.toUpperCase() ?? null
 
@@ -279,6 +402,42 @@ export function readingFor(
 
     case "DIVIDEND_RECEIVED":
       return null
+
+    case "RSI_ABOVE":
+    case "RSI_BELOW": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      return t?.rsi === null || !t ? null : { value: t.rsi, asOf: t.asOf }
+    }
+
+    case "ADX_ABOVE": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      return t?.adx === null || !t ? null : { value: t.adx, asOf: t.asOf }
+    }
+
+    case "RELATIVE_VOLUME_ABOVE": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      return t?.relativeVolume === null || !t ? null : { value: t.relativeVolume, asOf: t.asOf }
+    }
+
+    case "PRICE_ABOVE_EMA":
+    case "PRICE_BELOW_EMA": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      return t?.priceVsEma200Pct === null || !t ? null : { value: t.priceVsEma200Pct, asOf: t.asOf }
+    }
+
+    case "MACD_BULLISH_CROSS":
+    case "MACD_BEARISH_CROSS": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      if (!t) return null
+      return crossReading(t.macdCross, alert.type === "MACD_BULLISH_CROSS" ? "bullish" : "bearish", t.asOf)
+    }
+
+    case "EMA_CROSS_BULLISH":
+    case "EMA_CROSS_BEARISH": {
+      const t = symbol ? technicals.get(symbol) : undefined
+      if (!t) return null
+      return crossReading(t.emaCross50200, alert.type === "EMA_CROSS_BULLISH" ? "bullish" : "bearish", t.asOf)
+    }
   }
 }
 
@@ -372,21 +531,89 @@ export function messageFor(
         body: "Open Stockly to see the payment.",
         href: "/dividends",
       }
+
+    // Technical readings are derived from public price and volume history, so they are named
+    // outright — the same rule as prices, and for the same reason.
+    case "RSI_ABOVE":
+    case "RSI_BELOW":
+      return {
+        title: `${symbol} RSI is ${triggerValue.toFixed(1)}`,
+        body: `Your alert was set at ${alert.targetValue.toFixed(0)}.`,
+        href: stockHref,
+      }
+    case "ADX_ABOVE":
+      return {
+        title: `${symbol} ADX rose above ${alert.targetValue.toFixed(0)}`,
+        body: `Now ${triggerValue.toFixed(1)} — a strengthening trend, in either direction.`,
+        href: stockHref,
+      }
+    case "RELATIVE_VOLUME_ABOVE":
+      return {
+        title: `${symbol} volume is ${triggerValue.toFixed(1)}× its average`,
+        body: `Your alert was set at ${alert.targetValue.toFixed(1)}×.`,
+        href: stockHref,
+      }
+    case "PRICE_ABOVE_EMA":
+    case "PRICE_BELOW_EMA":
+      return {
+        title: `${symbol} is ${percent(triggerValue)} from its 200 EMA`,
+        body: `Your alert was set at ${percent(alert.targetValue)}.`,
+        href: stockHref,
+      }
+    case "MACD_BULLISH_CROSS":
+      return {
+        title: `${symbol} MACD crossed above its signal`,
+        body: "A momentum crossover on the daily chart.",
+        href: stockHref,
+      }
+    case "MACD_BEARISH_CROSS":
+      return {
+        title: `${symbol} MACD crossed below its signal`,
+        body: "A momentum crossover on the daily chart.",
+        href: stockHref,
+      }
+    case "EMA_CROSS_BULLISH":
+      return {
+        title: `${symbol}: the 50 EMA crossed above the 200`,
+        body: "A golden cross on the daily chart.",
+        href: stockHref,
+      }
+    case "EMA_CROSS_BEARISH":
+      return {
+        title: `${symbol}: the 50 EMA crossed below the 200`,
+        body: "A death cross on the daily chart.",
+        href: stockHref,
+      }
   }
 }
 
 const WEIGHT_TYPES: readonly AlertType[] = ["POSITION_WEIGHT_ABOVE", "POSITION_WEIGHT_BELOW"]
 
+/** Renders a target in the unit its type is measured in. */
+export function formatTarget(alert: AlertRule, currency = "USD"): string {
+  switch (ALERT_UNITS[alert.type]) {
+    case "currency":
+      return money(alert.targetValue, currency)
+    case "index":
+      return alert.targetValue.toFixed(0)
+    case "multiple":
+      return `${alert.targetValue.toFixed(1)}×`
+    case "none":
+      return ""
+    case "percent":
+      // A weight is a share, not a move: "40%" of a portfolio, never "+40%".
+      return WEIGHT_TYPES.includes(alert.type)
+        ? `${alert.targetValue.toFixed(2)}%`
+        : percent(alert.targetValue)
+  }
+}
+
 /** A one-line description of the rule itself, for the alerts list. */
 export function describeAlert(alert: AlertRule, currency = "USD"): string {
-  // A weight is a share, not a move: "40%" of a portfolio, never "+40%".
-  const target = WEIGHT_TYPES.includes(alert.type)
-    ? `${alert.targetValue.toFixed(2)}%`
-    : PERCENT_ALERT_TYPES.includes(alert.type)
-      ? percent(alert.targetValue)
-      : money(alert.targetValue, currency)
   const subject = alert.symbol ? alert.symbol.toUpperCase() : "Portfolio"
-
   if (alert.type === "DIVIDEND_RECEIVED") return "Any dividend is recorded"
-  return `${subject} · ${ALERT_TYPE_LABELS[alert.type].toLowerCase()} ${target}`
+
+  const target = formatTarget(alert, currency)
+  const label = ALERT_TYPE_LABELS[alert.type].toLowerCase()
+  return target ? `${subject} · ${label} ${target}` : `${subject} · ${label}`
 }

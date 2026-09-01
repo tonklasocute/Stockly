@@ -2,8 +2,19 @@
 
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import {
+  Area,
+  Bar,
+  Line,
+  ComposedChart,
+  ResponsiveContainer,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { LineChart } from "lucide-react"
+import { bollingerBands, ema, macd as calcMacd, relativeVolume, rsi as calcRsi } from "@/domain/indicators"
 import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiFetch } from "@/lib/api-client"
@@ -12,6 +23,26 @@ import { cn } from "@/lib/utils"
 import type { Candle, Range } from "@/services/market-data/types"
 
 const RANGES: Range[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]
+
+/**
+ * Overlays sit on the price axis; panels get their own. Toggled individually because rendering all
+ * of them at once is both unreadable and, on a phone, several thousand extra SVG segments.
+ */
+const OVERLAYS = [
+  { key: "ema20", label: "EMA 20", colour: "var(--chart-1)" },
+  { key: "ema50", label: "EMA 50", colour: "var(--chart-3)" },
+  { key: "ema200", label: "EMA 200", colour: "var(--chart-4)" },
+  { key: "bb", label: "Bollinger", colour: "var(--chart-2)" },
+] as const
+
+const PANELS = [
+  { key: "rsi", label: "RSI" },
+  { key: "macd", label: "MACD" },
+  { key: "volume", label: "Volume" },
+] as const
+
+type OverlayKey = (typeof OVERLAYS)[number]["key"]
+type PanelKey = (typeof PANELS)[number]["key"]
 
 /**
  * A 390px screen cannot show 252 daily closes — the extra points are sub-pixel, and every one of
@@ -48,6 +79,9 @@ export function PriceChart({
   currency?: string
 }) {
   const [range, setRange] = useState<Range>("1M")
+  // Defaults chosen to be legible rather than complete: two moving averages and nothing else.
+  const [overlays, setOverlays] = useState<Set<OverlayKey>>(() => new Set<OverlayKey>(["ema50", "ema200"]))
+  const [panel, setPanel] = useState<PanelKey | null>(null)
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["history", symbol, range],
@@ -66,6 +100,36 @@ export function PriceChart({
     return downsample(raw, width < 640 ? 160 : width < 1024 ? 240 : 400)
   }, [raw])
   const closes = candles.map((c) => c.close)
+
+  /**
+   * Indicators are computed here, on the downsampled series the chart actually draws, so what the
+   * eye follows and what the line plots are the same points. The authoritative values in the
+   * technical panel come from the server's full-history calculation — this is the drawing.
+   */
+  const enriched = useMemo(() => {
+    const ema20 = ema(closes, 20)
+    const ema50 = ema(closes, 50)
+    const ema200 = ema(closes, 200)
+    const bands = bollingerBands(closes, 20, 2)
+    const rsiSeries = calcRsi(closes, 14)
+    const macdResult = calcMacd(closes, 12, 26, 9)
+    const rvol = relativeVolume(candles, 20)
+
+    return candles.map((candle, i) => ({
+      ...candle,
+      ema20: ema20[i],
+      ema50: ema50[i],
+      ema200: ema200[i],
+      bbUpper: bands.upper[i],
+      bbLower: bands.lower[i],
+      rsi: rsiSeries[i],
+      macd: macdResult.macd[i],
+      macdSignal: macdResult.signal[i],
+      macdHistogram: macdResult.histogram[i],
+      relativeVolume: rvol[i],
+      volumeValue: candle.volume ?? 0,
+    }))
+  }, [candles, closes])
   // A chart of prices should not start at zero — it flattens every real move.
   const min = closes.length ? Math.min(...closes) : 0
   const max = closes.length ? Math.max(...closes) : 0
@@ -99,6 +163,54 @@ export function PriceChart({
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-1.5">
+        {OVERLAYS.map((overlay) => {
+          const on = overlays.has(overlay.key)
+          return (
+            <button
+              key={overlay.key}
+              type="button"
+              aria-pressed={on}
+              onClick={() =>
+                setOverlays((current) => {
+                  const next = new Set(current)
+                  if (next.has(overlay.key)) next.delete(overlay.key)
+                  else next.add(overlay.key)
+                  return next
+                })
+              }
+              className={cn(
+                "inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:px-3",
+                on ? "border-foreground/25" : "text-muted-foreground",
+              )}
+            >
+              {/* A checkbox glyph as well as the colour, so state is never colour alone. */}
+              <span aria-hidden>{on ? "☑" : "☐"}</span>
+              <span
+                className="size-2 rounded-full"
+                style={{ background: overlay.colour, opacity: on ? 1 : 0.35 }}
+                aria-hidden
+              />
+              {overlay.label}
+            </button>
+          )
+        })}
+        {PANELS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={panel === option.key}
+            onClick={() => setPanel((current) => (current === option.key ? null : option.key))}
+            className={cn(
+              "inline-flex min-h-8 items-center rounded-lg border px-2.5 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:px-3",
+              panel === option.key ? "border-foreground/25" : "text-muted-foreground",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {/* Fixed height in every state, so switching range never makes the page jump. */}
       <div className="h-64 sm:h-72">
         {isPending ? (
@@ -117,7 +229,7 @@ export function PriceChart({
           />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={candles} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <ComposedChart data={enriched} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id={`fill-${symbol}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
@@ -160,10 +272,79 @@ export function PriceChart({
                 isAnimationActive={false}
                 dot={false}
               />
-            </AreaChart>
+              {overlays.has("bb") && (
+                <>
+                  <Line type="monotone" dataKey="bbUpper" stroke="var(--chart-2)" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls />
+                  <Line type="monotone" dataKey="bbLower" stroke="var(--chart-2)" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls />
+                </>
+              )}
+              {OVERLAYS.filter((o) => o.key !== "bb" && overlays.has(o.key)).map((overlay) => (
+                <Line
+                  key={overlay.key}
+                  type="monotone"
+                  dataKey={overlay.key}
+                  stroke={overlay.colour}
+                  strokeWidth={1.25}
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+            </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
+
+      {panel && candles.length > 0 && (
+        <div className="h-28 border-t pt-2 sm:h-32">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={enriched} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <XAxis dataKey="date" hide />
+              <YAxis
+                domain={panel === "rsi" ? [0, 100] : ["auto", "auto"]}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={62}
+                tickFormatter={(v: number) => (panel === "volume" ? formatCompactNumber(v) : v.toFixed(0))}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.5rem",
+                  color: "var(--popover-foreground)",
+                  fontSize: "0.8125rem",
+                }}
+                labelFormatter={(value) => labelFor(String(value), range)}
+              />
+              {panel === "rsi" && (
+                <>
+                  {/* The conventional 30/70 bands, drawn so the number has context. */}
+                  <ReferenceLine y={70} stroke="var(--loss)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <ReferenceLine y={30} stroke="var(--gain)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <Line type="monotone" dataKey="rsi" stroke="var(--chart-1)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+                </>
+              )}
+              {panel === "macd" && (
+                <>
+                  <ReferenceLine y={0} stroke="var(--border)" />
+                  <Bar dataKey="macdHistogram" fill="var(--chart-2)" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="macd" stroke="var(--chart-1)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+                  <Line type="monotone" dataKey="macdSignal" stroke="var(--chart-4)" strokeWidth={1.25} dot={false} isAnimationActive={false} connectNulls />
+                </>
+              )}
+              {panel === "volume" && (
+                <Bar dataKey="volumeValue" fill="var(--chart-2)" isAnimationActive={false} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   )
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)
 }
