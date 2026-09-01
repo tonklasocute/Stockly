@@ -10,8 +10,8 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 4 complete.** On top of phases 1–3: an installable PWA with a service worker,
-offline app shell, install flows for iOS and Android, and a touch-first mobile pass. See
+**Status: Phase 5 complete.** On top of phases 1–4: a server-side alert engine with crossing logic
+and cooldown, a notification centre, Web Push, and scheduled evaluation behind a cron secret. See
 [Development Phases](#development-phases).
 
 ## Commands
@@ -46,6 +46,8 @@ No E2E runner is installed yet; add Playwright in the phase that writes the firs
 | Market data | Twelve Data, behind `MarketDataProvider` | free tier: 8 credits/min, 800/day, **1 credit per symbol** |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
+| Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
+| Scheduling | Vercel Cron → `/api/cron/alerts` | secret-guarded; any external scheduler works too |
 | Deploy | Vercel | |
 
 **No Go microservice.** Business logic lives in `domain/` with zero framework imports so it can be
@@ -156,6 +158,31 @@ Zod schemas       xxxSchema           createTransactionSchema
 - Lists that grow without bound (transactions, dividends, cash) are paginated server-side. The
   calculation engine still reads the full history — a portfolio computed from one page would be wrong.
 
+## Alert Rules
+
+Full detail in [`docs/ALERTS.md`](docs/ALERTS.md).
+
+- **Rule, event and notification are three tables and three concepts.** Never collapse them.
+- **An alert fires on a crossing, never on a comparison.** `current > target` alone notifies on every
+  poll. The `armed → triggered` transition in `domain/alerts.ts` is the only thing that produces an
+  event; returning to `armed` requires the condition to go false.
+- Daily change and total return are separate alert types. "Gain %" is ambiguous and is never used.
+- Percentage change is measured against the **previous close**, fixed and documented.
+- A missing reading is `null` — a symbol with no quote is not a symbol at zero, and a symbol that is
+  not held has no weight rather than a weight of 0%.
+- A quote older than 15 minutes never triggers anything. A provider outage triggers nothing at all.
+- **One batched quote call per run, for the union of every alert's symbol.** Never a fetch per alert.
+- Evaluation is server-side. A `setInterval` in a tab is not an alert system.
+- The cron endpoint rejects every request when `CRON_SECRET` is unset. Never treat an unset secret as
+  open access.
+- The service-role key is used in exactly one place — the scheduled job — and nowhere reachable from
+  a request.
+- Alert conditions are enums. Never accept a client-supplied expression.
+- **Push payloads never contain portfolio figures.** Prices are public and are named; value, return
+  and weight say "open Stockly to see". A lock screen is not a private surface.
+- Push 404/410 deletes the subscription. Any other failure is left alone. There is no retry queue.
+- In-app is written first and always; push is best-effort on top.
+
 ## Market Data Rules
 
 - Add a provider by writing an adapter next to `twelve-data-provider.ts` and adding one `case` to
@@ -260,7 +287,7 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 2 ✅ | Market data: symbol search, quotes, historical prices, charts, watchlist |
 | 3 ✅ | Analytics: allocation, performance, dividends, cash, realized/unrealized breakdown |
 | 4 ✅ | PWA: service worker, offline shell, install flows, mobile/touch pass |
-| 5 | Alerts: price / target buy / stop loss / take profit, notifications |
+| 5 ✅ | Alerts: price, percentage, portfolio and position alerts; notification centre; Web Push |
 | 6 | Advanced: technical indicators, screener, AI analysis, multi-market, multi-currency |
 
 Do not start the next phase without being asked.

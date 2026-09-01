@@ -3,10 +3,11 @@
 Personal stock portfolio tracker — a Next.js web app that installs as a PWA. Record buy and sell
 transactions; Stockly derives your holdings, average cost, and realized and unrealized profit and loss.
 
-**Phases 1–4 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
+**Phases 1–5 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
 engine, the dashboard; live market data — stock search, quotes, price charts, company profiles and a
 watchlist; and analytics — allocation, concentration, contribution, trade and fee statistics,
-dividend tracking, cash management and CSV export; and an installable PWA with an offline app shell.
+dividend tracking, cash management and CSV export; an installable PWA with an offline app shell; and server-side alerts with a notification centre and
+Web Push.
 
 Install it from Chrome (Install app) or iOS Safari (Share → Add to Home Screen). The service worker
 only runs in a production build — use `npm run build && npm start` to try it locally.
@@ -64,6 +65,11 @@ is what keeps a normal portfolio comfortably inside that budget. See
 Transactions are the only source of truth. Holdings, average cost, realized and unrealized P&L are
 recomputed from them on every request by the pure functions in [`domain/`](domain/), so editing or
 deleting a transaction can never leave a stale position behind.
+
+Alerts are evaluated on the server on a schedule, so they fire whether or not the app is open — see
+[`docs/ALERTS.md`](docs/ALERTS.md) for the crossing logic, cooldown and security model. Set
+`CRON_SECRET` before deploying: without it the scheduled endpoint rejects every request, including
+Vercel's own.
 
 Market data sits behind a `MarketDataProvider` interface, so swapping Twelve Data for Finnhub or
 Polygon is one adapter file plus one line in `services/market-data/index.ts`.

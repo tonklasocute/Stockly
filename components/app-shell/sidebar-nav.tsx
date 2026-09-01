@@ -11,13 +11,32 @@ export function useHrefWithPortfolio() {
   return (href: string) => (portfolioId ? `${href}?p=${portfolioId}` : href)
 }
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+/** A small count, capped so a long-neglected inbox cannot stretch the row. */
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <span
+      className="bg-foreground text-background ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+      aria-label={`${count} unread`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  )
+}
+
+export function SidebarNav({
+  onNavigate,
+  unread = 0,
+}: {
+  onNavigate?: () => void
+  unread?: number
+}) {
   const pathname = usePathname()
   const withPortfolio = useHrefWithPortfolio()
 
   return (
     <nav className="grid gap-0.5" aria-label="Main">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {NAV_ITEMS.map(({ href, label, icon: Icon, badge }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`)
         return (
           <Link
@@ -34,6 +53,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             {label}
+            {badge === "unread" && <Badge count={unread} />}
           </Link>
         )
       })}
@@ -41,7 +61,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-export function MobileTabBar() {
+export function MobileTabBar({ unread = 0 }: { unread?: number }) {
   const pathname = usePathname()
   const withPortfolio = useHrefWithPortfolio()
   const items = NAV_ITEMS.filter((item) => item.mobile)
@@ -51,7 +71,7 @@ export function MobileTabBar() {
       aria-label="Main"
       className="bg-background/95 safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t pt-1 backdrop-blur lg:hidden"
     >
-      {items.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon, badge }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`)
         return (
           <Link
@@ -64,7 +84,17 @@ export function MobileTabBar() {
               active ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            <Icon className="size-5" aria-hidden />
+            <span className="relative">
+              <Icon className="size-5" aria-hidden />
+              {badge === "unread" && unread > 0 && (
+                <span
+                  className="bg-foreground text-background absolute -top-1.5 -right-2 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold tabular-nums"
+                  aria-label={`${unread} unread`}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </span>
             <span className="truncate">{label}</span>
           </Link>
         )

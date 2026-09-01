@@ -161,7 +161,20 @@ PWA requires HTTPS, which Vercel provides on every deployment.
 
 ---
 
-## 8. Graceful degradation
+## 8. Push notifications
+
+The service worker's `push` and `notificationclick` handlers are part of the alert system; the rules
+they follow live in [ALERTS.md](ALERTS.md). Two things belong here:
+
+- **The payload is treated as untrusted.** `notificationclick` navigates only to a same-origin path
+  (`href.startsWith("/")`), so a payload can never redirect a user off-site.
+- **Tapping focuses an existing window** rather than opening a second copy — what an installed app
+  should do. `clients.matchAll` first, `openWindow` only as a fallback.
+
+On iOS, Safari delivers push **only to an installed app**. The settings UI says so rather than
+offering a button that would do nothing.
+
+## 9. Graceful degradation
 
 Nothing here is required for the app to work. A browser with no service worker support, a blocked
 registration, unavailable `localStorage`, or no `beforeinstallprompt` all lose a feature and nothing

@@ -66,6 +66,61 @@ self.addEventListener("message", (event) => {
   }
 })
 
+/**
+ * Web Push.
+ *
+ * The payload carries only what the server chose to expose — a title, a body and an in-app path.
+ * Portfolio figures never appear here: this text can be shown on a locked screen to whoever is
+ * holding the device. See domain/alerts.ts `messageFor`.
+ */
+self.addEventListener("push", (event) => {
+  let payload = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch {
+    // A malformed payload still deserves a notification, just a generic one.
+    payload = {}
+  }
+
+  const title = payload.title || "Stockly"
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || "Open Stockly for details.",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      // Same tag replaces the previous notification for that alert instead of stacking.
+      tag: payload.tag || "stockly",
+      renotify: false,
+      data: { href: typeof payload.href === "string" ? payload.href : "/notifications" },
+    }),
+  )
+})
+
+/**
+ * Tapping a notification focuses an open Stockly window and navigates it, rather than opening a
+ * second copy — which is what an installed app should do.
+ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const raw = event.notification.data?.href ?? "/notifications"
+  // Only same-origin paths: a payload can never be used to send the user somewhere else.
+  const href = typeof raw === "string" && raw.startsWith("/") ? raw : "/notifications"
+
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      for (const client of clientList) {
+        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+          await client.focus()
+          if ("navigate" in client) await client.navigate(href)
+          return
+        }
+      }
+      await self.clients.openWindow(href)
+    })(),
+  )
+})
+
 function isStaticAsset(url) {
   return (
     url.pathname.startsWith("/_next/static/") ||

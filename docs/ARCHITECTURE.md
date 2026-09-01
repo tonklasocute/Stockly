@@ -300,8 +300,32 @@ implementation and no UI** — index series (^GSPC, ^IXIC, SET) are not on the p
 a chart that can never load is worse than an absent one. The shape is settled now because that is the
 part that would be expensive to change later.
 
-## 15. What is deliberately not here yet
+## 15. Alerts and notifications (phase 5)
+
+Full detail in [ALERTS.md](ALERTS.md). Three decisions shaped everything else:
+
+**Firing on a crossing, not a comparison.** `current > target` is true on every poll while the price
+sits above the target, so it would notify every five minutes. The engine keeps a state per alert
+(`armed → triggered`, back to `armed` only when the condition goes false), which also survives a
+missed run or a restart in a way that comparing two raw prices does not.
+
+**One batched call per run.** The job collects the union of every enabled alert's symbol and makes a
+single request. A thousand alerts on NVDA across a hundred users is one upstream call; the naive
+nested loop would be ten thousand and would exhaust a free tier in seconds.
+
+**Push payloads are public data only.** Prices and percentage moves are named — a notification that
+will not say what happened is useless — but portfolio value, return and position weight never appear.
+The text can be shown on a locked screen to whoever is holding the device.
+
+The service-role key appears here for the first time, in `lib/supabase/admin.ts`. It bypasses RLS,
+which the job needs (it reads alerts belonging to everyone and has no session), and it is reachable
+only from behind the cron secret. Every interactive path still goes through the request-scoped client.
+
+`DIVIDEND_RECEIVED` is raised from the write that creates the dividend rather than polled: the event
+is a row appearing, and a cron would have to diff the table against itself to notice.
+
+## 16. What is deliberately not here yet
 
 FX conversion, FIFO cost basis, time- and money-weighted return, benchmark comparison, SET listings,
-background jobs, push notifications, CSV import, an event bus, and any Go service. Each has a clear
-insertion point above; none is built until the phase that needs it.
+email and LINE notification channels, offline mutation queues, CSV import, an event bus, and any Go
+service. Each has a clear insertion point above; none is built until the phase that needs it.

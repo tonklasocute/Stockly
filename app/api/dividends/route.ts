@@ -3,6 +3,7 @@ import { invalidatePortfolio } from "@/lib/cache"
 import { listDividendsPage } from "@/features/dividends/queries"
 import { dividendInputSchema } from "@/features/dividends/schema"
 import { toPage } from "@/lib/pagination"
+import { notifyDividendRecorded } from "@/features/alerts/dividend-hook"
 import { createClient } from "@/lib/supabase/server"
 import { ApiError } from "@/lib/api"
 
@@ -45,6 +46,14 @@ export async function POST(request: Request) {
 
     // A dividend moves cash, dividend analytics and the portfolio summary together.
     invalidatePortfolio()
+
+    // Raised from the write rather than polled: the event is this row existing.
+    await notifyDividendRecorded(supabase, userId, {
+      symbol: body.symbol,
+      netAmount: body.shares * body.dividendPerShare - body.tax - body.fee,
+      currency: "USD",
+    })
+
     return ok(data, 201)
   })
 }

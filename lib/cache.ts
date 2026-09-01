@@ -37,3 +37,12 @@ export function invalidateWatchlist(): void {
   // A stock page shows whether the symbol is watched.
   revalidatePath("/stocks/[symbol]", "page")
 }
+
+/** Alerts, notifications and the unread badge, which the app shell renders on every page. */
+export function invalidateAlerts(): void {
+  revalidatePath("/alerts")
+  revalidatePath("/notifications")
+  revalidatePath("/settings/notifications")
+  // The badge lives in the shell, so every route that renders it has to re-render.
+  revalidatePath("/", "layout")
+}

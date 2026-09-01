@@ -15,4 +15,26 @@ export const serverEnv = {
   get marketDataBaseUrl() {
     return process.env.MARKET_DATA_BASE_URL ?? "https://api.twelvedata.com"
   },
+
+  /** Bypasses RLS. Used only by the scheduled job, which must read every user's alerts. */
+  get supabaseServiceRoleKey() {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
+  },
+  /** Shared secret the cron endpoint checks before doing any work. */
+  get cronSecret() {
+    return process.env.CRON_SECRET ?? ""
+  },
+  get vapidPublicKey() {
+    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
+  },
+  get vapidPrivateKey() {
+    return process.env.VAPID_PRIVATE_KEY ?? ""
+  },
+  /** A mailto: or https: URL identifying the sender, required by the Web Push spec. */
+  get vapidSubject() {
+    return process.env.VAPID_SUBJECT ?? "mailto:alerts@stockly.local"
+  },
+  get pushConfigured() {
+    return Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
+  },
 }

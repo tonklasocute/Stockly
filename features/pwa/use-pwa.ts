@@ -118,3 +118,35 @@ export function useInstallDismissed(): boolean {
     () => true, // hidden during server render, so it never flashes before hydration
   )
 }
+
+// ---------------------------------------------------------------- push permission
+
+export type PushPermission = "unsupported" | "default" | "granted" | "denied"
+
+function readPushPermission(): PushPermission {
+  const supported =
+    "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
+  return supported ? (Notification.permission as PushPermission) : "unsupported"
+}
+
+/**
+ * The browser's notification permission, read during render rather than copied into state by an
+ * effect. It only changes in response to the prompt, which the caller triggers itself, so the
+ * store notifies on demand.
+ */
+const permissionListeners = new Set<() => void>()
+
+export function notifyPushPermissionChanged(): void {
+  for (const listener of permissionListeners) listener()
+}
+
+export function usePushPermission(): PushPermission {
+  return useSyncExternalStore(
+    (callback) => {
+      permissionListeners.add(callback)
+      return () => permissionListeners.delete(callback)
+    },
+    readPushPermission,
+    () => "unsupported",
+  )
+}

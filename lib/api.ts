@@ -3,6 +3,7 @@ import "server-only"
 import { NextResponse } from "next/server"
 import { ZodError, type ZodType } from "zod"
 import { isSupabaseConfigured } from "@/lib/env"
+import { rateLimit } from "@/lib/rate-limit"
 import { isMarketDataError } from "@/services/market-data/errors"
 import { getUser } from "@/lib/supabase/server"
 
@@ -18,6 +19,7 @@ export const ERROR_CODES = {
   MARKET_DATA_TIMEOUT: 504,
   MARKET_DATA_NOT_CONFIGURED: 500,
   MARKET_DATA_INVALID_RESPONSE: 502,
+  RATE_LIMITED: 429,
 } as const
 
 export type ErrorCode = keyof typeof ERROR_CODES
@@ -85,6 +87,24 @@ export async function guarded(
     }
     console.error("[api]", error)
     return fail("INTERNAL_ERROR", "Something went wrong. Please try again.")
+  }
+}
+
+/**
+ * Applies a rate limit, throwing the shared error shape when it trips. Keyed per user so one
+ * account cannot exhaust another's budget.
+ */
+export function enforceRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): void {
+  const result = rateLimit(key, limit, windowSeconds)
+  if (!result.allowed) {
+    throw new ApiError(
+      "RATE_LIMITED",
+      `Too many requests. Try again in ${result.retryAfterSeconds} seconds.`,
+    )
   }
 }
 

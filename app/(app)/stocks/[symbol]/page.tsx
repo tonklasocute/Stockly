@@ -8,6 +8,8 @@ import { CompanyProfileCard } from "@/features/stocks/components/company-profile
 import { LiveQuote } from "@/features/stocks/components/live-quote"
 import { PriceChart } from "@/features/stocks/components/lazy-price-chart"
 import { StockOverview } from "@/features/stocks/components/stock-overview"
+import { QuickAlert } from "@/features/alerts/components/quick-alert"
+import { listAlerts } from "@/features/alerts/queries"
 import { WatchButton } from "@/features/watchlist/components/watch-button"
 import { watchedSymbols } from "@/features/watchlist/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
@@ -32,11 +34,12 @@ export default async function StockPage({ params, searchParams }: Props) {
   const provider = getMarketDataProvider()
 
   // One round trip for everything the page needs; a failure in any one part must not blank the page.
-  const [quoteResult, profileResult, watched, { active }] = await Promise.all([
+  const [quoteResult, profileResult, watched, { active }, alerts] = await Promise.all([
     provider.getQuote(symbol).catch((error: unknown) => error),
     provider.getCompanyProfile(symbol).catch(() => null),
     watchedSymbols(),
     resolveActivePortfolio((await searchParams).p),
+    listAlerts().catch(() => []),
   ])
 
   const marketDataError =
@@ -90,6 +93,19 @@ export default async function StockPage({ params, searchParams }: Props) {
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="sr-only">Price history</h2>
         <PriceChart symbol={symbol} currency={currency} />
+      </section>
+
+      <section className="bg-card rounded-xl border p-4 sm:p-5">
+        <h2 className="mb-1 text-sm font-semibold">Alerts</h2>
+        <p className="text-muted-foreground mb-4 text-xs">
+          Checked on the server every few minutes, so they fire whether or not Stockly is open.
+        </p>
+        <QuickAlert
+          symbol={symbol}
+          price={quote?.price ?? null}
+          portfolioId={active?.id}
+          existing={alerts}
+        />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">

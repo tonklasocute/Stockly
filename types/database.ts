@@ -88,6 +88,89 @@ export type PortfolioSnapshotRow = {
   updated_at: string
 }
 
+export type AlertType =
+  | "PRICE_ABOVE"
+  | "PRICE_BELOW"
+  | "PERCENT_CHANGE_ABOVE"
+  | "PERCENT_CHANGE_BELOW"
+  | "PORTFOLIO_DAILY_CHANGE_ABOVE"
+  | "PORTFOLIO_DAILY_CHANGE_BELOW"
+  | "PORTFOLIO_TOTAL_RETURN_ABOVE"
+  | "PORTFOLIO_TOTAL_RETURN_BELOW"
+  | "POSITION_WEIGHT_ABOVE"
+  | "POSITION_WEIGHT_BELOW"
+  | "DIVIDEND_RECEIVED"
+
+export type AlertState = "armed" | "triggered" | "cooldown"
+
+export type NotificationCategory = "price" | "portfolio" | "dividend" | "system"
+
+export type AlertRow = {
+  id: string
+  user_id: string
+  portfolio_id: string | null
+  symbol: string | null
+  market: string
+  type: AlertType
+  target_value: number
+  enabled: boolean
+  state: AlertState
+  last_value: number | null
+  last_evaluated_at: string | null
+  last_triggered_at: string | null
+  cooldown_minutes: number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type AlertEventRow = {
+  id: string
+  alert_id: string
+  user_id: string
+  triggered_at: string
+  trigger_value: number
+  reference_value: number
+  message: string
+  idempotency_key: string
+  created_at: string
+}
+
+export type NotificationRow = {
+  id: string
+  user_id: string
+  category: NotificationCategory
+  title: string
+  body: string
+  href: string | null
+  alert_id: string | null
+  read_at: string | null
+  created_at: string
+}
+
+export type NotificationPreferencesRow = {
+  user_id: string
+  price: boolean
+  portfolio: boolean
+  dividend: boolean
+  system: boolean
+  push: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type PushSubscriptionRow = {
+  id: string
+  user_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -136,6 +219,36 @@ export type Database = {
         Update: Partial<Omit<PortfolioSnapshotRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
         Relationships: []
       }
+      alerts: {
+        Row: AlertRow
+        Insert: Omit<AlertRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<AlertRow, "id" | "user_id" | Timestamps>>
+        Relationships: []
+      }
+      alert_events: {
+        Row: AlertEventRow
+        Insert: Omit<AlertEventRow, "id" | "created_at"> & { id?: string; triggered_at?: string }
+        Update: Partial<Omit<AlertEventRow, "id">>
+        Relationships: []
+      }
+      notifications: {
+        Row: NotificationRow
+        Insert: Omit<NotificationRow, "id" | "created_at"> & { id?: string }
+        Update: Partial<Pick<NotificationRow, "read_at">>
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: NotificationPreferencesRow
+        Insert: Partial<NotificationPreferencesRow> & { user_id: string }
+        Update: Partial<Omit<NotificationPreferencesRow, "user_id" | Timestamps>>
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: PushSubscriptionRow
+        Insert: Omit<PushSubscriptionRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<PushSubscriptionRow, "id" | "user_id" | Timestamps>>
+        Relationships: []
+      }
       watchlist_items: {
         Row: WatchlistItemRow
         Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
@@ -145,7 +258,13 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: Record<string, never>
-    Enums: { transaction_side: TransactionSide; cash_transaction_kind: CashTransactionKind }
+    Enums: {
+      transaction_side: TransactionSide
+      cash_transaction_kind: CashTransactionKind
+      alert_type: AlertType
+      alert_state: AlertState
+      notification_category: NotificationCategory
+    }
     CompositeTypes: Record<string, never>
   }
 }

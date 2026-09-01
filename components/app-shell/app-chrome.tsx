@@ -35,10 +35,12 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
 export function AppChrome({
   portfolios,
   email,
+  unread = 0,
   children,
 }: {
   portfolios: PortfolioRow[]
   email: string
+  unread?: number
   children: React.ReactNode
 }) {
   const [creating, setCreating] = useState(false)
@@ -52,7 +54,7 @@ export function AppChrome({
         <div className="px-2 pt-2">
           <Wordmark />
         </div>
-        <SidebarNav />
+        <SidebarNav unread={unread} />
       </aside>
 
       <div className="flex min-w-0 flex-col">
@@ -69,7 +71,7 @@ export function AppChrome({
               <div className="mb-6 px-2">
                 <Wordmark />
               </div>
-              <SidebarNav onNavigate={() => setMenuOpen(false)} />
+              <SidebarNav onNavigate={() => setMenuOpen(false)} unread={unread} />
               <div className="mt-4 flex items-center justify-between border-t px-3 pt-4 sm:hidden">
                 <span className="text-muted-foreground text-sm">Appearance</span>
                 <ThemeToggle />
@@ -101,7 +103,7 @@ export function AppChrome({
         <main className="min-w-0 flex-1 px-4 pt-5 pb-24 sm:px-6 lg:pb-8">{children}</main>
       </div>
 
-      <MobileTabBar />
+      <MobileTabBar unread={unread} />
       <PortfolioDialog open={creating} onOpenChange={setCreating} />
     </div>
   )

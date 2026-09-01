@@ -8,6 +8,9 @@ import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { AllocationChart } from "@/features/dashboard/components/lazy-allocation-chart"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
+import { listAlerts } from "@/features/alerts/queries"
+import { describeAlert } from "@/domain/alerts"
+import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { namesFrom } from "@/features/portfolios/portfolio-view"
 import { formatCurrency } from "@/lib/format"
@@ -26,7 +29,8 @@ export default async function DashboardPage({
 
   // One aggregation for the whole page: holdings, cash, dividends and fees come from a single pass
   // and a single batched quote call, so the dashboard cannot disagree with analytics.
-  const bundle = await loadAnalytics(active.id)
+  const [bundle, alerts] = await Promise.all([loadAnalytics(active.id), listAlerts().catch(() => [])])
+  const activeAlerts = alerts.filter((a) => a.enabled)
   const { holdings, summary, cash, totalValue, quotes, marketDataError, dividends, fees } = bundle
   const transactions = { length: bundle.transactionCount }
   const names = namesFrom(quotes)
@@ -199,6 +203,29 @@ export default async function DashboardPage({
               )}
             </section>
           </div>
+
+          {activeAlerts.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold">
+                  {activeAlerts.length} active alert{activeAlerts.length === 1 ? "" : "s"}
+                </h2>
+                <Link
+                  href="/alerts"
+                  className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
+                >
+                  Manage
+                </Link>
+              </div>
+              <ul className="divide-y overflow-hidden rounded-xl border">
+                {activeAlerts.slice(0, 4).map((alert) => (
+                  <li key={alert.id} className="bg-card px-4 py-2.5 text-sm">
+                    {describeAlert(toRuleFromRow(alert))}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
