@@ -1,4 +1,4 @@
-import { fail, guarded, ok } from "@/lib/api"
+import { enforceRateLimit, fail, guarded, ok } from "@/lib/api"
 import { analyze } from "@/domain/technical"
 import { readSnapshots, SNAPSHOT_STALE_MINUTES } from "@/features/technical/snapshots"
 import { isValidSymbol, normalizeSymbol } from "@/lib/symbol"
@@ -14,7 +14,11 @@ type Ctx = { params: Promise<{ symbol: string }> }
  * screener, which would need hundreds, never takes this path.
  */
 export async function GET(_request: Request, { params }: Ctx) {
-  return guarded(async () => {
+  return guarded(async (userId) => {
+    // A cache miss here costs a full OHLCV request, and the free tier allows eight a minute across
+    // the whole deployment — so this is the tightest market-data limit in the app.
+    enforceRateLimit(`stocks:technical:${userId}`, 20, 60)
+
     const { symbol: raw } = await params
     if (!isValidSymbol(raw)) return fail("VALIDATION_ERROR", "That is not a valid symbol.")
     const symbol = normalizeSymbol(raw)

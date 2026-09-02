@@ -1,8 +1,10 @@
 import "server-only"
 
+import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 import { ZodError, type ZodType } from "zod"
 import { isSupabaseConfigured } from "@/lib/env"
+import { logger, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveRequestId } from "@/lib/log"
 import { rateLimit } from "@/lib/rate-limit"
 import { isAIError } from "@/services/ai/errors"
 import { isMarketDataError } from "@/services/market-data/errors"
@@ -28,7 +30,18 @@ export const ERROR_CODES = {
   AI_TIMEOUT: 504,
   AI_INVALID_RESPONSE: 502,
   AI_QUOTA_EXCEEDED: 429,
+  PAYLOAD_TOO_LARGE: 413,
 } as const
+
+/**
+ * The largest request body any endpoint accepts.
+ *
+ * App Router route handlers have no default body limit — `await request.json()` will happily parse
+ * whatever arrives — so this is the only thing standing between a handler and a 200MB upload. It is
+ * generous for the biggest legitimate body in the app (a screen definition, or an AI question
+ * capped at 1,000 characters) and small enough that abuse costs the attacker more than the server.
+ */
+export const MAX_REQUEST_BYTES = 64 * 1024
 
 export type ErrorCode = keyof typeof ERROR_CODES
 
@@ -36,6 +49,8 @@ export type ApiSuccess<T> = { success: true; data: T }
 export type ApiFailure = {
   success: false
   error: { code: ErrorCode; message: string; details?: Record<string, string[]> }
+  /** Echoed so a user can quote it in a bug report and it can be found in the logs. */
+  requestId?: string
 }
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
@@ -43,10 +58,19 @@ export function ok<T>(data: T, status = 200) {
   return NextResponse.json<ApiSuccess<T>>({ success: true, data }, { status })
 }
 
-export function fail(code: ErrorCode, message: string, details?: Record<string, string[]>) {
+export function fail(
+  code: ErrorCode,
+  message: string,
+  details?: Record<string, string[]>,
+  requestId?: string,
+) {
   return NextResponse.json<ApiFailure>(
-    { success: false, error: { code, message, ...(details ? { details } : {}) } },
-    { status: ERROR_CODES[code] },
+    {
+      success: false,
+      error: { code, message, ...(details ? { details } : {}) },
+      ...(requestId ? { requestId } : {}),
+    },
+    { status: ERROR_CODES[code], headers: requestId ? { [REQUEST_ID_HEADER]: requestId } : undefined },
   )
 }
 
@@ -60,6 +84,19 @@ function fieldErrors(error: ZodError): Record<string, string[]> {
   return out
 }
 
+/**
+ * `headers()` throws synchronously when there is no request scope — a unit test, or a call from
+ * somewhere that is not a request. The wrapper still has a job to do in that case (mapping errors
+ * to the envelope), so a missing scope costs a request id rather than the whole response.
+ */
+async function requestHeadersOrNull(): Promise<Headers | null> {
+  try {
+    return await headers()
+  } catch {
+    return null
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     readonly code: ErrorCode,
@@ -70,38 +107,76 @@ export class ApiError extends Error {
 }
 
 /**
- * Resolves the user and turns thrown errors into the standard shape. Postgres and provider
- * messages never reach the client — they are logged instead.
+ * The single entry point for every route handler.
+ *
+ * Resolves the user, times the request, logs it structurally, and turns anything thrown into the
+ * shared envelope. Postgres and provider messages never reach the client — they are logged against
+ * the request id instead, which is what the user is shown and what a support conversation quotes.
  */
 export async function guarded(
   fn: (userId: string) => Promise<Response>,
 ): Promise<Response> {
+  const startedAt = Date.now()
+  const requestHeaders = await requestHeadersOrNull()
+  const requestId = resolveRequestId(requestHeaders?.get(REQUEST_ID_HEADER))
+  const route = requestHeaders?.get(PATHNAME_HEADER) ?? undefined
+
+  const finish = (response: Response, level: "info" | "warn" | "error" = "info") => {
+    response.headers.set(REQUEST_ID_HEADER, requestId)
+    logger[level]("api.request", {
+      requestId,
+      route,
+      status: response.status,
+      latencyMs: Date.now() - startedAt,
+    })
+    return response
+  }
+
   try {
     // Without credentials getUser() throws, which would surface as a meaningless 500. Checked
     // inside the try so every path out of this function goes through the error mapping below.
     if (!isSupabaseConfigured()) {
-      return fail("INTERNAL_ERROR", "Supabase is not configured. Fill in .env.local and restart.")
+      return finish(
+        fail("INTERNAL_ERROR", "Supabase is not configured. Fill in .env.local and restart.", undefined, requestId),
+        "error",
+      )
     }
 
     const user = await getUser()
-    if (!user) return fail("UNAUTHENTICATED", "You must be signed in.")
-    return await fn(user.id)
+    if (!user) {
+      return finish(fail("UNAUTHENTICATED", "You must be signed in.", undefined, requestId), "warn")
+    }
+    return finish(await fn(user.id))
   } catch (error) {
-    if (error instanceof ValidationError) return fail(error.code, error.message, error.details)
-    if (error instanceof ApiError) return fail(error.code, error.message)
+    if (error instanceof ValidationError) {
+      return finish(fail(error.code, error.message, error.details, requestId), "warn")
+    }
+    if (error instanceof ApiError) {
+      return finish(fail(error.code, error.message, undefined, requestId), "warn")
+    }
     // The message is already written for a user; the provider detail stays in `cause`.
     if (isMarketDataError(error)) {
-      console.error("[api] market data", error.code, error.cause)
-      return fail(error.code, error.message)
+      logger.error("market-data.error", { requestId, route, code: error.code, cause: String(error.cause ?? "") })
+      return finish(fail(error.code, error.message, undefined, requestId), "error")
     }
     // Same rule for the AI layer: the sentence is written for a user, and whatever the provider
     // actually said stays in the log. A provider's error text can echo the prompt back.
     if (isAIError(error)) {
-      console.error("[api] ai", error.code, error.cause)
-      return fail(error.code, error.message)
+      logger.error("ai.error", { requestId, route, code: error.code })
+      return finish(fail(error.code, error.message, undefined, requestId), "error")
     }
-    console.error("[api]", error)
-    return fail("INTERNAL_ERROR", "Something went wrong. Please try again.")
+    // Never the stack, never the Postgres detail, never the SQL. The id is the link between what
+    // the user saw and what is in the log.
+    logger.error("api.error", {
+      requestId,
+      route,
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return finish(
+      fail("INTERNAL_ERROR", "Something went wrong. Please try again.", undefined, requestId),
+      "error",
+    )
   }
 }
 
@@ -123,9 +198,34 @@ export function enforceRateLimit(
   }
 }
 
-/** Parses a request body, throwing an ApiError the wrapper renders. Never trusts the client. */
+/**
+ * Parses a request body, throwing an ApiError the wrapper renders. Never trusts the client.
+ *
+ * The size check comes first and is done twice: the declared `Content-Length` is rejected outright,
+ * and the body is then read as text and measured, because a chunked request declares no length at
+ * all. Only then is it handed to `JSON.parse` — parsing is where an oversized body actually costs
+ * memory, so checking afterwards would be checking too late.
+ */
 export async function parseBody<T>(request: Request, schema: ZodType<T>): Promise<T> {
-  const parsed = schema.safeParse(await request.json().catch(() => null))
+  const declared = Number(request.headers.get("content-length"))
+  if (Number.isFinite(declared) && declared > MAX_REQUEST_BYTES) {
+    throw new ApiError("PAYLOAD_TOO_LARGE", "That request is too large.")
+  }
+
+  const raw = await request.text().catch(() => "")
+  // Bytes, not characters: a body of multi-byte characters is bigger than its length suggests.
+  if (new TextEncoder().encode(raw).length > MAX_REQUEST_BYTES) {
+    throw new ApiError("PAYLOAD_TOO_LARGE", "That request is too large.")
+  }
+
+  let body: unknown = null
+  try {
+    body = raw ? JSON.parse(raw) : null
+  } catch {
+    throw new ValidationError("Invalid request data.", { _: ["The request body is not valid JSON."] })
+  }
+
+  const parsed = schema.safeParse(body)
   if (!parsed.success) {
     throw new ValidationError("Invalid request data.", fieldErrors(parsed.error))
   }

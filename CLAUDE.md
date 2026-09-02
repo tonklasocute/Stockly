@@ -10,11 +10,14 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 7 complete.** On top of phases 1–6: an AI research assistant that answers questions
+**Status: Phase 8 complete — production ready.** On top of phases 1–6, phase 7 added an AI research
+assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
 review. It ships switched off (`AI_ENABLED=false`) and every other feature works unchanged without
-it. See [Development Phases](#development-phases).
+it. Phase 8 hardened the whole system for production: a nonce-based CSP, database-enforced
+portfolio ownership, rate limits on every paid upstream, request ids and structured logging, health
+probes, CI, legal pages, and the runbook to operate it. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -25,13 +28,19 @@ npm run lint             # eslint
 npm run typecheck        # tsc --noEmit
 npm test                 # vitest (unit)
 npm test -- holdings     # a single test file / pattern
+npm run verify           # lint + typecheck + test + build — exactly what CI runs
+npm run test:e2e         # Playwright; needs E2E_EMAIL/E2E_PASSWORD and a running app
+npm run test:e2e:install # once, to download the browser
+npm run audit:ci         # runtime dependency audit, high and critical only
 npm start                # serve the production build (PWA needs a real build, not `next dev`)
 npx supabase gen types typescript --local > types/database.ts   # once a project exists
 ```
 
 Keep this section accurate — update it in the same change that adds or renames a script.
 
-No E2E runner is installed yet; add Playwright in the phase that writes the first spec, not before.
+Playwright is installed (phase 8). Its specs live in `tests/e2e/` and are the only tests that need a
+running application and a real database — everything else runs without either. **Never point them at
+production**: they create and delete portfolio records.
 
 ## Tech Stack
 
@@ -51,6 +60,9 @@ No E2E runner is installed yet; add Playwright in the phase that writes the firs
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
 | AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
 | Scheduling | Vercel Cron → `/api/cron/alerts` | secret-guarded; any external scheduler works too |
+| Logging | `lib/log.ts` — structured JSON on `console` | Vercel captures stdout; a logging library would add a flush problem in a function that can be frozen |
+| E2E | Playwright | money paths only: the critical journey and a post-deploy smoke test |
+| CI | GitHub Actions | lint · typecheck · test · build (AI off *and* on) · dependency audit · secret scan |
 | Deploy | Vercel | |
 
 **No Go microservice.** Business logic lives in `domain/` with zero framework imports so it can be
@@ -323,6 +335,43 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## Production Rules
+
+Full detail in [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md),
+[`docs/PRODUCTION-RUNBOOK.md`](docs/PRODUCTION-RUNBOOK.md),
+[`docs/PRODUCTION-ARCHITECTURE.md`](docs/PRODUCTION-ARCHITECTURE.md) and
+[`docs/DISASTER-RECOVERY.md`](docs/DISASTER-RECOVERY.md).
+
+- **Isolation is the database's job, never a handler's.** A child row carries `user_id` *and* a
+  composite foreign key to `(portfolio_id, user_id)`. If a rule can be a constraint, it is one.
+- **Every route goes through `guarded()`.** It resolves the session, times the request, logs it, and
+  maps everything thrown onto the shared envelope with a request id. No route handler catches its
+  own errors into a bespoke response.
+- **Never return a stack trace, a Postgres message or a provider's text.** Log it against the
+  request id and return a stable code. The id is the only thing a user needs to quote.
+- **Rate-limit anything that spends money**, and remember which limiter is which: the in-memory one
+  is a brake on loops, the database-counted one is the ceiling. A spending cap fails closed.
+- **Every external call has a timeout and a bounded retry.** Retry a rate limit, a timeout and a
+  transient outage; never a bad key or an unusable response.
+- **Third parties degrade, they do not cascade.** A market-data outage falls back to cost basis and
+  says so; AI failing costs the assistant alone. Readiness probes Postgres and nothing else.
+- **The CSP is nonce-based, so every route that renders a script must be server-rendered.** A
+  statically prerendered page has no nonce, and its scripts are blocked in production only. Adding
+  `export const dynamic = "force-dynamic"` is the fix; the smoke test asserts it.
+- **Log what happened, never what was said.** No password, token, key, prompt, answer or portfolio
+  figure. `lib/log.ts` redacts by field name and by value shape; the call sites are the real
+  guarantee.
+- **Migrations are forward-only and additive**, so code can always roll back without touching the
+  schema. A destructive change needs a two-step deploy.
+- **Every list endpoint is paginated**, and the calculation engine never reads a page — a portfolio
+  derived from one page would be wrong.
+- **Request bodies are capped** (64 KB) before `JSON.parse`, by declared length and by measured
+  bytes. App Router handlers have no default limit.
+- **Anything that can be turned off without a deploy, should be**: `AI_ENABLED`,
+  `MARKET_DATA_PROVIDER=mock`, an unset `CRON_SECRET`, `CSP_MODE`.
+- **A checklist item is ticked with the thing that makes it true, or left open with the reason.**
+  Never tick a box because it sounds done.
+
 ## Git Convention
 
 Conventional Commits: `<type>(<scope>): <description>` — `feat`, `fix`, `refactor`, `docs`, `test`,
@@ -331,11 +380,18 @@ Conventional Commits: `<type>(<scope>): <description>` — `feat`, `fix`, `refac
 **Claude must never run `git commit` or `git push` unless the user asks in that message.** Finish the
 work, run the checks, summarize the diff, and propose a commit message for the user to run themselves.
 
+Before proposing one: `git status`, `git diff`, scan the change set for secrets, then
+`npm run verify`. A commit message proposed without those four is a guess.
+
 ## Development Workflow
 
 Before starting any feature: read this file → check `docs/ARCHITECTURE.md` → look for an existing
-component, hook, domain function or service to reuse → plan → implement → `npm run lint` →
-`npm run typecheck` → run the affected tests → report results and propose a commit message.
+component, hook, domain function or service to reuse → plan → implement → `npm run verify` → report
+results and propose a commit message.
+
+Anything that touches a route handler, a migration or the middleware is also a production change:
+re-read the relevant section of `docs/PRODUCTION-CHECKLIST.md` and update it in the same edit if the
+change makes one of its statements untrue.
 
 Prefer the smallest change that fully works. No speculative abstractions, no scaffolding "for later".
 
@@ -351,7 +407,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 5 ✅ | Alerts: price, percentage, portfolio and position alerts; notification centre; Web Push |
 | 6 ✅ | Technical analysis: indicators, technical score, screener, technical alerts |
 | 7 ✅ | AI: provider abstraction, grounded research assistant, natural-language screener, usage and cost controls |
-| 8 | Advanced: multi-market, multi-currency, FX |
+| 8 ✅ | Production hardening: security headers, ownership constraints, rate limits, observability, health probes, CI, E2E, legal pages, runbook |
+| 9 | Advanced: multi-market, multi-currency, FX |
 
 Do not start the next phase without being asked.
 

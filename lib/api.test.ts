@@ -11,7 +11,7 @@ vi.mock("@/lib/env", () => ({
 }))
 
 import { z } from "zod"
-import { ApiError, guarded, ok, parseBody, ValidationError } from "./api"
+import { ApiError, guarded, MAX_REQUEST_BYTES, ok, parseBody, ValidationError } from "./api"
 
 const request = (body: unknown) =>
   new Request("https://example.com/api/test", {
@@ -80,5 +80,79 @@ describe("guarded", () => {
     const response = await guarded(async () => ok({ fine: true }, 201))
     expect(response.status).toBe(201)
     expect((await response.json()).data).toEqual({ fine: true })
+  })
+})
+
+describe("request size limit", () => {
+  const big = (bytes: number) => "x".repeat(bytes)
+
+  it("rejects a body whose declared Content-Length is over the limit, without reading it", async () => {
+    const oversized = new Request("https://example.com/api/test", {
+      method: "POST",
+      body: JSON.stringify({ metric: "RSI", value: 30 }),
+      headers: { "Content-Type": "application/json", "content-length": String(MAX_REQUEST_BYTES + 1) },
+    })
+
+    await expect(parseBody(oversized, schema)).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" })
+  })
+
+  it("rejects an oversized body that declares no length at all", async () => {
+    // A chunked request has no Content-Length, which is exactly how a naive check is bypassed.
+    const chunked = new Request("https://example.com/api/test", {
+      method: "POST",
+      body: JSON.stringify({ metric: "RSI", value: 30, pad: big(MAX_REQUEST_BYTES) }),
+      headers: { "Content-Type": "application/json" },
+    })
+    chunked.headers.delete("content-length")
+
+    await expect(parseBody(chunked, schema)).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" })
+  })
+
+  it("measures bytes rather than characters", async () => {
+    // Each of these is three bytes of UTF-8, so a length check on the string would pass a body
+    // three times over the limit.
+    const multibyte = "\u0e01".repeat(Math.ceil(MAX_REQUEST_BYTES / 2))
+    const request = new Request("https://example.com/api/test", {
+      method: "POST",
+      body: JSON.stringify({ metric: "RSI", value: 30, pad: multibyte }),
+      headers: { "Content-Type": "application/json" },
+    })
+    request.headers.delete("content-length")
+
+    await expect(parseBody(request, schema)).rejects.toMatchObject({ code: "PAYLOAD_TOO_LARGE" })
+  })
+
+  it("accepts an ordinary body", async () => {
+    await expect(parseBody(request({ metric: "ADX", value: 25 }), schema)).resolves.toEqual({
+      metric: "ADX",
+      value: 25,
+    })
+  })
+
+  it("reports malformed JSON as a validation error rather than a crash", async () => {
+    const malformed = new Request("https://example.com/api/test", {
+      method: "POST",
+      body: "{not json",
+      headers: { "Content-Type": "application/json" },
+    })
+
+    await expect(parseBody(malformed, schema)).rejects.toBeInstanceOf(ValidationError)
+  })
+})
+
+describe("error responses", () => {
+  it("carries a request id a user can quote, and never a stack trace", async () => {
+    const response = await guarded(async () => {
+      throw new Error("connection to db-primary-7 at 10.0.0.4 refused")
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body.error.message).toBe("Something went wrong. Please try again.")
+    expect(body.requestId).toMatch(/^[A-Za-z0-9_:.-]{8,128}$/)
+    expect(response.headers.get("x-request-id")).toBe(body.requestId)
+    // The real failure stays in the logs.
+    expect(JSON.stringify(body)).not.toContain("10.0.0.4")
+    expect(JSON.stringify(body)).not.toContain("db-primary-7")
   })
 })

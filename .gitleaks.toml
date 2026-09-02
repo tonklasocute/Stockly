@@ -1,0 +1,20 @@
+# gitleaks configuration.
+#
+# The default rule set is what does the work; this file exists only to stop it flagging the
+# deliberately fake values in the example environment file and in tests.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders that are meant to look like secrets"
+paths = [
+  '''\.env\.example$''',
+  '''\.github/workflows/ci\.yml$''',
+  '''.*\.test\.ts$''',
+  '''tests/e2e/.*''',
+]
+regexes = [
+  '''ci-anon-key-placeholder''',
+  '''sk-test''',
+  '''your-key''',
+]

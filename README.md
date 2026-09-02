@@ -3,14 +3,17 @@
 Personal stock portfolio tracker — a Next.js web app that installs as a PWA. Record buy and sell
 transactions; Stockly derives your holdings, average cost, and realized and unrealized profit and loss.
 
-**Phases 1–7 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
+**Phases 1–8 are implemented:** authentication, portfolios, transaction CRUD, the holdings and P&L
 engine, the dashboard; live market data — stock search, quotes, price charts, company profiles and a
 watchlist; and analytics — allocation, concentration, contribution, trade and fee statistics,
 dividend tracking, cash management and CSV export; an installable PWA with an offline app shell; server-side alerts with a notification centre and Web
 Push; technical analysis — indicators, an explainable technical score, a stock screener and
 technical alerts; and Stockly AI — a research assistant that answers questions about your stocks,
 portfolio and watchlist in plain language, grounded in Stockly's own data, plus a natural-language
-screener. AI ships switched off; everything else works without it.
+screener. AI ships switched off; everything else works without it. Phase 8 hardened it for
+production — a nonce-based Content-Security-Policy, ownership enforced by database constraints,
+rate limits on every paid upstream, request-scoped structured logging, health and readiness probes,
+CI, end-to-end tests and an operations runbook.
 
 Install it from Chrome (Install app) or iOS Safari (Share → Add to Home Screen). The service worker
 only runs in a production build — use `npm run build && npm start` to try it locally.
@@ -71,6 +74,13 @@ The assistant explains and compares; it never gives investment advice, price tar
 and every figure it shows comes from Stockly's own engines rather than from the model. See
 [`docs/AI.md`](docs/AI.md), and [`docs/AI-SECURITY.md`](docs/AI-SECURITY.md) for the limits.
 
+### Going to production
+
+Read [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md) first — it lists what is done,
+what is deliberately not, and the seven steps before a first deploy.
+[`docs/PRODUCTION-RUNBOOK.md`](docs/PRODUCTION-RUNBOOK.md) is what to read during an incident, and
+[`docs/DISASTER-RECOVERY.md`](docs/DISASTER-RECOVERY.md) when data is at risk.
+
 ## Commands
 
 | | |
@@ -81,6 +91,8 @@ and every figure it shows comes from Stockly's own engines rather than from the 
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | unit tests (vitest) |
 | `npm test -- holdings` | a single test file |
+| `npm run verify` | lint + typecheck + test + build — exactly what CI runs |
+| `npm run test:e2e` | Playwright (needs a running app and a test account) |
 
 ## How it works
 

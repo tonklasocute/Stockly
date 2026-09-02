@@ -1,6 +1,9 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
+/** Per request, for the CSP nonce — see app/(auth)/layout.tsx. */
+export const dynamic = "force-dynamic"
+
 export default function NotFound() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  // "X-Powered-By: Next.js" tells an attacker which CVE list to read. It buys nothing.
+  poweredByHeader: false,
+
   async headers() {
     return [
       {
@@ -22,14 +25,22 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
-        // Applied to everything, including API responses. The last one is what stops an
-        // intermediary or a browser from holding on to a signed-in user's portfolio.
+        // The baseline, applied to everything — including the static output and the service
+        // worker, which the middleware matcher deliberately skips. Dynamic routes get these again
+        // from the middleware, plus a per-request Content-Security-Policy nonce; see
+        // lib/security-headers.ts, which is the single description of what the browser enforces.
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          },
+          // Two years, subdomains included, preload-eligible. Vercel terminates TLS, so every
+          // production response is already HTTPS; this is what stops the first request being HTTP.
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
         ],
       },
       {

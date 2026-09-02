@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch cancels the run it superseded. Nobody reads the CI result of a
+# commit that has already been replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # The build has to resolve `lib/env.ts`, which throws on a missing Supabase URL. These are
+      # placeholders for a build that never opens a connection — CI runs no integration tests
+      # against a database, and a real key must never live in a workflow file.
+      NEXT_PUBLIC_SUPABASE_URL: https://ci.invalid
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key-placeholder
+      MARKET_DATA_PROVIDER: mock
+      # The default production configuration. The AI-enabled build is verified separately below.
+      AI_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `ci` not `install`: it installs exactly what the lock file says and fails if the two
+      # disagree, which is what makes a build reproducible.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Build (AI disabled — the production default)
+        run: npm run build
+
+      # Both configurations must build. Shipping with the flag off is only a real option if turning
+      # it on is not a separate, untested code path.
+      - name: Build (AI enabled)
+        run: npm run build
+        env:
+          AI_ENABLED: "true"
+          AI_PROVIDER: mock
+
+  security:
+    name: Dependency audit · Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks diffs the whole history; a shallow clone would only ever scan the tip.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Runtime dependencies only, and only high and critical. A moderate advisory in a build-time
+      # package should not be able to block a release; it should open an issue.
+      - name: Dependency audit
+        run: npm run audit:ci
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No .env file was ever committed
+        run: |
+          if git ls-files --error-unmatch '.env' '.env.local' '.env.production' 2>/dev/null; then
+            echo "::error::An environment file is tracked in git. Only .env.example may be."
+            exit 1
+          fi
+          echo "Only .env.example is tracked."

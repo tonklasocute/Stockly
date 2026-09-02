@@ -85,8 +85,8 @@ export type AnalyticsBundle = {
  * the database and one batched quote call — not one per section.
  *
  * Company metadata (sector, industry, country) costs one profile call per symbol, which the free
- * tier bills individually. They are fetched concurrently, cached for 24h upstream, and any failure
- * degrades that holding to "Unknown" rather than failing the page.
+ * tier bills individually — so it is fetched only for symbols that are currently held, not for
+ * every symbol ever traded. See the comment at the call site.
  */
 export const loadAnalytics = cache(
   async (portfolioId: string, grouping: PeriodGrouping = "month"): Promise<AnalyticsBundle> => {
@@ -106,19 +106,36 @@ export const loadAnalytics = cache(
     let marketDataError: string | null = null
 
     if (symbols.length > 0) {
-      const provider = getMarketDataProvider()
       try {
-        quotes = await provider.getQuotes(symbols)
+        quotes = await getMarketDataProvider().getQuotes(symbols)
       } catch (error) {
         marketDataError = isMarketDataError(error)
           ? error.message
           : "Unable to load market data. Please try again later."
         console.error("[analytics] quotes failed", error)
       }
+    }
 
-      // Metadata is optional decoration: a failure here must never cost the user their numbers.
+    const { holdings, summary } = buildPortfolio(domainTransactions, (symbol) => {
+      const quote = quotes.get(symbol)
+      return quote ? { price: quote.price, previousClose: quote.previousClose ?? undefined } : undefined
+    })
+    const { trades } = replayPortfolio(domainTransactions)
+
+    // Company metadata, for the symbols that are actually **held**.
+    //
+    // This is the one unbatched fan-out in the application: the provider bills a profile per symbol
+    // and offers no batch endpoint. Scoping it to open positions is what keeps it affordable — a
+    // user who has traded two hundred tickers over the years holds a dozen, and fetching the other
+    // hundred and eighty-eight bought nothing: sector, industry and country allocation are computed
+    // over holdings, and a closed position appears in none of them.
+    //
+    // Concurrent, cached upstream for 24h, and individually fault-tolerant: a failure degrades that
+    // holding to "Unknown" and keeps it in the totals rather than dropping it from a chart.
+    if (holdings.length > 0) {
+      const provider = getMarketDataProvider()
       const profiles = await Promise.all(
-        symbols.map((symbol) => provider.getCompanyProfile(symbol).catch(() => null)),
+        holdings.map((holding) => provider.getCompanyProfile(holding.symbol).catch(() => null)),
       )
       facts = new Map(
         profiles.filter((p) => p !== null).map((p) => [
@@ -127,12 +144,6 @@ export const loadAnalytics = cache(
         ]),
       )
     }
-
-    const { holdings, summary } = buildPortfolio(domainTransactions, (symbol) => {
-      const quote = quotes.get(symbol)
-      return quote ? { price: quote.price, previousClose: quote.previousClose ?? undefined } : undefined
-    })
-    const { trades } = replayPortfolio(domainTransactions)
 
     const cash = computeCash(
       domainTransactions,

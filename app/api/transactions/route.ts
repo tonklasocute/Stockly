@@ -1,15 +1,26 @@
 import { ApiError, guarded, ok, parseBody } from "@/lib/api"
 import { canSell } from "@/domain/holdings"
-import { listTransactions, toDomain } from "@/features/transactions/queries"
+import { listTransactions, listTransactionsPage, toDomain } from "@/features/transactions/queries"
 import { transactionInputSchema } from "@/features/transactions/schema"
 import { invalidatePortfolio } from "@/lib/cache"
+import { toPage } from "@/lib/pagination"
 import { createClient } from "@/lib/supabase/server"
 
+/**
+ * One page of transactions. Paginated because a transaction history grows without bound and an
+ * endpoint that returns all of it eventually returns megabytes.
+ *
+ * The calculation engine deliberately does not use this: holdings and P&L are computed from every
+ * row, and a portfolio derived from one page would be wrong.
+ */
 export async function GET(request: Request) {
   return guarded(async () => {
-    const portfolioId = new URL(request.url).searchParams.get("portfolioId")
+    const url = new URL(request.url)
+    const portfolioId = url.searchParams.get("portfolioId")
     if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.")
-    return ok({ transactions: await listTransactions(portfolioId) })
+
+    const page = await listTransactionsPage(portfolioId, toPage(url.searchParams.get("page")))
+    return ok({ transactions: page.rows, meta: page })
   })
 }
 
