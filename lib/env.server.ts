@@ -32,6 +32,15 @@ export const serverEnv = {
    * on the same rate limit, and running live prices against mock rates is never what anyone meant.
    * An unrecognised value yields no rates at all rather than fabricated ones — see services/fx.
    */
+  /**
+   * Where index series for benchmark comparison come from. Defaults to the market-data provider,
+   * which is where an index would live — but index data is not on Twelve Data's free tier, so a
+   * deployment on one should set this to "mock" to get a deterministic synthetic series instead of
+   * a permanently unavailable benchmark.
+   */
+  get benchmarkProvider() {
+    return process.env.BENCHMARK_PROVIDER ?? process.env.MARKET_DATA_PROVIDER ?? "mock"
+  },
   get fxProvider() {
     return process.env.FX_PROVIDER ?? process.env.MARKET_DATA_PROVIDER ?? "mock"
   },

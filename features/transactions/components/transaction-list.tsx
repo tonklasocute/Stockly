@@ -3,7 +3,16 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
-import { ArrowLeftRight, ArrowUpDown, MoreHorizontal, Plus, Search, Trash2, Pencil } from "lucide-react"
+import {
+  ArrowLeftRight,
+  ArrowUpDown,
+  MoreHorizontal,
+  NotebookPen,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,6 +40,8 @@ import {
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
 import { MarketBadge } from "@/components/market-badge"
+import { JournalDialog } from "@/features/journal/components/journal-dialog"
+import type { JournalRow } from "@/types/database"
 import { currencyOf, toMarket } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
@@ -54,9 +65,12 @@ function totalOf(t: TransactionRow) {
 export function TransactionList({
   transactions,
   portfolioId,
+  sellReviews = {},
 }: {
   transactions: TransactionRow[]
   portfolioId: string
+  /** Existing sell reviews keyed by transaction id, so the menu offers "edit" rather than "add". */
+  sellReviews?: Record<string, JournalRow>
 }) {
   const router = useRouter()
   // A trade's amounts are in the currency of the venue it happened on, never the portfolio's: a
@@ -69,6 +83,8 @@ export function TransactionList({
   const [sort, setSort] = useState<SortKey>("date-desc")
   const [editing, setEditing] = useState<TransactionRow | undefined>()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [reviewing, setReviewing] = useState<TransactionRow | undefined>()
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   const symbols = useMemo(
     () => [...new Set(transactions.map((t) => t.symbol))].sort(),
@@ -125,6 +141,18 @@ export function TransactionList({
           <Pencil className="size-4" aria-hidden />
           Edit
         </DropdownMenuItem>
+        {transaction.side === "sell" && (
+          <DropdownMenuItem
+            onSelect={() => {
+              setReviewing(transaction)
+              setReviewOpen(true)
+            }}
+            className="gap-2"
+          >
+            <NotebookPen className="size-4" aria-hidden />
+            {sellReviews[transaction.id] ? "Edit sell reason" : "Why did you sell?"}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           variant="destructive"
           className="gap-2"
@@ -348,6 +376,27 @@ export function TransactionList({
         portfolioId={portfolioId}
         transaction={editing}
       />
+
+      {/*
+        A sell review records *why*, never how much: the realised profit or loss on this trade is
+        computed by the engine from the transaction itself, and a figure typed here would be a
+        second source of truth for the number the whole application exists to get right.
+      */}
+      {reviewing && (
+        <JournalDialog
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          portfolioId={portfolioId}
+          entry={sellReviews[reviewing.id]}
+          defaults={{
+            symbol: reviewing.symbol,
+            market: toMarket(reviewing.market),
+            type: "SELL_REASON",
+            transactionId: reviewing.id,
+            title: `Sold ${reviewing.symbol}`,
+          }}
+        />
+      )}
     </div>
   )
 }

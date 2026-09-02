@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 9 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 10 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -20,7 +20,10 @@ portfolio ownership, rate limits on every paid upstream, request ids and structu
 probes, CI, legal pages, and the runbook to operate it. Phase 9 made markets and currencies
 first-class: SET alongside US, a portfolio base currency, an FX abstraction whose missing rates are
 `null` rather than fabricated, market-data routing per market, and market calendars in each market's
-own timezone. See [Development Phases](#development-phases).
+own timezone. Phase 10 turned the tracker into an investment-intelligence platform: an investment
+journal and thesis record, portfolio goals with scenario modelling, cash-flow-aware return
+measurement (TWR and IRR), a risk centre, benchmark comparison, and a deterministic insights engine
+that describes and never advises. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -62,6 +65,7 @@ production**: they create and delete portfolio records.
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
+| Benchmarks | `BenchmarkProvider` — market-data adapter, mock | index series are not on Twelve Data's free tier; the adapter says so and the UI renders N/A |
 | AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
 | Scheduling | Vercel Cron → `/api/cron/alerts` | secret-guarded; any external scheduler works too |
 | Logging | `lib/log.ts` — structured JSON on `console` | Vercel captures stdout; a logging library would add a flush problem in a function that can be frozen |
@@ -112,9 +116,13 @@ domain/      pure business logic. No framework imports. Heavily tested.
              cash.ts · dividends.ts ·
              analytics.ts (allocation, concentration, contribution, trade + fee statistics) ·
              alerts.ts (crossing + state machine) · indicators.ts · technical.ts · screener.ts ·
-             ai.ts (intent, symbol validation, safety vocabulary, data coverage)
+             ai.ts (intent, symbol validation, safety vocabulary, data coverage) ·
+             returns.ts (TWR, IRR — capital flows removed) · risk.ts (volatility, drawdown,
+             Sharpe, beta, HHI) · goals.ts (progress semantics, projections) ·
+             research.ts (journal, thesis, sell-review vocabulary) ·
+             insights.ts (deterministic rules + INSIGHT_THRESHOLDS)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
-services/    external integrations behind interfaces (market-data/, fx/, ai/).
+services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
 supabase/    migrations/, seed.sql.
 docs/        architecture and design docs.
@@ -195,6 +203,42 @@ Full detail in [`docs/MULTI-MARKET.md`](docs/MULTI-MARKET.md).
   a `check` constraint. A market the app cannot price must not be storable.
 - Money is formatted through `lib/format.ts` with `narrowSymbol`, so `$` and `฿` are never confused.
   A headline total uses `formatCurrencyWithCode`. Never concatenate a currency symbol by hand.
+
+## Investment Intelligence Rules
+
+Full detail in [`docs/INTELLIGENCE.md`](docs/INTELLIGENCE.md).
+
+- **The intelligence layer may never change a financial number.** Journals, theses, goals and
+  benchmarks are notes and targets, never inputs. `domain/intelligence-boundary.test.ts` reads the
+  source of every calculation module and fails if one imports them. The dependency runs one way.
+- **Never store a derived figure in an intelligence table.** No realized P&L on a sell review, no
+  progress on a goal, no return on a benchmark link. Every one is re-derived from `loadAnalytics` on
+  each request, so it cannot go stale and cannot disagree with the dashboard.
+- **Only the user sets a thesis status.** The system may put a fact beside a thesis — "the position
+  is 18% below its cost basis" — and stops there. Deciding a thesis is broken is a sell
+  recommendation with extra steps.
+- **A sell review records why, never how much.** The result comes from the transaction.
+- **A goal's type decides what progress means.** `INVESTED_CAPITAL` is cost basis, not money
+  deposited; `DIVIDEND_INCOME` is a rate, not a lifetime total. A percentage target carries no
+  currency and a money target must have one — enforced by the schema *and* a check constraint.
+- **A deposit is not a return.** Every return figure removes external capital on both sides. TWR
+  for anything compared against a benchmark; IRR when the question is what this investor earned.
+- **Risk is measured on the flow-adjusted return index, never on portfolio value**, and every
+  statistic has a stated minimum sample below which it returns `null`. A statistic from too few
+  observations is a made-up one.
+- **Projection assumptions are the user's, shown beside the result, and never a forecast.** The
+  scenario growth rates are planning placeholders, not the portfolio's history — Stockly does not
+  extrapolate a user's past into their future. "The month the model crosses the target" is the
+  strongest sentence allowed.
+- **Insights are deterministic, never a model call.** Every threshold lives in `INSIGHT_THRESHOLDS`,
+  documented; no bare number in a rule. Every sentence is checked against
+  `FORBIDDEN_INSIGHT_PATTERNS` by a test — no buy, sell, hold, rating, target or forecast.
+- **A rule never fires on a figure that does not exist.** Every input is nullable and produces
+  nothing when null. An insight built from a missing number looks like knowledge.
+- **AI reads insights, never produces them.** Engine → insights → structured facts → model → prose.
+  Journals and theses are never sent to the model.
+- **A benchmark in another currency reports both returns and a null difference.** Translating one
+  needs historical FX, which Stockly does not store.
 
 ## Analytics Rules
 
@@ -456,7 +500,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 7 ✅ | AI: provider abstraction, grounded research assistant, natural-language screener, usage and cost controls |
 | 8 ✅ | Production hardening: security headers, ownership constraints, rate limits, observability, health probes, CI, E2E, legal pages, runbook |
 | 9 ✅ | Multi-market foundation: market/instrument registry, portfolio base currency, FX abstraction and caching, provider routing, SET support, market calendars, cross-currency valuation |
-| 10 | Advanced: historical FX and currency attribution, benchmark comparison, FIFO cost basis |
+| 10 ✅ | Investment intelligence: journal, theses, sell reviews, goals and projections, TWR/IRR, risk centre, benchmarks, deterministic insights engine |
+| 11 | Advanced: historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

@@ -30,6 +30,11 @@ export default function robots(): MetadataRoute.Robots {
           "/settings",
           "/stocks/",
           "/ai",
+          // Phase 10. The journal and theses hold the user's own reasoning, which is the most
+          // personal content in the application — it must never be indexable through a leaked link.
+          "/review",
+          "/goals",
+          "/journal",
           "/offline",
         ],
       },

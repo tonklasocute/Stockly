@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { PaginationNav } from "@/components/pagination-nav"
 import { TransactionList } from "@/features/transactions/components/transaction-list"
 import { listTransactionsPage } from "@/features/transactions/queries"
+import { sellReviewsByTransaction } from "@/features/journal/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { toPage } from "@/lib/pagination"
 import { NoPortfolio } from "../_no-portfolio"
@@ -19,7 +20,13 @@ export default async function TransactionsPage({
 
   // One page at a time: the holdings engine reads the full history separately, on the pages that
   // need it, so a thousand-row portfolio never ships a thousand rows to the browser.
-  const pageResult = await listTransactionsPage(active.id, toPage(pageParam))
+  //
+  // Sell reviews come back in one query for the whole portfolio rather than one per row — the N+1
+  // this would otherwise be is exactly the shape phase 8 went hunting for.
+  const [pageResult, sellReviews] = await Promise.all([
+    listTransactionsPage(active.id, toPage(pageParam)),
+    sellReviewsByTransaction(active.id).catch(() => new Map()),
+  ])
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -31,6 +38,7 @@ export default async function TransactionsPage({
       <TransactionList
         transactions={pageResult.rows}
         portfolioId={active.id}
+        sellReviews={Object.fromEntries(sellReviews)}
       />
 
       <PaginationNav

@@ -127,6 +127,14 @@ export type DividendSummary = {
   /** Net dividends over the last 365 days — the numerator for both yields below. */
   trailingTwelveMonths: number
   /**
+   * The 365 days before that, so a change in income can be stated as a change.
+   *
+   * **Null when the history does not reach back that far**, which is not the same as zero: a
+   * portfolio that started paying dividends this year has no prior year to compare against, and
+   * reporting 0 would make its first payment look like infinite growth.
+   */
+  previousTwelveMonths: number | null
+  /**
    * Average per month over the months actually covered by the history, not over 12. A portfolio
    * three months old would otherwise report an average a quarter of its real rate.
    */
@@ -145,6 +153,7 @@ export function summarizeDividends(
   const currentMonth = todayIso.slice(0, 7)
   const currentYear = todayIso.slice(0, 4)
   const twelveMonthsAgo = new Date(today.getTime() - 365 * DAY_MS).toISOString().slice(0, 10)
+  const twentyFourMonthsAgo = new Date(today.getTime() - 730 * DAY_MS).toISOString().slice(0, 10)
 
   const amountOf = (d: DomainDividend) => dividendAmounts(d)
 
@@ -177,6 +186,16 @@ export function summarizeDividends(
       dividends.filter((d) => d.paidOn > twelveMonthsAgo && d.paidOn <= todayIso),
       (d) => amountOf(d).net,
     ),
+    // Null unless the history actually reaches into that window. `first` is the earliest payment
+    // recorded, so a portfolio whose first dividend arrived eight months ago has no prior year —
+    // and reporting 0 would turn its first payment into infinite growth.
+    previousTwelveMonths:
+      first !== undefined && first <= twelveMonthsAgo
+        ? sumBy(
+            dividends.filter((d) => d.paidOn > twentyFourMonthsAgo && d.paidOn <= twelveMonthsAgo),
+            (d) => amountOf(d).net,
+          )
+        : null,
     averageMonthly: monthsCovered > 0 ? totalNet / monthsCovered : null,
     monthsCovered,
     count: dividends.length,

@@ -97,7 +97,13 @@ export const TASK_PROMPTS: Record<AIIntent, string> = {
     "Summarise this portfolio from the data: value, performance, concentration, largest positions, " +
     "best and worst performers, and the technical conditions of the holdings. Describe risk " +
     "concentration factually. Where you would suggest an action, phrase it as something the owner " +
-    "may wish to monitor or consider observing.",
+    "may wish to monitor or consider observing. " +
+    // Phase 10: insights are decided by rules before this prompt is built. The model's job is to
+    // put them in plainer words, and it is told explicitly that adding one is not its job — it has
+    // no figures to derive another from, and the response schema still has no numeric field.
+    "Where the data lists insights, restate the ones that matter in plain language. Do not add an " +
+    "insight that is not listed, do not contradict one that is, and do not assign your own severity. " +
+    "Where a risk figure is unavailable, say it is unavailable rather than estimating it.",
 
   WATCHLIST_ANALYSIS:
     "Summarise the watchlist: how many are bullish, neutral and bearish, which shows the strongest " +

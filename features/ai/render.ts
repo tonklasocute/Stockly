@@ -113,6 +113,31 @@ export function renderPortfolio(p: PortfolioFacts): string {
   if (p.losers.length > 0) {
     rows.push(`Worst performers: ${p.losers.map((m) => `${m.symbol} ${num(m.returnPct, 1, "%")}`).join(", ")}`)
   }
+  if (p.risk) {
+    rows.push(
+      line("Time-weighted return", num(p.risk.timeWeightedReturnPct, 2, "%")),
+      line("Volatility (annualised)", num(p.risk.volatilityPct, 2, "%")),
+      line("Sharpe ratio", num(p.risk.sharpe, 2)),
+      line("Maximum drawdown", num(p.risk.maxDrawdownPct, 2, "%")),
+      line("Current drawdown", num(p.risk.currentDrawdownPct, 2, "%")),
+      line("Beta vs benchmark", num(p.risk.beta, 2)),
+    )
+  }
+  if (p.goals.length > 0) {
+    rows.push(
+      `Goals: ${p.goals
+        .map((g) => `${g.type} ${num(g.progressPct, 1, "%")}${g.achieved ? " (reached)" : ""}`)
+        .join(", ")}`,
+    )
+  }
+  if (p.insights.length > 0) {
+    // Handed over already decided. The model may restate an insight in plainer words; it has no
+    // figures with which to invent another, and it is told so.
+    rows.push(
+      "Insights already determined by Stockly's rules (do not add to this list, do not remove from it):",
+      ...p.insights.map((i) => `  - [${i.severity}] ${i.title} — ${i.detail}`),
+    )
+  }
   if (p.technicals.length > 0) {
     rows.push(
       `Technical conditions of holdings: ${p.technicals

@@ -151,6 +151,26 @@ All four hit a paid upstream and are rate-limited per user per minute.
 | `POST /api/screener` | 30 | `{ definition: { logic, filters[], sort? }, market?, page }`. **Zero upstream requests**: runs against cached snapshots. `metric` and `operator` are closed enums; `value` is a number or a trend name. Max 10 filters. `market` narrows the **universe** before any threshold is applied and changes no reading on any instrument — a screener is currency-independent, and each row reports the currency its price column is in. |
 | `GET|POST /api/screener/saved` · `DELETE /api/screener/saved/:id` | 20 | Max 30 saved screens per user. |
 
+## Investment intelligence (phase 10)
+
+Every one of these is scoped by RLS plus a composite foreign key to `(portfolio_id, user_id)`: an id
+from another user matches zero rows and returns `404`, which is also the right answer — a caller has
+no way to tell a row they cannot see from one that does not exist. **None of these endpoints returns
+a derived financial figure**; progress, returns and P&L are computed on the pages that render them,
+so there is no stored number here to go stale.
+
+| | |
+|---|---|
+| `GET /api/journal?portfolioId&type&symbol&market&from&to&q&page` | One page of the timeline, newest first. Filters are applied in Postgres; `q` is escaped before it reaches PostgREST's filter syntax. |
+| `POST /api/journal` | `{ portfolioId, type, symbol?, market?, transactionId?, reason?, title, content, entryDate }` → 201. `reason` is legal only on a `SELL_REASON` entry; a transaction-scoped entry needs a symbol. `409` on a second sell review for the same trade. |
+| `PATCH` and `DELETE /api/journal/:id` | An edit cannot move an entry to another portfolio or re-point it at another trade. |
+| `GET` and `POST /api/theses` | `{ portfolioId, symbol, market?, title, whyBought, expectations, catalysts, risks, invalidationCriteria, conviction, status }`. Conviction 1–10. `409` when an open thesis already covers that instrument. **`status` is whatever the user sent — nothing derives it.** |
+| `PATCH` and `DELETE /api/theses/:id` | An edit cannot change the instrument. |
+| `GET` and `POST /api/goals` | `{ portfolioId, type, targetValue, currency?, targetDate?, note? }`. A `TOTAL_RETURN` target is a percentage and must have **no** currency; every other type must have one. `409` on a duplicate type. |
+| `PATCH` and `DELETE /api/goals/:id` | **No `type` field**: changing it would silently reinterpret the target. |
+| `GET /api/benchmarks` | The benchmarks this deployment knows, each with `available` — whether the provider's plan can actually serve its series. |
+| `PUT /api/benchmarks` | `{ portfolioId, benchmarkId }`. `null` clears the selection. One benchmark per portfolio, upserted. |
+
 ## Alerts and notifications
 
 | | Limit | |

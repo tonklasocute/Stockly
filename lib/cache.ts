@@ -20,7 +20,20 @@ const PORTFOLIO_ROUTES = [
   "/analytics",
   "/dividends",
   "/cash",
+  // Phase 10: risk, benchmark comparison and goal progress are all derived from the same rows.
+  "/review",
+  "/goals",
 ] as const
+
+/**
+ * Routes that render the user's own reasoning and targets — the journal, theses and goals.
+ *
+ * Separate from `invalidatePortfolio` because the causation runs one way only: a transaction
+ * changes what a goal's progress bar shows, but writing a journal entry cannot move a single
+ * financial figure. Keeping the two apart is what makes that guarantee visible in the code rather
+ * than merely true by accident.
+ */
+const INTELLIGENCE_ROUTES = ["/review", "/goals", "/journal", "/dashboard"] as const
 
 /**
  * Anything that changes a portfolio's numbers: a transaction, a dividend, a cash movement, or the
@@ -29,6 +42,17 @@ const PORTFOLIO_ROUTES = [
  */
 export function invalidatePortfolio(): void {
   for (const route of PORTFOLIO_ROUTES) revalidatePath(route)
+}
+
+/**
+ * A journal entry, a thesis or a goal changed. Refreshes the pages that render them and nothing
+ * else — no holding, cost basis or P&L can have moved, because none of those tables is an input to
+ * a financial calculation.
+ */
+export function invalidateIntelligence(): void {
+  for (const route of INTELLIGENCE_ROUTES) revalidatePath(route)
+  // A thesis badge and the journal both appear on a position page.
+  revalidatePath("/stocks/[symbol]", "page")
 }
 
 /** The watchlist is independent of portfolio maths, so it invalidates on its own. */

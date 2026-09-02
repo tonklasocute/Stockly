@@ -80,7 +80,9 @@ test("an unauthenticated API call is answered with JSON, not a login page", asyn
 test("private pages redirect a signed-out visitor to sign in", async ({ page, request }) => {
   test.skip(!(await databaseReady(request)), "Needs a configured database to resolve a session.")
 
-  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener"]) {
+  // The journal and theses hold the user's own reasoning; a signed-out visitor reaching one would
+  // be the most damaging authorisation failure in the application.
+  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener", "/review", "/goals", "/journal"]) {
     await page.goto(path)
     await expect(page).toHaveURL(/\/login/)
   }
@@ -101,5 +103,6 @@ test("robots.txt keeps crawlers out of the private area", async ({ request }) =>
   const body = await (await request.get("/robots.txt")).text()
   expect(body).toContain("Disallow: /api/")
   expect(body).toContain("Disallow: /dashboard")
+  expect(body).toContain("Disallow: /journal")
   expect(body).toContain("Sitemap:")
 })

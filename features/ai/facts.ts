@@ -72,6 +72,26 @@ export type PortfolioFacts = {
   gainers: { symbol: string; returnPct: number }[]
   losers: { symbol: string; returnPct: number }[]
   technicals: { symbol: string; trend: string; score: number | null }[]
+  /**
+   * The output of the deterministic insights engine (`domain/insights.ts`).
+   *
+   * This is the phase 10 arrow — engine → insights → facts → model. The model receives insights
+   * that were already decided by a rule against a figure, and its job is to put them in a sentence.
+   * It cannot generate one of its own, because it has no numbers to generate one from: every
+   * figure in this payload is retrieved, and the response schema still has no numeric field.
+   */
+  insights: { code: string; severity: string; title: string; detail: string }[]
+  /** Risk measurements, all nullable — an unavailable one must reach the model as unavailable. */
+  risk: {
+    timeWeightedReturnPct: number | null
+    volatilityPct: number | null
+    sharpe: number | null
+    maxDrawdownPct: number | null
+    currentDrawdownPct: number | null
+    beta: number | null
+  } | null
+  /** Goal progress, from the same figures the dashboard shows. */
+  goals: { type: string; progressPct: number | null; achieved: boolean }[]
 }
 
 export type WatchlistFacts = {

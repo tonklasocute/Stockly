@@ -108,6 +108,9 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 
 - ✅ Per-user, per-minute limits on everything that costs money: AI (6), market data (20–60 by
   endpoint), screener (30), alerts (20), push (10).
+- ✅ Phase 10 endpoints cost a database round trip and no upstream credit, so they carry no limit
+  beyond `guarded()`. The one exception is `GET /api/benchmarks`, whose availability probe is
+  cached per process after the first call.
 - ✅ Exchange rates are cached for 10 minutes in the Next Data Cache, shared across instances, and
   requested per currency **pair** rather than per holding: a fifty-holding, two-currency portfolio
   costs one FX request per window for the whole deployment. A single-currency portfolio costs none.
@@ -131,6 +134,15 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Indexes on every foreign key and on the columns actually filtered and sorted. Two added in
   phase 8, both partial, both matching a real query; phase 9 widened the transactions symbol index
   to `(portfolio_id, market, symbol)`, which is how the engine now groups positions.
+- ✅ **Added in phase 10:** five tables (`investment_journals`, `investment_theses`,
+  `portfolio_goals`, `benchmarks`, `portfolio_benchmarks`), every user-owned one with `user_id`, RLS
+  enabled, four explicit policies, and a composite foreign key to `(portfolio_id, user_id)`.
+  `benchmarks` is shared reference data: no `user_id`, a select-only policy, and no insert, update
+  or delete policy at all — so RLS denies all three by default.
+- ✅ **No derived financial figure is stored in any of them.** Goal progress, returns and P&L are
+  re-derived from the calculation engine on every request; a stored copy could not exist to go
+  stale. `domain/intelligence-boundary.test.ts` asserts the calculation modules never import the
+  intelligence layer.
 - ✅ **Added in phase 9:** `check` constraints on `transactions.market` and on the `currency` columns
   of `portfolios`, `dividends` and `cash_transactions`. A market or currency the app cannot price
   would be routed to the wrong provider and valued in the wrong unit — a silently-wrong number

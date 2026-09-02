@@ -26,6 +26,7 @@ import {
   type ScreenerMetric,
 } from "@/domain/screener"
 import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
+import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
 import { readAllSnapshots, readSnapshots, type StoredSnapshot } from "@/features/technical/snapshots"
 import { DEFAULT_UNIVERSE } from "@/features/technical/universe"
@@ -414,7 +415,10 @@ async function loadPortfolioFacts(
   name: string,
   currency: string,
 ): Promise<PortfolioFacts | null> {
-  const bundle = await loadAnalytics(portfolioId)
+  // The same cached pass the dashboard and the review page use: insights, risk and goal progress
+  // arrive already decided, and the model is handed the result rather than the inputs.
+  const intelligence = await loadIntelligence(portfolioId)
+  const bundle = intelligence.analytics
   if (bundle.transactionCount === 0) return null
 
   const snapshots = await readSnapshots(
@@ -446,6 +450,27 @@ async function loadPortfolioFacts(
       symbol: h.symbol,
       trend: snapshots.get(h.symbol)?.snapshot.trend ?? "unknown",
       score: snapshots.get(h.symbol)?.snapshot.score ?? null,
+    })),
+    // Determined by rules against figures, before the model is called. It restates them; it does
+    // not decide them, and it has no numbers with which to add one of its own.
+    insights: intelligence.insights.map((insight) => ({
+      code: insight.code,
+      severity: insight.severity,
+      title: insight.title,
+      detail: insight.detail,
+    })),
+    risk: {
+      timeWeightedReturnPct: intelligence.timeWeightedReturnPct,
+      volatilityPct: intelligence.risk.volatility?.annualisedPct ?? null,
+      sharpe: intelligence.risk.sharpe?.ratio ?? null,
+      maxDrawdownPct: intelligence.risk.drawdown?.maxDrawdownPct ?? null,
+      currentDrawdownPct: intelligence.risk.drawdown?.currentDrawdownPct ?? null,
+      beta: intelligence.risk.beta?.beta ?? null,
+    },
+    goals: intelligence.goals.map((goal) => ({
+      type: goal.row.type,
+      progressPct: goal.progress.progressPct,
+      achieved: goal.progress.achieved,
     })),
   }
 }

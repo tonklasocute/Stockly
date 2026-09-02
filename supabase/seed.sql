@@ -142,9 +142,83 @@ select p.id, p.user_id, v.symbol, v.market, v.currency, current_date - v.days_ag
  ) as v(symbol, market, currency, days_ago, shares, dps, tax, notes);
 
 
+-- ---------------------------------------------------------------- intelligence (phase 10)
+--
+-- Goals, a thesis and a few journal entries, so the review page has something to show on a fresh
+-- database. None of these rows affects a single financial figure — they are what the engine cannot
+-- compute: the user's reasoning and their targets.
+
+delete from public.portfolio_goals    where user_id = :'seed_user_id';
+delete from public.investment_theses  where user_id = :'seed_user_id';
+delete from public.investment_journals where user_id = :'seed_user_id';
+
+with p as (
+  select id, user_id from public.portfolios
+   where user_id = :'seed_user_id' and name = 'My Portfolio'
+)
+insert into public.portfolio_goals (portfolio_id, user_id, type, target_value, currency, target_date, note)
+select p.id, p.user_id, v.type::public.goal_type, v.target, v.currency,
+       (current_date + v.days_ahead), v.note
+  from p
+ cross join (values
+   ('PORTFOLIO_VALUE',  50000, 'USD', 1095, 'Three-year target'),
+   ('DIVIDEND_INCOME',    600, 'USD',  730, 'Cover one utility bill a month'),
+   -- A percentage goal carries no currency; both the schema and a check constraint refuse one.
+   ('TOTAL_RETURN',        25, null,   365, null)
+ ) as v(type, target, currency, days_ahead, note);
+
+with p as (
+  select id, user_id from public.portfolios
+   where user_id = :'seed_user_id' and name = 'My Portfolio'
+)
+insert into public.investment_theses
+  (portfolio_id, user_id, symbol, market, title, why_bought, expectations, catalysts, risks,
+   invalidation_criteria, conviction, status)
+select p.id, p.user_id, 'NVDA', 'US', 'NVDA thesis',
+  'Data-centre demand looked structural rather than cyclical, and the software moat is hard to copy.',
+  'Revenue growth stays ahead of the rest of the sector for at least two more years.',
+  'Data-centre capex announcements; new architecture launches.',
+  'Customer concentration; competitors shipping credible alternatives; a capex pause.',
+  'Two consecutive quarters of falling data-centre revenue, or a major customer moving to its own silicon.',
+  8, 'ACTIVE'
+  from p;
+
+with p as (
+  select id, user_id from public.portfolios
+   where user_id = :'seed_user_id' and name = 'My Portfolio'
+)
+insert into public.investment_journals
+  (portfolio_id, user_id, symbol, market, type, reason, title, content, entry_date)
+select p.id, p.user_id, v.symbol, v.market, v.type::public.journal_type,
+       v.reason::public.sell_reason, v.title, v.content, current_date - v.days_ago
+  from p
+ cross join (values
+   ('NVDA', 'US', 'BUY_THESIS', null, 'Opened NVDA',
+    'Bought after the pullback. Sizing it at roughly a fifth of the book and no larger.', 120),
+   ('SOFI', 'US', 'SELL_REASON', 'PORTFOLIO_REBALANCE', 'Trimmed SOFI',
+    'Position had drifted well above where I wanted it. Sold a fifth; the rest stays.', 20),
+   (null,   'US', 'MARKET_NOTE', null, 'Rates and the long end',
+    'Noting how I felt about the drawdown, so I can check later whether I acted the way I planned to.', 45)
+ ) as v(symbol, market, type, reason, title, content, days_ago);
+
+-- A benchmark for the USD portfolio. Index data is not on Twelve Data's free tier, so set
+-- BENCHMARK_PROVIDER=mock locally to see the comparison populate.
+with p as (
+  select id, user_id from public.portfolios
+   where user_id = :'seed_user_id' and name = 'My Portfolio'
+), b as (
+  select id from public.benchmarks where code = 'SPX'
+)
+insert into public.portfolio_benchmarks (portfolio_id, user_id, benchmark_id)
+select p.id, p.user_id, b.id from p cross join b
+on conflict (portfolio_id) do update set benchmark_id = excluded.benchmark_id;
+
 select
   (select count(*) from public.portfolios        where user_id = :'seed_user_id') as portfolios,
   (select count(*) from public.transactions      where user_id = :'seed_user_id') as transactions,
   (select count(*) from public.watchlist_items   where user_id = :'seed_user_id') as watchlist,
   (select count(*) from public.cash_transactions where user_id = :'seed_user_id') as cash,
-  (select count(*) from public.dividends         where user_id = :'seed_user_id') as dividends;
+  (select count(*) from public.dividends         where user_id = :'seed_user_id') as dividends,
+  (select count(*) from public.portfolio_goals   where user_id = :'seed_user_id') as goals,
+  (select count(*) from public.investment_theses where user_id = :'seed_user_id') as theses,
+  (select count(*) from public.investment_journals where user_id = :'seed_user_id') as journal;

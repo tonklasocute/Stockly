@@ -273,6 +273,104 @@ export type AIUsageRow = {
   created_at: string
 }
 
+// ---------------------------------------------------------------- phase 10: intelligence
+//
+// None of these rows carries a financial result. Progress, returns and P&L are derived from
+// transactions and market data on every request — see supabase/migrations/20260903000000.
+
+export type JournalType =
+  | "BUY_THESIS"
+  | "SELL_REASON"
+  | "POSITION_REVIEW"
+  | "MARKET_NOTE"
+  | "DIVIDEND_NOTE"
+  | "GENERAL"
+
+export type SellReason =
+  | "TARGET_REACHED"
+  | "THESIS_BROKEN"
+  | "RISK_INCREASED"
+  | "VALUATION"
+  | "PORTFOLIO_REBALANCE"
+  | "LIQUIDITY"
+  | "TAX"
+  | "OTHER"
+
+export type ThesisStatus = "ACTIVE" | "CONFIRMED" | "QUESTIONED" | "BROKEN" | "CLOSED"
+
+export type GoalType = "PORTFOLIO_VALUE" | "INVESTED_CAPITAL" | "DIVIDEND_INCOME" | "TOTAL_RETURN"
+
+export type JournalRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  /** Null for an entry that belongs to no single instrument, such as a market note. */
+  symbol: string | null
+  market: string
+  transaction_id: string | null
+  type: JournalType
+  /** Only ever set on a SELL_REASON entry; a check constraint enforces it. */
+  reason: SellReason | null
+  title: string
+  content: string
+  entry_date: string
+  created_at: string
+  updated_at: string
+}
+
+export type ThesisRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  symbol: string
+  market: string
+  title: string
+  why_bought: string
+  expectations: string
+  catalysts: string
+  risks: string
+  invalidation_criteria: string
+  conviction: number
+  /** Set by the user, never by the system. */
+  status: ThesisStatus
+  created_at: string
+  updated_at: string
+}
+
+export type PortfolioGoalRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  type: GoalType
+  /** Money for value/capital/income goals, a percentage for TOTAL_RETURN. `type` says which. */
+  target_value: number
+  /** Null exactly when the target is a percentage. */
+  currency: string | null
+  target_date: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Shared reference data: no user_id, readable by everyone signed in, writable by nobody. */
+export type BenchmarkRow = {
+  id: string
+  code: string
+  name: string
+  symbol: string
+  market: string
+  currency: string
+  created_at: string
+}
+
+export type PortfolioBenchmarkRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  benchmark_id: string
+  created_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -382,6 +480,37 @@ export type Database = {
         Update: never
         Relationships: []
       }
+      investment_journals: {
+        Row: JournalRow
+        Insert: Omit<JournalRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<JournalRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      investment_theses: {
+        Row: ThesisRow
+        Insert: Omit<ThesisRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<ThesisRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      portfolio_goals: {
+        Row: PortfolioGoalRow
+        Insert: Omit<PortfolioGoalRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Omit<PortfolioGoalRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      benchmarks: {
+        Row: BenchmarkRow
+        // Reference data. RLS grants select only, so these exist for the type checker alone.
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      portfolio_benchmarks: {
+        Row: PortfolioBenchmarkRow
+        Insert: Omit<PortfolioBenchmarkRow, "id" | "created_at"> & { id?: string }
+        Update: Partial<Pick<PortfolioBenchmarkRow, "benchmark_id">>
+        Relationships: []
+      }
       watchlist_items: {
         Row: WatchlistItemRow
         Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
@@ -397,6 +526,10 @@ export type Database = {
       alert_type: AlertType
       alert_state: AlertState
       notification_category: NotificationCategory
+      journal_type: JournalType
+      sell_reason: SellReason
+      thesis_status: ThesisStatus
+      goal_type: GoalType
     }
     CompositeTypes: Record<string, never>
   }

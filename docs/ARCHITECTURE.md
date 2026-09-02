@@ -431,11 +431,38 @@ The pieces:
 The migration adds **no columns** — every one already existed, defaulted to `'US'`/`'USD'`. What it
 adds are the `check` constraints that were previously only enforced in TypeScript.
 
-## 19. What is deliberately not here yet
+## 19. Investment intelligence (phase 10)
+
+Full detail in [`INTELLIGENCE.md`](INTELLIGENCE.md). The decisions that matter:
+
+1. **The intelligence layer is downstream of the engine and never upstream of it.** Journals,
+   theses, goals and benchmarks record what a calculation cannot — reasoning and targets. None is an
+   input to a financial figure, and `domain/intelligence-boundary.test.ts` reads the source of every
+   calculation module to keep it that way. Deleting every row phase 10 added leaves holdings, cost
+   basis and P&L byte-identical.
+2. **No derived figure is stored.** Goal progress, returns and risk are re-derived from
+   `loadAnalytics` on every request, so a goal cannot disagree with the dashboard and a stale
+   progress row cannot exist to be wrong.
+3. **A deposit is not a return.** `domain/returns.ts` removes external capital on both sides —
+   time-weighted for anything compared against a benchmark, money-weighted (IRR, by bisection) when
+   the question is what this investor earned. `domain/risk.ts` reads the flow-adjusted index, never
+   portfolio value, so a deposit cannot disguise a drawdown.
+4. **Insights are rules, not a model.** `domain/insights.ts` applies documented thresholds to
+   figures the engine produced. Every sentence it can emit is checked against a forbidden-vocabulary
+   list by a test — no buy, sell, rating, target or forecast — and every rule produces nothing when
+   its input is null. AI reads this output; it never produces it.
+5. **Only the user judges their own reasoning.** The system puts a measurement beside a thesis and
+   stops. Deciding one is broken would be a sell recommendation with extra steps.
+
+One `loadIntelligence` pass, `cache()`d over the already-cached `loadAnalytics`, serves the
+dashboard, the review page and the AI context — so the whole layer costs no extra pass over the
+transactions and no extra quote call.
+
+## 20. What is deliberately not here yet
 
 Historical FX rates and therefore FX attribution, triangulated exchange rates, more than one currency
-per market, FIFO cost basis, time- and money-weighted return, benchmark comparison, a market-wide
-screener universe, price prediction of any kind, email and LINE notification channels, offline
+per market, FIFO cost basis and tax lots, automatic thesis invalidation, a composite risk score,
+multiple benchmarks per portfolio, full-text journal search, a market-wide screener universe, price prediction of any kind, email and LINE notification channels, offline
 mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

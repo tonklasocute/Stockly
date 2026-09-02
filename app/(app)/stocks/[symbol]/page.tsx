@@ -16,6 +16,11 @@ import { WatchButton } from "@/features/watchlist/components/watch-button"
 import { watchedSymbols } from "@/features/watchlist/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
+import { findThesis } from "@/features/theses/queries"
+import { listJournalForInstrument } from "@/features/journal/queries"
+import { ThesisPanel } from "@/features/theses/components/thesis-panel"
+import { PositionJournal } from "@/features/journal/components/position-journal"
+import { thesisObservations } from "@/domain/research"
 import { MarketBadge } from "@/components/market-badge"
 import {
   formatCurrency,
@@ -86,6 +91,15 @@ export default async function StockPage({ params, searchParams }: Props) {
       )
     : undefined
 
+  // The user's own reasoning about this instrument. Two reads, both RLS-scoped, and neither one an
+  // input to any figure above — a thesis cannot move a cost basis.
+  const [thesis, journalEntries] = active
+    ? await Promise.all([
+        findThesis(active.id, symbol, market).catch(() => null),
+        listJournalForInstrument(active.id, symbol, market).catch(() => []),
+      ])
+    : [null, []]
+
   const name = profile?.name ?? quote?.name ?? symbol
   const exchange = profile?.exchange ?? quote?.exchange ?? marketOf(market).exchanges[0]
   /**
@@ -137,6 +151,49 @@ export default async function StockPage({ params, searchParams }: Props) {
         <h2 className="mb-4 text-sm font-semibold">Technical overview</h2>
         <TechnicalPanel symbol={symbol} market={market} currency={currency} />
       </section>
+
+      {active && (
+        <section className="bg-card rounded-xl border p-4 sm:p-5">
+          <h2 className="mb-1 text-sm font-semibold">Investment thesis</h2>
+          <p className="text-muted-foreground mb-4 text-xs">
+            Why you own this, and what would change your mind. Only you set the status.
+          </p>
+          <ThesisPanel
+            portfolioId={active.id}
+            symbol={symbol}
+            market={market}
+            thesis={thesis}
+            observations={
+              thesis
+                ? thesisObservations(
+                    {
+                      returnPct: position?.returnPct ?? null,
+                      weightPct: position?.weight ?? null,
+                      quantity: position?.quantity ?? 0,
+                      updatedAt: thesis.updated_at,
+                    },
+                    new Date(),
+                  )
+                : []
+            }
+          />
+        </section>
+      )}
+
+      {active && (
+        <section className="bg-card rounded-xl border p-4 sm:p-5">
+          <h2 className="mb-1 text-sm font-semibold">Journal</h2>
+          <p className="text-muted-foreground mb-4 text-xs">
+            Notes about {symbol}, newest first.
+          </p>
+          <PositionJournal
+            portfolioId={active.id}
+            symbol={symbol}
+            market={market}
+            entries={journalEntries}
+          />
+        </section>
+      )}
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="mb-4 text-sm font-semibold">Stockly AI</h2>

@@ -38,6 +38,7 @@ import {
 import { add } from "@/domain/money"
 import { buildPortfolio, replayPortfolio } from "@/domain/holdings"
 import { converterTo } from "@/domain/fx"
+import type { DatedFlow, ValuationPoint } from "@/domain/returns"
 import { baseCurrencyOf, currencyOf, symbolKey, type Currency, type MarketId } from "@/domain/market"
 import type { Holding, PortfolioSummary, RealizedTrade } from "@/domain/types"
 import { listCashTransactions, toDomainCash } from "@/features/cash/queries"
@@ -89,6 +90,21 @@ export type AnalyticsBundle = {
   }
   capital: CapitalPoint[]
   performance: PerformancePoint[]
+  /**
+   * Flow-adjusted valuation points, in the base currency: what return and risk measurement read.
+   *
+   * Built here rather than in a second loader because the snapshots and the cash movements were
+   * already fetched for the figures above — a separate pass would be two more queries for data
+   * this function is holding.
+   */
+  valuations: ValuationPoint[]
+  /**
+   * External capital movements in the base currency, signed for an IRR solver: money **into** the
+   * portfolio is negative. A movement with no exchange rate is dropped, like everywhere else.
+   */
+  capitalFlows: DatedFlow[]
+  /** Age of the oldest quote behind these figures, in minutes. Null when nothing was priced. */
+  quoteAgeMinutes: number | null
   quotes: Map<string, Quote>
   marketDataError: string | null
   transactionCount: number
@@ -212,14 +228,19 @@ export const loadAnalytics = cache(
      * currency it is recorded in; a movement with no rate is dropped rather than counted at par,
      * and shows up as a smaller balance the FX banner already explains.
      */
+    // Restated once, and reused: the cash balance, the valuation points and the IRR flows are all
+    // the same movements seen three ways, so converting them more than once could only introduce a
+    // disagreement between them.
+    const baseFlows = toDomainCash(cashRows)
+      .map((row) => {
+        const converted = convert(row.amount, row.currency)
+        return converted ? { ...row, amount: converted.value } : null
+      })
+      .filter((row) => row !== null)
+
     const cash = computeCash(
       baseTransactions,
-      toDomainCash(cashRows)
-        .map((row) => {
-          const converted = convert(row.amount, row.currency)
-          return converted ? { ...row, amount: converted.value } : null
-        })
-        .filter((row) => row !== null),
+      baseFlows,
       domainDividends
         .map((d) => {
           const net = d.shares * d.dividendPerShare - d.tax - d.fee
@@ -269,6 +290,13 @@ export const loadAnalytics = cache(
         ),
       },
       capital: investedCapitalSeries(baseTransactions),
+      valuations: buildValuations(ownSnapshots, baseFlows),
+      capitalFlows: baseFlows.map((flow) => ({
+        date: flow.occurredOn,
+        // An IRR solver reads money paid in as negative and money taken out as positive.
+        amount: flow.kind === "deposit" ? -flow.amount : flow.amount,
+      })),
+      quoteAgeMinutes: oldestQuoteAgeMinutes(quotes),
       performance: performanceSeries(
         ownSnapshots.map((s) => ({
           date: s.snapshot_date.slice(0, 10),
@@ -285,6 +313,53 @@ export const loadAnalytics = cache(
     }
   },
 )
+
+/**
+ * Snapshots and cash movements joined into the series return measurement needs.
+ *
+ * Each point carries the **net external capital that arrived since the previous point**, so the
+ * flow is attributed to the interval it landed in. Snapshots are written when a user opens the app,
+ * so an interval can span several days and a deposit inside one is treated as arriving at its end —
+ * the standard approximation, stated in `domain/returns.ts` rather than hidden here.
+ *
+ * Movements before the first snapshot are excluded: there is no prior valuation to measure them
+ * against, and folding them into the first interval would report the initial funding of the account
+ * as a loss.
+ */
+function buildValuations(
+  snapshots: readonly PortfolioSnapshotRow[],
+  flows: readonly { occurredOn: string; kind: "deposit" | "withdrawal"; amount: number }[],
+): ValuationPoint[] {
+  const ordered = [...snapshots].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
+  if (ordered.length === 0) return []
+
+  return ordered.map((snapshot, index) => {
+    const date = snapshot.snapshot_date.slice(0, 10)
+    const previous = index === 0 ? null : ordered[index - 1].snapshot_date.slice(0, 10)
+    const inInterval =
+      previous === null
+        ? []
+        : flows.filter((f) => f.occurredOn > previous && f.occurredOn <= date)
+
+    return {
+      date,
+      value: Number(snapshot.total_value),
+      flow: inInterval.reduce(
+        (total, f) => total + (f.kind === "deposit" ? f.amount : -f.amount),
+        0,
+      ),
+    }
+  })
+}
+
+/** How old the freshest figures are, taken from the oldest quote that fed them. */
+function oldestQuoteAgeMinutes(quotes: Map<string, Quote>): number | null {
+  const timestamps = [...quotes.values()]
+    .map((quote) => Date.parse(quote.asOf))
+    .filter((at) => !Number.isNaN(at))
+  if (timestamps.length === 0) return null
+  return Math.max(0, (Date.now() - Math.min(...timestamps)) / 60_000)
+}
 
 /** The portfolio row itself, for its base currency. RLS scopes it; a missing row falls back to USD. */
 async function readPortfolio(portfolioId: string): Promise<{ currency: string } | null> {

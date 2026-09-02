@@ -11,7 +11,10 @@ import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { listAlerts } from "@/features/alerts/queries"
 import { describeAlert } from "@/domain/alerts"
 import { toRuleFromRow } from "@/features/alerts/to-rule"
-import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
+import { loadIntelligence } from "@/features/intelligence/loader"
+import { InsightList } from "@/features/intelligence/components/insight-list"
+import { GoalProgressBar } from "@/features/goals/components/goal-progress-bar"
+import { Section } from "@/components/metric"
 import { namesFrom } from "@/features/portfolios/portfolio-view"
 import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
 import { baseCurrencyOf } from "@/domain/market"
@@ -31,7 +34,13 @@ export default async function DashboardPage({
 
   // One aggregation for the whole page: holdings, cash, dividends and fees come from a single pass
   // and a single batched quote call, so the dashboard cannot disagree with analytics.
-  const [bundle, alerts] = await Promise.all([loadAnalytics(active.id), listAlerts().catch(() => [])])
+  // `loadIntelligence` calls the same cached `loadAnalytics`, so goals, insights and risk cost no
+  // extra pass over the transactions and no extra quote call.
+  const [intelligence, alerts] = await Promise.all([
+    loadIntelligence(active.id),
+    listAlerts().catch(() => []),
+  ])
+  const bundle = intelligence.analytics
   const activeAlerts = alerts.filter((a) => a.enabled)
   const { holdings, summary, cash, totalValue, quotes, marketDataError, dividends, fees } = bundle
   const { missingFxPairs } = bundle
@@ -164,6 +173,58 @@ export default async function DashboardPage({
 
           <CurrencyExposure summary={summary} />
           <TranslationNote summary={summary} />
+
+          {/*
+            Investment intelligence, kept to what is worth seeing without scrolling: the goals that
+            are being tracked, and the three things most worth looking at. Everything deeper lives
+            on the review page rather than turning the dashboard into a wall of cards.
+          */}
+          {(intelligence.goals.length > 0 || intelligence.insights.length > 0) && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {intelligence.goals.length > 0 && (
+                <Section
+                  title="Goals"
+                  description="Measured from the same figures as everything above."
+                  action={
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={`/goals?p=${active.id}`} />}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Manage
+                    </Button>
+                  }
+                >
+                  <ul className="space-y-4">
+                    {intelligence.goals.slice(0, 2).map(({ row, progress }) => (
+                      <li key={row.id}>
+                        <GoalProgressBar progress={progress} baseCurrency={currency} />
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              <Section
+                title="Worth a look"
+                description="Facts about this portfolio, never advice."
+                action={
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={`/review?p=${active.id}`} />}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Full review
+                  </Button>
+                }
+                className={intelligence.goals.length === 0 ? "lg:col-span-2" : undefined}
+              >
+                <InsightList insights={intelligence.insights} limit={3} />
+              </Section>
+            </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="bg-card rounded-xl border p-4 sm:p-5">
