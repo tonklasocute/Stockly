@@ -12,16 +12,27 @@ const COLORS = [
   "var(--chart-5)",
 ]
 
-/** Anything past the top five is grouped, so the legend stays readable on a phone. */
+/**
+ * Anything past the top five is grouped, so the legend stays readable on a phone.
+ *
+ * Values are the base-currency ones: a pie mixing dollars and baht compares nothing. A holding with
+ * no exchange rate has no comparable value and is left out entirely — the page says so beside the
+ * chart rather than the chart implying the position is worth nothing.
+ */
 function toSlices(holdings: Holding[]) {
-  const top = holdings.slice(0, 5)
-  const rest = holdings.slice(5)
-  const slices = top.map((h) => ({ name: h.symbol, value: h.marketValue, weight: h.weight }))
+  const translated = holdings.filter((h) => h.baseMarketValue !== null)
+  const top = translated.slice(0, 5)
+  const rest = translated.slice(5)
+  const slices = top.map((h) => ({
+    name: h.symbol,
+    value: h.baseMarketValue ?? 0,
+    weight: h.weight ?? 0,
+  }))
   if (rest.length) {
     slices.push({
       name: `${rest.length} more`,
-      value: rest.reduce((s, h) => s + h.marketValue, 0),
-      weight: rest.reduce((s, h) => s + h.weight, 0),
+      value: rest.reduce((s, h) => s + (h.baseMarketValue ?? 0), 0),
+      weight: rest.reduce((s, h) => s + (h.weight ?? 0), 0),
     })
   }
   return slices

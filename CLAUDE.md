@@ -10,14 +10,17 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 8 complete — production ready.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 9 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
 review. It ships switched off (`AI_ENABLED=false`) and every other feature works unchanged without
 it. Phase 8 hardened the whole system for production: a nonce-based CSP, database-enforced
 portfolio ownership, rate limits on every paid upstream, request ids and structured logging, health
-probes, CI, legal pages, and the runbook to operate it. See [Development Phases](#development-phases).
+probes, CI, legal pages, and the runbook to operate it. Phase 9 made markets and currencies
+first-class: SET alongside US, a portfolio base currency, an FX abstraction whose missing rates are
+`null` rather than fabricated, market-data routing per market, and market calendars in each market's
+own timezone. See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -54,7 +57,8 @@ production**: they create and delete portfolio records.
 | Charts | Recharts | one library covers the donut and the price area chart; Lightweight Charts only earns its place when candlesticks do |
 | Backend | Next.js Route Handlers | no separate service; see extraction path below |
 | DB / Auth | Supabase (PostgreSQL + Auth + RLS) | RLS is the primary authorization boundary |
-| Market data | Twelve Data, behind `MarketDataProvider` | free tier: 8 credits/min, 800/day, **1 credit per symbol** |
+| Market data | Twelve Data, behind `MarketDataProvider` | free tier: 8 credits/min, 800/day, **1 credit per symbol**. Routed per market in `services/market-data/index.ts` |
+| Exchange rates | `FxRateProvider` — mock, Twelve Data `/exchange_rate` | one credit per pair per 10-minute cache window; a missing rate is `null`, never a fabricated one |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
@@ -102,12 +106,15 @@ features/    feature slices (portfolio/, transactions/, watchlist/, …).
              Each owns its components/, hooks/, schema.ts, api.ts. Cross-feature
              imports go through the feature's index, or the code belongs in lib/.
 domain/      pure business logic. No framework imports. Heavily tested.
-             money.ts (precision) · holdings.ts (cost basis, P&L) · cash.ts · dividends.ts ·
+             market.ts (market/currency/instrument registry, symbol identity) · fx.ts (rates,
+             freshness, conversion) · calendar.ts (sessions, holidays, timezones) ·
+             money.ts (precision) · holdings.ts (cost basis, P&L, base-currency translation) ·
+             cash.ts · dividends.ts ·
              analytics.ts (allocation, concentration, contribution, trade + fee statistics) ·
              alerts.ts (crossing + state machine) · indicators.ts · technical.ts · screener.ts ·
              ai.ts (intent, symbol validation, safety vocabulary, data coverage)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
-services/    external integrations behind interfaces (market-data/, ai/).
+services/    external integrations behind interfaces (market-data/, fx/, ai/).
 types/       shared types, generated types/supabase.ts.
 supabase/    migrations/, seed.sql.
 docs/        architecture and design docs.
@@ -152,6 +159,42 @@ Database          snake_case          tables plural, columns singular
 API routes        kebab-case          /api/cash-transactions
 Zod schemas       xxxSchema           createTransactionSchema
 ```
+
+## Market & Currency Rules
+
+Full detail in [`docs/MULTI-MARKET.md`](docs/MULTI-MARKET.md).
+
+- **An instrument has a market, and a market has a native currency.** `domain/market.ts` is the
+  registry; everything downstream reads `instrument.market` and `currencyOf(market)`.
+- **Never hardcode market behaviour by symbol.** `if (symbol === "PTT")` is forbidden, and so is
+  `if (market === "TH")` outside the registry and the provider router. Adding a market is a row in
+  `MARKET_REGISTRY`, a row in an adapter's `PROVIDER_MARKET`, and a `check` constraint — no domain
+  function changes.
+- **Currency is derived from the market, never stored beside it.** `market = 'US', currency = 'THB'`
+  must not be representable. Cash and dividends are the two deliberate exceptions, because a
+  portfolio really can hold two balances and a listing really can pay in another currency.
+- **Portfolio valuation uses the portfolio's base currency** (`portfolios.currency`). Holdings keep
+  their own: `marketValue` is native and never null, `baseMarketValue` is translated and **is**
+  nullable. Never overwrite one with the other.
+- **Missing FX is `null`, never 0 and never 1.** A rate of 1 values a ฿32 stock at $32; a 0 erases a
+  real position from a real total. A total that excluded a holding reports `untranslatedCount` and
+  the page says so.
+- **Today's rate translates today's value, and nothing else.** A stored row's numbers can never move
+  because a rate did. `fxEffect` is typed `null` because separating currency movement from stock
+  performance needs the rate on every past trade date, and Stockly stores none — never invent it.
+- **Technical analysis uses native market prices.** An RSI is a shape in a price history; converting
+  the series first folds the exchange rate into the indicator. Snapshots are shared reference data
+  and cannot be denominated in any one user's currency.
+- **Everything per-instrument is keyed by `symbolKey`** (`"SET:PTT"`) — quotes, snapshots, alert
+  readings, position weights. A bare symbol is unique only inside one market.
+- **One batched quote call per market, one FX call per currency pair.** Never one per holding. A
+  market whose provider fails contributes nothing and is named; the others still return.
+- Market status comes from the provider; `domain/calendar.ts` fills the gap and answers `"unknown"`
+  past its verified holiday horizon rather than guessing "open". Never the browser clock.
+- `market` and `currency` on a request body are closed enums, validated at the boundary and again by
+  a `check` constraint. A market the app cannot price must not be storable.
+- Money is formatted through `lib/format.ts` with `narrowSymbol`, so `$` and `฿` are never confused.
+  A headline total uses `formatCurrencyWithCode`. Never concatenate a currency symbol by hand.
 
 ## Analytics Rules
 
@@ -258,16 +301,20 @@ Full detail in [`docs/ALERTS.md`](docs/ALERTS.md).
 
 ## Market Data Rules
 
-- Add a provider by writing an adapter next to `twelve-data-provider.ts` and adding one `case` to
-  `getMarketDataProvider()`. Nothing outside `services/market-data/` changes.
+- Add a provider by writing an adapter next to `twelve-data-provider.ts`, declaring the markets it
+  covers, and adding one `case` to `create()`. Nothing outside `services/market-data/` changes.
 - Never call a provider from a client component or from a loop over holdings. Batch through
-  `getQuotes`, once, on the server.
+  `getQuotesFor(instruments)`, once, on the server: it groups by market and makes **one call per
+  market**. `getMarketDataProvider(market).getQuotes(symbols, market)` is the single-market form.
+- A provider is never asked for a market it does not declare. Answering a SET symbol from a US
+  endpoint yields a plausible price in the wrong currency, which is worse than no price at all.
 - Every method resolves or throws `MarketDataError`. A missing symbol is `null` or `[]`, not an error;
   a rate limit or an outage is an error. Route handlers turn those into the shared envelope with a
   `MARKET_DATA_*` code, and the raw provider text is logged, never returned.
 - Market data must never take a page down: `loadPortfolioView` falls back to cost, flags the holdings
   `stale`, and the page says so.
-- Do not infer market status from the browser clock. Ask the provider, or show "unavailable".
+- Do not infer market status from the browser clock. Ask the provider; `domain/calendar.ts` fills
+  the gap in the market's own timezone and says "unknown" rather than guessing.
 - Client polling is opt-in per component, only while the market is open, and never in a background tab.
 
 ## API Rules
@@ -408,7 +455,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 6 ✅ | Technical analysis: indicators, technical score, screener, technical alerts |
 | 7 ✅ | AI: provider abstraction, grounded research assistant, natural-language screener, usage and cost controls |
 | 8 ✅ | Production hardening: security headers, ownership constraints, rate limits, observability, health probes, CI, E2E, legal pages, runbook |
-| 9 | Advanced: multi-market, multi-currency, FX |
+| 9 ✅ | Multi-market foundation: market/instrument registry, portfolio base currency, FX abstraction and caching, provider routing, SET support, market calendars, cross-currency valuation |
+| 10 | Advanced: historical FX and currency attribution, benchmark comparison, FIFO cost basis |
 
 Do not start the next phase without being asked.
 

@@ -16,13 +16,22 @@ import { WatchButton } from "@/features/watchlist/components/watch-button"
 import { watchedSymbols } from "@/features/watchlist/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
-import { formatCurrency, formatQuantity } from "@/lib/format"
-import { isValidSymbol, normalizeSymbol } from "@/lib/symbol"
+import { MarketBadge } from "@/components/market-badge"
+import {
+  formatCurrency,
+  formatOptionalCurrency,
+  formatOptionalPercent,
+  formatQuantity,
+} from "@/lib/format"
+import { currencyOf, isValidSymbol, marketOf, normalizeSymbol, symbolKey, toMarket } from "@/domain/market"
 import { isAIEnabled } from "@/services/ai"
 import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
 import type { CompanyProfile, Quote } from "@/services/market-data/types"
 
-type Props = { params: Promise<{ symbol: string }>; searchParams: Promise<{ p?: string }> }
+type Props = {
+  params: Promise<{ symbol: string }>
+  searchParams: Promise<{ p?: string; market?: string }>
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params
@@ -31,17 +40,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function StockPage({ params, searchParams }: Props) {
   const { symbol: raw } = await params
-  if (!isValidSymbol(raw)) notFound()
+  const query = await searchParams
+  // The market comes from the URL, not from the symbol: "PTT" is only unambiguous once you know
+  // which exchange it was looked up on, and guessing would price it in the wrong currency.
+  const market = toMarket(query.market)
+  if (!isValidSymbol(raw, market)) notFound()
   const symbol = normalizeSymbol(raw)
 
-  const provider = getMarketDataProvider()
+  // Selecting a provider can throw — an unconfigured key, or a market with no adapter — and that
+  // must cost the price header, not the page. Everything else here (your position, alerts, the
+  // watchlist star) comes from the database and is still worth rendering.
+  const provider = (() => {
+    try {
+      return getMarketDataProvider(market)
+    } catch (error: unknown) {
+      return error instanceof Error ? error : new Error("Market data is unavailable.")
+    }
+  })()
+  const unavailable = provider instanceof Error
 
   // One round trip for everything the page needs; a failure in any one part must not blank the page.
   const [quoteResult, profileResult, watched, { active }, alerts] = await Promise.all([
-    provider.getQuote(symbol).catch((error: unknown) => error),
-    provider.getCompanyProfile(symbol).catch(() => null),
+    unavailable ? Promise.resolve(provider) : provider.getQuote(symbol, market).catch((error: unknown) => error),
+    unavailable ? Promise.resolve(null) : provider.getCompanyProfile(symbol, market).catch(() => null),
     watchedSymbols(),
-    resolveActivePortfolio((await searchParams).p),
+    resolveActivePortfolio(query.p),
     listAlerts().catch(() => []),
   ])
 
@@ -58,12 +81,20 @@ export default async function StockPage({ params, searchParams }: Props) {
   if (!quote && !profile && !marketDataError) notFound()
 
   const position = active
-    ? (await loadPortfolioView(active.id)).holdings.find((h) => h.symbol === symbol)
+    ? (await loadPortfolioView(active.id)).holdings.find(
+        (h) => h.symbol === symbol && h.market === market,
+      )
     : undefined
 
   const name = profile?.name ?? quote?.name ?? symbol
-  const exchange = profile?.exchange ?? quote?.exchange
-  const currency = quote?.currency ?? "USD"
+  const exchange = profile?.exchange ?? quote?.exchange ?? marketOf(market).exchanges[0]
+  /**
+   * The instrument's own currency, from the market registry rather than from the provider: the
+   * registry is the value every stored number was computed against, and a provider disagreeing
+   * with it would silently relabel prices the portfolio engine has already used.
+   */
+  const currency = currencyOf(market)
+  const baseCurrency = position?.baseCurrency ?? currency
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -71,19 +102,23 @@ export default async function StockPage({ params, searchParams }: Props) {
         <div className="min-w-0 space-y-2">
           <div>
             <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{name}</h1>
-            <p className="text-muted-foreground text-sm">
-              {symbol}
-              {exchange ? ` · ${exchange}` : ""}
+            <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+              <span>
+                {symbol}
+                {exchange ? ` · ${exchange}` : ""}
+              </span>
+              <MarketBadge market={market} currency={currency} />
             </p>
           </div>
-          <LiveQuote symbol={symbol} initialQuote={quote} currency={currency} />
+          <LiveQuote symbol={symbol} market={market} initialQuote={quote} currency={currency} />
         </div>
 
         <WatchButton
           symbol={symbol}
+          market={market}
           name={name}
           exchange={exchange ?? null}
-          watched={watched.has(`US:${symbol}`)}
+          watched={watched.has(symbolKey(symbol, market))}
         />
       </div>
 
@@ -95,12 +130,12 @@ export default async function StockPage({ params, searchParams }: Props) {
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="sr-only">Price history</h2>
-        <PriceChart symbol={symbol} currency={currency} />
+        <PriceChart symbol={symbol} market={market} currency={currency} />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="mb-4 text-sm font-semibold">Technical overview</h2>
-        <TechnicalPanel symbol={symbol} currency={currency} />
+        <TechnicalPanel symbol={symbol} market={market} currency={currency} />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
@@ -115,6 +150,8 @@ export default async function StockPage({ params, searchParams }: Props) {
         </p>
         <QuickAlert
           symbol={symbol}
+          market={market}
+          currency={currency}
           price={quote?.price ?? null}
           portfolioId={active?.id}
           existing={alerts}
@@ -141,6 +178,11 @@ export default async function StockPage({ params, searchParams }: Props) {
                 <dd className="tabular text-sm font-medium">
                   {formatCurrency(position.marketValue, currency)}
                 </dd>
+                {baseCurrency !== currency && (
+                  <dd className="text-muted-foreground tabular text-xs">
+                    ≈ {formatOptionalCurrency(position.baseMarketValue, baseCurrency)}
+                  </dd>
+                )}
               </div>
               <div className="space-y-0.5">
                 <dt className="text-muted-foreground text-xs">Unrealized P&amp;L</dt>
@@ -151,7 +193,7 @@ export default async function StockPage({ params, searchParams }: Props) {
             </dl>
             <p className="text-muted-foreground mt-3 text-xs">
               <Percent value={position.returnPct} /> return ·{" "}
-              {position.weight.toFixed(2)}% of {active?.name}
+              {formatOptionalPercent(position.weight, { signed: false })} of {active?.name}
             </p>
           </>
         ) : (

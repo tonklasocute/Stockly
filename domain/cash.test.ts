@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { computeCash } from "./cash"
+import type { Currency } from "./market"
 import type { DomainTransaction } from "./types"
 
 const buy = (q: number, p: number, fee = 0): DomainTransaction => ({
@@ -8,8 +9,12 @@ const buy = (q: number, p: number, fee = 0): DomainTransaction => ({
 const sell = (q: number, p: number, fee = 0): DomainTransaction => ({
   symbol: "NVDA", side: "sell", tradeDate: "2026-02-02", quantity: q, price: p, fee,
 })
-const deposit = (amount: number) => ({ kind: "deposit" as const, amount, occurredOn: "2026-01-01" })
-const withdrawal = (amount: number) => ({ kind: "withdrawal" as const, amount, occurredOn: "2026-03-01" })
+const deposit = (amount: number, currency: Currency = "USD") => ({
+  kind: "deposit" as const, amount, currency, occurredOn: "2026-01-01",
+})
+const withdrawal = (amount: number, currency: Currency = "USD") => ({
+  kind: "withdrawal" as const, amount, currency, occurredOn: "2026-03-01",
+})
 
 describe("cash balance", () => {
   it("is zero for an empty portfolio", () => {

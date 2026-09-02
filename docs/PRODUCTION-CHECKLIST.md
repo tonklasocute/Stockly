@@ -108,6 +108,9 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 
 - ✅ Per-user, per-minute limits on everything that costs money: AI (6), market data (20–60 by
   endpoint), screener (30), alerts (20), push (10).
+- ✅ Exchange rates are cached for 10 minutes in the Next Data Cache, shared across instances, and
+  requested per currency **pair** rather than per holding: a fifty-holding, two-currency portfolio
+  costs one FX request per window for the whole deployment. A single-currency portfolio costs none.
 - ✅ **Fixed in phase 8:** the four market-data routes had no limit at all, despite each one
   spending upstream credits.
 - ✅ AI daily quota counted in `ai_usage`, so it survives instances and deploys, and **fails closed**
@@ -126,7 +129,12 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Foreign keys with deliberate `on delete` behaviour; check constraints for invariants.
 - ✅ `numeric` for every money and quantity column. Never `float8`.
 - ✅ Indexes on every foreign key and on the columns actually filtered and sorted. Two added in
-  phase 8, both partial, both matching a real query.
+  phase 8, both partial, both matching a real query; phase 9 widened the transactions symbol index
+  to `(portfolio_id, market, symbol)`, which is how the engine now groups positions.
+- ✅ **Added in phase 9:** `check` constraints on `transactions.market` and on the `currency` columns
+  of `portfolios`, `dividends` and `cash_transactions`. A market or currency the app cannot price
+  would be routed to the wrong provider and valued in the wrong unit — a silently-wrong number
+  rather than a visible error — so it is now unstorable rather than merely rejected in TypeScript.
 - ✅ No connection pool to exhaust — Supabase is reached over HTTP, not the Postgres wire protocol.
 
 ## Reliability
@@ -136,6 +144,10 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   bad key or an unusable response.
 - ✅ Graceful degradation: a market-data outage falls back to cost basis and says so; an AI outage
   costs the assistant and nothing else; a missing service worker costs offline navigation.
+- ✅ **Per-market and per-currency isolation (phase 9):** one market's provider failing leaves the
+  other's holdings priced and names the failed one; an FX provider failing renders converted figures
+  as "N/A" — never 0, never a fabricated rate — and the page states how many holdings were excluded.
+  A missing exchange rate can therefore make a total incomplete, but never wrong.
 - ✅ Liveness and readiness are separate probes. Readiness checks Postgres and deliberately not the
   third parties Stockly is built to survive without.
 - ✅ Alerts are idempotent — a unique key makes a duplicate run a no-op — and fire on a crossing,

@@ -33,6 +33,25 @@ Then promote in the Vercel dashboard, or merge to `main`.
 code keeps working against the new schema for the minutes between the two. The reverse order —
 code first — means a request arrives for a column that does not exist yet.
 
+### If a `check` constraint refuses to be added
+
+A migration that adds a constraint fails if any existing row violates it, and that row is the bug the
+constraint closes. Phase 9's constraints are on values that have defaulted correctly since the first
+migration, so this should not happen — but if it does, find the rows before deciding anything:
+
+```sql
+select id, market from public.transactions where market not in ('US', 'SET');
+select id, currency from public.portfolios
+  where currency not in ('USD','THB','EUR','GBP','JPY','SGD','HKD');
+select id, currency from public.dividends
+  where currency not in ('USD','THB','EUR','GBP','JPY','SGD','HKD');
+select id, currency from public.cash_transactions
+  where currency not in ('USD','THB','EUR','GBP','JPY','SGD','HKD');
+```
+
+Correct the rows with the owner's agreement — never by guessing a market or a currency, which would
+silently redenominate money someone actually spent. Then re-run the migration.
+
 ## 2. Smoke test after a production deploy
 
 ```bash

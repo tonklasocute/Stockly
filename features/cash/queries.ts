@@ -1,5 +1,6 @@
 import "server-only"
 
+import { baseCurrencyOf } from "@/domain/market"
 import type { DomainCashTransaction } from "@/domain/cash"
 import { pageRange, toPageResult, type Page, PAGE_SIZE } from "@/lib/pagination"
 import { createClient } from "@/lib/supabase/server"
@@ -22,6 +23,7 @@ export function toDomainCash(rows: readonly CashTransactionRow[]): DomainCashTra
   return rows.map((row) => ({
     kind: row.kind,
     amount: row.amount,
+    currency: baseCurrencyOf(row.currency),
     occurredOn: row.occurred_on.slice(0, 10),
   }))
 }

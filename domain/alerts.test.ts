@@ -5,7 +5,7 @@ import {
   idempotencyKeyFor,
   messageFor,
   readingFor,
-  symbolsToFetch,
+  instrumentsToFetch,
   type AlertRule,
   type AlertType,
   type PortfolioReading,
@@ -20,6 +20,7 @@ const alert = (over: Partial<AlertRule> = {}): AlertRule => ({
   id: "a1",
   type: "PRICE_ABOVE",
   symbol: "NVDA",
+  market: "US",
   targetValue: 200,
   enabled: true,
   state: "armed",
@@ -194,14 +195,16 @@ describe("idempotency", () => {
 })
 
 describe("readings", () => {
+  // Keyed by `symbolKey`, exactly as the evaluation job builds them.
   const quotes = new Map<string, QuoteReading>([
-    ["NVDA", { symbol: "NVDA", price: 210, previousClose: 200, asOf: FRESH }],
-    ["AAPL", { symbol: "AAPL", price: 190, previousClose: null, asOf: FRESH }],
+    ["US:NVDA", { symbol: "NVDA", price: 210, previousClose: 200, asOf: FRESH }],
+    ["US:AAPL", { symbol: "AAPL", price: 190, previousClose: null, asOf: FRESH }],
   ])
   const portfolio: PortfolioReading = {
     dailyChangePct: 2.5,
     totalReturnPct: 12,
-    weights: { NVDA: 42, AAPL: 18 },
+    // Keyed per instrument: the same ticker on two venues is two positions.
+    weights: { "US:NVDA": 42, "US:AAPL": 18 },
     asOf: FRESH,
   }
 
@@ -252,7 +255,7 @@ describe("readings", () => {
 describe("technical alerts — same engine, different reading", () => {
   const technicals = new Map([
     [
-      "NVDA",
+      "US:NVDA",
       {
         rsi: 28,
         adx: 31,
@@ -300,7 +303,7 @@ describe("technical alerts — same engine, different reading", () => {
   })
 
   it("refuses a stale snapshot, exactly like a stale quote", () => {
-    const stale = new Map([["NVDA", { ...technicals.get("NVDA")!, asOf: STALE }]])
+    const stale = new Map([["US:NVDA", { ...technicals.get("US:NVDA")!, asOf: STALE }]])
     const reading = readingFor(alert({ type: "RSI_BELOW", targetValue: 30 }), new Map(), null, stale)
     expect(evaluateAlert(alert({ type: "RSI_BELOW", targetValue: 30 }), reading, ctx())).toMatchObject({
       action: "skip",
@@ -327,7 +330,7 @@ describe("symbol deduplication", () => {
   it("collapses many alerts on the same symbol into one fetch", () => {
     // A hundred users watching NVDA is one upstream call, not a hundred.
     const alerts = Array.from({ length: 100 }, (_, i) => alert({ id: `a${i}`, symbol: "nvda" }))
-    expect(symbolsToFetch(alerts)).toEqual(["NVDA"])
+    expect(instrumentsToFetch(alerts)).toEqual([{ symbol: "NVDA", market: "US" }])
   })
 
   it("ignores disabled alerts and portfolio-level alerts", () => {
@@ -336,15 +339,17 @@ describe("symbol deduplication", () => {
       alert({ id: "2", symbol: "AAPL", enabled: false }),
       alert({ id: "3", symbol: null, type: "PORTFOLIO_TOTAL_RETURN_ABOVE" }),
     ]
-    expect(symbolsToFetch(alerts)).toEqual(["NVDA"])
+    expect(instrumentsToFetch(alerts)).toEqual([{ symbol: "NVDA", market: "US" }])
   })
 
   it("includes symbols needed by weight alerts", () => {
-    expect(symbolsToFetch([alert({ type: "POSITION_WEIGHT_ABOVE", symbol: "MSFT" })])).toEqual(["MSFT"])
+    expect(instrumentsToFetch([alert({ type: "POSITION_WEIGHT_ABOVE", symbol: "MSFT" })])).toEqual([
+      { symbol: "MSFT", market: "US" },
+    ])
   })
 
   it("returns nothing for an empty list", () => {
-    expect(symbolsToFetch([])).toEqual([])
+    expect(instrumentsToFetch([])).toEqual([])
   })
 })
 
@@ -353,7 +358,7 @@ describe("messages", () => {
     const m = messageFor(alert(), 200.01)
     expect(m.title).toContain("NVDA")
     expect(m.body).toContain("$200.01")
-    expect(m.href).toBe("/stocks/NVDA")
+    expect(m.href).toBe("/stocks/NVDA?market=US")
   })
 
   it("never puts a portfolio figure in the message", () => {

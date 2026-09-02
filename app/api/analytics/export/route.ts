@@ -5,6 +5,7 @@ import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { listCashTransactions } from "@/features/cash/queries"
 import { listDividends } from "@/features/dividends/queries"
 import { listTransactions } from "@/features/transactions/queries"
+import { currencyOf, toMarket } from "@/domain/market"
 
 const DATASETS = ["transactions", "dividends", "cash", "summary"] as const
 type Dataset = (typeof DATASETS)[number]
@@ -29,11 +30,15 @@ export async function GET(request: Request) {
       return csvResponse(
         `stockly-transactions-${stamp}.csv`,
         toCsv(
-          ["Date", "Type", "Symbol", "Quantity", "Price", "Fee", "Total", "Notes"],
+          // Market and currency are columns, not a footnote: a spreadsheet of prices with no
+          // currency beside them is the fastest way to add baht to dollars by accident.
+          ["Date", "Type", "Symbol", "Market", "Currency", "Quantity", "Price", "Fee", "Total", "Notes"],
           rows.map((t) => [
             t.trade_date,
             t.side,
             t.symbol,
+            t.market,
+            currencyOf(toMarket(t.market)),
             t.quantity,
             t.price,
             t.fee,
@@ -49,11 +54,9 @@ export async function GET(request: Request) {
       return csvResponse(
         `stockly-dividends-${stamp}.csv`,
         toCsv(
-          ["Payment date", "Symbol", "Shares", "Dividend per share", "Gross", "Tax", "Fee", "Net", "Notes"],
+          ["Payment date", "Symbol", "Market", "Currency", "Shares", "Dividend per share", "Gross", "Tax", "Fee", "Net", "Notes"],
           rows.map((d) => {
             const amounts = dividendAmounts({
-              symbol: d.symbol,
-              paidOn: d.payment_date,
               shares: d.shares,
               dividendPerShare: d.dividend_per_share,
               tax: d.tax,
@@ -62,6 +65,8 @@ export async function GET(request: Request) {
             return [
               d.payment_date,
               d.symbol,
+              d.market,
+              d.currency,
               d.shares,
               d.dividend_per_share,
               amounts.gross,
@@ -92,6 +97,9 @@ export async function GET(request: Request) {
       toCsv(
         ["Metric", "Value"],
         [
+          // First row, so the unit is unmissable: every figure below is in this currency, and
+          // holdings that could not be converted into it are named rather than silently omitted.
+          ["Currency", bundle.baseCurrency],
           ["Total portfolio value", bundle.totalValue],
           ["Stock market value", bundle.summary.marketValue],
           ["Cash balance", bundle.cash.balance],
@@ -107,6 +115,7 @@ export async function GET(request: Request) {
           ["Total fees", bundle.fees.total],
           ["Holdings", bundle.summary.holdingsCount],
           ["Win rate %", bundle.tradeStats.winRate ?? "N/A"],
+          ["Holdings excluded (no exchange rate)", bundle.summary.untranslatedCount],
         ],
       ),
     )

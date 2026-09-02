@@ -1,4 +1,5 @@
 import { add, subtract, sumBy } from "./money"
+import type { Currency } from "./market"
 import type { DomainTransaction } from "./types"
 
 export type CashFlowKind = "deposit" | "withdrawal"
@@ -6,6 +7,11 @@ export type CashFlowKind = "deposit" | "withdrawal"
 export type DomainCashTransaction = {
   kind: CashFlowKind
   amount: number
+  /**
+   * The currency this movement is in. Unlike a trade's, it is stored rather than derived from a
+   * market: one portfolio can genuinely hold a dollar balance and a baht balance at the same time.
+   */
+  currency: Currency
   occurredOn: string
 }
 

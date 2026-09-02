@@ -40,13 +40,14 @@ export async function POST(request: Request) {
 
     if (symbol) {
       try {
-        const quotes = await getMarketDataProvider().getQuotes([symbol])
+        const quotes = await getMarketDataProvider(body.market).getQuotes([symbol], body.market)
         const quote = quotes.get(symbol)
         if (quote) {
           const rule: AlertRule = {
             id: "new",
             type: body.type,
             symbol,
+            market: body.market,
             targetValue: body.targetValue,
             enabled: true,
             state: "armed",
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
         user_id: userId, // from the session, never the body
         portfolio_id: body.portfolioId ?? null,
         symbol,
-        market: "US",
+        market: body.market,
         type: body.type,
         target_value: body.targetValue,
         enabled: body.enabled,

@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { CURRENCIES } from "@/domain/market"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -13,6 +14,12 @@ export const cashInputSchema = z.object({
   kind: z.enum(["deposit", "withdrawal"], { message: "Choose deposit or withdrawal." }),
   // Direction is carried by `kind`, so the amount is always positive.
   amount: z.coerce.number<number>().positive("Amount must be greater than 0.").finite(),
+  /**
+   * Genuinely independent of any market: one portfolio can hold a dollar balance and a baht balance
+   * at the same time, so this is stored rather than derived. Defaults to the portfolio's base
+   * currency at the call site.
+   */
+  currency: z.enum(CURRENCIES).optional(),
   occurredOn: z
     .string()
     .regex(ISO_DATE, "Use a valid date.")

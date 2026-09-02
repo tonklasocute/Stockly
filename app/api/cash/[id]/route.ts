@@ -16,6 +16,9 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .update({
         kind: body.kind,
         amount: body.amount,
+        // Omitted when the form did not send one, so an edit never silently redenominates a
+        // balance that was recorded in a different currency.
+        ...(body.currency ? { currency: body.currency } : {}),
         occurred_on: body.occurredOn,
         notes: body.notes || null,
       })

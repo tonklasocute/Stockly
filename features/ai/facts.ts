@@ -19,11 +19,14 @@ export type PositionFacts = {
   marketValue: number
   unrealizedPnl: number
   returnPct: number
-  weightPct: number
+  /** Null when the holding could not be expressed in the portfolio's base currency. */
+  weightPct: number | null
 }
 
 export type StockFacts = {
   symbol: string
+  /** The venue these figures came from. Prices and indicators are in that market's currency. */
+  market: string
   name: string | null
   currency: string
   price: number | null
@@ -63,7 +66,7 @@ export type PortfolioFacts = {
   returnPct: number | null
   todayChangePct: number | null
   holdingCount: number
-  largest: { symbol: string; weightPct: number } | null
+  largest: { symbol: string; weightPct: number | null } | null
   topWeightsPct: number
   sectors: { label: string; weightPct: number }[]
   gainers: { symbol: string; returnPct: number }[]

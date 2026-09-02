@@ -1,6 +1,7 @@
 import { fail, guarded, ok, parseBody } from "@/lib/api"
 import { invalidatePortfolio } from "@/lib/cache"
 import { dividendUpdateSchema } from "@/features/dividends/schema"
+import { currencyOf } from "@/domain/market"
 import { createClient } from "@/lib/supabase/server"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -16,6 +17,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .from("dividends")
       .update({
         symbol: body.symbol,
+        market: body.market,
+        currency: body.currency ?? currencyOf(body.market),
         payment_date: body.paymentDate,
         shares: body.shares,
         dividend_per_share: body.dividendPerShare,

@@ -88,7 +88,7 @@ bypassed.
 | | |
 |---|---|
 | `GET /api/portfolios` | The caller's portfolios. |
-| `POST /api/portfolios` | `{ name, currency }` → 201. `409` on a duplicate name. |
+| `POST /api/portfolios` | `{ name, currency }` → 201. `409` on a duplicate name. `currency` is the portfolio's **base currency**: what every total on its pages is denominated in. |
 | `PATCH /api/portfolios/:id` | `{ name, currency }`. |
 | `DELETE /api/portfolios/:id` | Cascades to transactions, dividends, cash and snapshots. |
 
@@ -97,28 +97,40 @@ bypassed.
 | | |
 |---|---|
 | `GET /api/transactions?portfolioId&page` | One page. The calculation engine does **not** use this — holdings are derived from every row. |
-| `POST /api/transactions` | `{ portfolioId, symbol, side, tradeDate, quantity, price, fee, notes? }` → 201. A sell is re-checked server-side against stored rows; overselling is a `VALIDATION_ERROR` naming the quantity actually held. |
+| `POST /api/transactions` | `{ portfolioId, symbol, market?, side, tradeDate, quantity, price, fee, notes? }` → 201. `market` is `"US" \| "SET"`, defaulting to `"US"`, and fixes the currency of `price` and `fee`. A sell is re-checked server-side against stored rows **for that market**; overselling is a `VALIDATION_ERROR` naming the quantity actually held. |
 | `PATCH /api/transactions/:id` | Same body. An edit that would oversell is rejected, with the row's own previous version excluded from the check. |
 | `DELETE /api/transactions/:id` | |
 
 ## Dividends and cash
 
 `GET|POST /api/dividends`, `PATCH|DELETE /api/dividends/:id` —
-`{ portfolioId, symbol, paymentDate, shares, dividendPerShare, tax, fee, currency, notes? }`.
+`{ portfolioId, symbol, market?, currency?, paymentDate, shares, dividendPerShare, tax, fee, notes? }`.
+`currency` defaults to the market's; it is stored rather than derived because a listing can pay in a
+currency other than the one it trades in.
 
 `GET|POST /api/cash`, `PATCH|DELETE /api/cash/:id` —
-`{ portfolioId, kind: "deposit"|"withdrawal", amount, currency, occurredOn, notes? }`. `amount` is
-always positive; the direction lives in `kind`.
+`{ portfolioId, kind: "deposit"|"withdrawal", amount, currency?, occurredOn, notes? }`. `amount` is
+always positive; the direction lives in `kind`. `currency` defaults to the portfolio's base currency
+and is genuinely stored — one portfolio can hold balances in more than one currency at once.
+
+`market` and `currency` are **closed enums** on every endpoint that accepts them
+(`domain/market.ts`), never free text. A market the app cannot price would be routed to the wrong
+provider and valued in the wrong currency — a silently-wrong number rather than a visible error — so
+it is rejected at the boundary and again by a `check` constraint in the database.
 
 ## Analytics
 
-`GET /api/analytics/export?portfolioId&type=transactions|dividends|cash` — CSV, written by
-`lib/csv.ts` with formula-injection escaping.
+`GET /api/analytics/export?portfolioId&dataset=transactions|dividends|cash|summary` — CSV, written by
+`lib/csv.ts` with formula-injection escaping. Transaction and dividend rows carry `Market` and
+`Currency` columns, and the summary's first row names the base currency every figure below it is in:
+a spreadsheet of prices with no currency beside them is the fastest way to add baht to dollars by
+accident.
 
 ## Watchlist
 
-`GET|POST /api/watchlist` · `DELETE /api/watchlist/:symbol`. A duplicate is a `409` translated from
-the unique constraint, not an application check.
+`GET|POST /api/watchlist` · `DELETE /api/watchlist/:symbol?market=`. Uniqueness is per
+`(user, market, symbol)`, so the same ticker on two venues is two rows; a duplicate is a `409`
+translated from the unique constraint, not an application check.
 
 ## Market data
 
@@ -126,17 +138,17 @@ All four hit a paid upstream and are rate-limited per user per minute.
 
 | | Limit | |
 |---|---|---|
-| `GET /api/stocks/search?q=` | 30 | Min 2 characters. Cached 24 h upstream. |
+| `GET /api/stocks/search?q=&market=` | 30 | Min 2 characters. Cached 24 h upstream. Without `market`, every market Stockly supports; each result is tagged with its own venue and currency. |
 | `GET /api/stocks/:symbol/quote?market=` | 60 | Cached 60 s. `404` for an unknown symbol; a rate limit or outage is a `MARKET_DATA_*` error, never a 404. |
-| `GET /api/stocks/:symbol/history?range=1D…MAX` | 30 | Cached 5 min to 6 h by range. |
-| `GET /api/stocks/:symbol/technical` | 20 | Cache first; computes on demand on a miss, which costs a full OHLCV request. Returns `{ snapshot, calculatedAt, stale, source }`. |
+| `GET /api/stocks/:symbol/history?range=1D…MAX&market=` | 30 | Cached 5 min to 6 h by range. |
+| `GET /api/stocks/:symbol/technical?market=` | 20 | Cache first; computes on demand on a miss, which costs a full OHLCV request. Returns `{ snapshot, calculatedAt, stale, source, market, currency }` — indicators are computed from the instrument's **native** price series, so `currency` is the market's, never the portfolio's. |
 
 ## Screener
 
 | | Limit | |
 |---|---|---|
 | `GET /api/screener` | — | The presets, so the client renders exactly what the server would run. |
-| `POST /api/screener` | 30 | `{ definition: { logic, filters[], sort? }, page }`. **Zero upstream requests**: runs against cached snapshots. `metric` and `operator` are closed enums; `value` is a number or a trend name. Max 10 filters. |
+| `POST /api/screener` | 30 | `{ definition: { logic, filters[], sort? }, market?, page }`. **Zero upstream requests**: runs against cached snapshots. `metric` and `operator` are closed enums; `value` is a number or a trend name. Max 10 filters. `market` narrows the **universe** before any threshold is applied and changes no reading on any instrument — a screener is currency-independent, and each row reports the currency its price column is in. |
 | `GET|POST /api/screener/saved` · `DELETE /api/screener/saved/:id` | 20 | Max 30 saved screens per user. |
 
 ## Alerts and notifications

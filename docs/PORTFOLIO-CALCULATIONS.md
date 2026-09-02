@@ -61,15 +61,47 @@ Selling never changes the average cost of what remains. That is the definition o
 
 ## 3. Valuation
 
+**In the instrument's own currency** — the one it is quoted in, whatever the portfolio is kept in:
+
 ```
 marketValue    = quantity × currentPrice
 unrealizedPnl  = marketValue − investedValue
 returnPct      = unrealizedPnl / investedValue × 100
-weight         = marketValue / Σ marketValue × 100
 ```
 
 No quote → the holding is priced at `averageCost` and flagged `stale`. It shows flat rather than
 inventing a loss, and the UI says so.
+
+### Translation into the portfolio's base currency (phase 9)
+
+```
+baseMarketValue    = marketValue    × rate      or null when there is no rate
+baseInvestedValue  = investedValue  × rate      or null
+baseUnrealizedPnl  = unrealizedPnl  × rate      or null
+weight             = baseMarketValue / Σ baseMarketValue × 100   or null
+```
+
+`rate` is **one rate per holding**, applied to every figure and reported to the user beside them, so
+the arithmetic on screen can be checked. When the instrument's currency is already the base currency
+the rate is 1 and no provider is consulted — which is why every pre-phase-9 portfolio produces
+byte-identical numbers.
+
+**No rate → `null`, never 0 and never 1.** A holding that cannot be translated is left out of every
+total and counted in `summary.untranslatedCount`, which the page turns into a sentence. Defaulting to
+1 would value a ฿32 stock at $32; defaulting to 0 would erase a real position from a real total.
+
+`weight` is a share of the portfolio, so it only means anything once every holding is on the same
+scale. A holding with no rate has **no knowable share** — `null`, not 0.
+
+`returnPct` divides two figures in the same currency, so no exchange rate can move it. Stock
+performance is never contaminated by currency movement.
+
+### FX effect
+
+`summary.fxEffect` is **always `null`**, by type. Separating currency movement from stock performance
+needs the exchange rate on every past trade date, and Stockly stores none. Base-currency figures are
+a translation at *today's* rate, labelled as such on every page whose totals crossed a currency
+boundary. See [`MULTI-MARKET.md`](MULTI-MARKET.md) §3 for what would have to exist first.
 
 ### Today's change
 
@@ -127,8 +159,12 @@ date, which requires the snapshot history to be dense; the insertion point is `p
 
 ## 6. Allocation and concentration
 
+All allocation figures are in the portfolio's base currency, since a pie whose slices are in
+different currencies compares nothing. A holding with no exchange rate cannot be placed on that scale
+and is excluded — reported through `summary.untranslatedCount` rather than drawn as worth nothing.
+
 ```
-total     = Σ holding marketValue + max(cash, 0)
+total     = Σ holding baseMarketValue + max(cash, 0)
 weight    = value / total × 100
 ```
 
@@ -245,7 +281,12 @@ past day, which a free provider tier cannot supply. So value history accumulates
 portfolio per day, written when the analytics page renders (the quotes were already fetched).
 `unique (portfolio_id, snapshot_date)` makes a reload refresh the row rather than duplicate it.
 
-A snapshot is **skipped** when market data failed or any holding is stale, so a fallback valuation is
+A snapshot records the base currency it was taken in, and the chart reads only the rows matching the
+portfolio's current one — a series mixing two currencies would show a cliff on the day the setting
+changed and call it performance.
+
+A snapshot is **skipped** when market data failed, any holding is stale, or any holding could not be
+translated into the base currency, so a fallback or incomplete valuation is
 never baked into history.
 
 Invested capital, by contrast, **is** derivable from transactions, so it is never stored —

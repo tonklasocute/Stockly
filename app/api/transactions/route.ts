@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       const existing = toDomain(await listTransactions(body.portfolioId))
       const check = canSell(existing, {
         symbol: body.symbol,
+        market: body.market,
         side: "sell",
         tradeDate: body.tradeDate,
         quantity: body.quantity,
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         portfolio_id: body.portfolioId,
         user_id: userId, // from the session, never the body
         symbol: body.symbol,
-        market: "US",
+        market: body.market,
         side: body.side,
         trade_date: body.tradeDate,
         quantity: body.quantity,

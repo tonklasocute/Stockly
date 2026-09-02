@@ -14,6 +14,6 @@ export async function POST(request: Request) {
     enforceRateLimit(`screener:run:${userId}`, 30, 60)
 
     const body = await parseBody(request, screenerRunSchema)
-    return ok(await runScreener(body.definition, body.page))
+    return ok(await runScreener(body.definition, body.page, undefined, body.market))
   })
 }

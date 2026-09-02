@@ -20,9 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
+import { MarketBadge } from "@/components/market-badge"
 import { Delta, Percent } from "@/components/value"
+import type { Currency } from "@/domain/market"
 import type { Holding } from "@/domain/types"
-import { formatCurrency, formatPercent, formatQuantity } from "@/lib/format"
+import {
+  formatCurrency,
+  formatOptionalCurrency,
+  formatOptionalPercent,
+  formatQuantity,
+} from "@/lib/format"
 
 type SortKey = "value" | "return" | "pnl" | "symbol"
 
@@ -33,11 +40,21 @@ const SORT_LABELS: Record<SortKey, string> = {
   symbol: "Symbol",
 }
 
+/**
+ * Sorting happens in the base currency, because that is the only scale on which a baht position and
+ * a dollar position can be ordered. A holding with no rate has no place on that scale and sorts
+ * last rather than as if it were worth nothing.
+ */
 const SORTS: Record<SortKey, (a: Holding, b: Holding) => number> = {
-  value: (a, b) => b.marketValue - a.marketValue,
+  value: (a, b) => (b.baseMarketValue ?? -1) - (a.baseMarketValue ?? -1),
   return: (a, b) => b.returnPct - a.returnPct,
-  pnl: (a, b) => b.unrealizedPnl - a.unrealizedPnl,
+  pnl: (a, b) => (b.baseUnrealizedPnl ?? -Infinity) - (a.baseUnrealizedPnl ?? -Infinity),
   symbol: (a, b) => a.symbol.localeCompare(b.symbol),
+}
+
+/** True once more than one currency is on screen — the trigger for showing the native column. */
+function isMixed(holdings: readonly Holding[], base: Currency): boolean {
+  return holdings.some((h) => h.currency !== base)
 }
 
 export function HoldingsTable({
@@ -46,11 +63,13 @@ export function HoldingsTable({
   names,
 }: {
   holdings: Holding[]
-  currency: string
+  /** The portfolio's base currency: what every value column below is denominated in. */
+  currency: Currency
   names: Record<string, string | undefined>
 }) {
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<SortKey>("value")
+  const mixed = isMixed(holdings, currency)
 
   const visible = useMemo(() => {
     const q = query.trim().toUpperCase()
@@ -110,17 +129,33 @@ export function HoldingsTable({
             {visible.map((h) => (
               <li key={h.symbol} className="bg-card rounded-xl border p-3.5">
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/stocks/${h.symbol}`} className="tap min-w-0 flex-col !items-start">
-                    <p className="font-semibold underline-offset-4 hover:underline">{h.symbol}</p>
+                  <Link href={`/stocks/${h.symbol}?market=${h.market}`} className="tap min-w-0 flex-col !items-start">
+                    <p className="flex items-center gap-1.5 font-semibold underline-offset-4 hover:underline">
+                      {h.symbol}
+                      {mixed && <MarketBadge market={h.market} currency={h.currency} />}
+                    </p>
                     <p className="text-muted-foreground truncate text-xs">
                       {names[h.symbol] ?? `${formatQuantity(h.quantity)} shares`}
                     </p>
                   </Link>
                   <div className="text-right">
                     <p className="tabular font-semibold">
-                      {formatCurrency(h.marketValue, currency)}
+                      {formatOptionalCurrency(h.baseMarketValue, currency)}
                     </p>
-                    <Delta value={h.unrealizedPnl} currency={currency} percent={h.returnPct} />
+                    {mixed && h.currency !== currency && (
+                      <p className="text-muted-foreground tabular text-xs">
+                        {formatCurrency(h.marketValue, h.currency)}
+                      </p>
+                    )}
+                    {h.baseUnrealizedPnl === null ? (
+                      <span className="text-muted-foreground text-xs">P&amp;L N/A</span>
+                    ) : (
+                      <Delta
+                        value={h.baseUnrealizedPnl}
+                        currency={currency}
+                        percent={h.returnPct}
+                      />
+                    )}
                   </div>
                 </div>
                 <dl className="text-muted-foreground mt-2.5 grid grid-cols-4 gap-2 border-t pt-2.5 text-xs">
@@ -131,19 +166,19 @@ export function HoldingsTable({
                   <div>
                     <dt>Avg cost</dt>
                     <dd className="tabular text-foreground">
-                      {formatCurrency(h.averageCost, currency)}
+                      {formatCurrency(h.averageCost, h.currency)}
                     </dd>
                   </div>
                   <div>
                     <dt>Price</dt>
                     <dd className="tabular text-foreground">
-                      {formatCurrency(h.currentPrice, currency)}
+                      {formatCurrency(h.currentPrice, h.currency)}
                     </dd>
                   </div>
                   <div>
                     <dt>Weight</dt>
                     <dd className="tabular text-foreground">
-                      {formatPercent(h.weight, { signed: false })}
+                      {formatOptionalPercent(h.weight, { signed: false })}
                     </dd>
                   </div>
                 </dl>
@@ -159,7 +194,8 @@ export function HoldingsTable({
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Avg cost</TableHead>
                   <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Market value</TableHead>
+                  {mixed && <TableHead className="text-right">Value (native)</TableHead>}
+                  <TableHead className="text-right">Market value ({currency})</TableHead>
                   <TableHead className="text-right">P&amp;L</TableHead>
                   <TableHead className="text-right">Return</TableHead>
                   <TableHead className="text-right">Weight</TableHead>
@@ -170,11 +206,12 @@ export function HoldingsTable({
                   <TableRow key={h.symbol}>
                     <TableCell>
                       <Link
-                        href={`/stocks/${h.symbol}`}
+                        href={`/stocks/${h.symbol}?market=${h.market}`}
                         className="tap font-medium underline-offset-4 hover:underline"
                       >
                         {h.symbol}
                       </Link>
+                      {mixed && <MarketBadge market={h.market} currency={h.currency} className="ml-2" />}
                       {names[h.symbol] && (
                         <span className="text-muted-foreground ml-2 text-xs">{names[h.symbol]}</span>
                       )}
@@ -183,22 +220,31 @@ export function HoldingsTable({
                       {formatQuantity(h.quantity)}
                     </TableCell>
                     <TableCell className="tabular text-right">
-                      {formatCurrency(h.averageCost, currency)}
+                      {formatCurrency(h.averageCost, h.currency)}
                     </TableCell>
                     <TableCell className="tabular text-right">
-                      {formatCurrency(h.currentPrice, currency)}
+                      {formatCurrency(h.currentPrice, h.currency)}
                     </TableCell>
+                    {mixed && (
+                      <TableCell className="tabular text-muted-foreground text-right">
+                        {formatCurrency(h.marketValue, h.currency)}
+                      </TableCell>
+                    )}
                     <TableCell className="tabular text-right font-medium">
-                      {formatCurrency(h.marketValue, currency)}
+                      {formatOptionalCurrency(h.baseMarketValue, currency)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Delta value={h.unrealizedPnl} currency={currency} />
+                      {h.baseUnrealizedPnl === null ? (
+                        <span className="text-muted-foreground text-sm">N/A</span>
+                      ) : (
+                        <Delta value={h.baseUnrealizedPnl} currency={currency} />
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Percent value={h.returnPct} />
                     </TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
-                      {formatPercent(h.weight, { signed: false })}
+                      {formatOptionalPercent(h.weight, { signed: false })}
                     </TableCell>
                   </TableRow>
                 ))}

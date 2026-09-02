@@ -54,6 +54,9 @@ import type { SavedScreenRow } from "@/types/database"
 
 type Row = {
   symbol: string
+  market: string
+  /** The instrument's own currency — the price column is never translated. */
+  currency: string
   name: string | null
   price: number | null
   rsi: number | null
@@ -397,16 +400,16 @@ export function ScreenerClient({
 
             <ul className="grid gap-2 lg:hidden">
               {result.rows.map((row) => (
-                <li key={row.symbol} className="bg-card rounded-xl border p-3.5">
+                <li key={`${row.market}:${row.symbol}`} className="bg-card rounded-xl border p-3.5">
                   <div className="flex items-start justify-between gap-3">
-                    <Link href={`/stocks/${row.symbol}`} className="tap min-w-0 flex-col !items-start">
+                    <Link href={`/stocks/${row.symbol}?market=${row.market}`} className="tap min-w-0 flex-col !items-start">
                       <span className="block font-semibold">{row.symbol}</span>
                       <span className="text-muted-foreground block truncate text-xs">
                         {row.name ?? row.trend}
                       </span>
                     </Link>
                     <span className="tabular font-semibold">
-                      {row.price === null ? "N/A" : formatCurrency(row.price)}
+                      {row.price === null ? "N/A" : formatCurrency(row.price, row.currency)}
                     </span>
                   </div>
                   <dl className="text-muted-foreground mt-2.5 grid grid-cols-4 gap-2 border-t pt-2.5 text-xs">
@@ -448,15 +451,15 @@ export function ScreenerClient({
                 </TableHeader>
                 <TableBody>
                   {result.rows.map((row) => (
-                    <TableRow key={row.symbol}>
+                    <TableRow key={`${row.market}:${row.symbol}`}>
                       <TableCell>
-                        <Link href={`/stocks/${row.symbol}`} className="tap font-medium underline-offset-4 hover:underline">
+                        <Link href={`/stocks/${row.symbol}?market=${row.market}`} className="tap font-medium underline-offset-4 hover:underline">
                           {row.symbol}
                         </Link>
                         {row.name && <span className="text-muted-foreground ml-2 text-xs">{row.name}</span>}
                       </TableCell>
                       <TableCell className="tabular text-right">
-                        {row.price === null ? "N/A" : formatCurrency(row.price)}
+                        {row.price === null ? "N/A" : formatCurrency(row.price, row.currency)}
                       </TableCell>
                       <TableCell className="tabular text-right">{row.rsi?.toFixed(0) ?? "—"}</TableCell>
                       <TableCell className="tabular text-right">{row.adx?.toFixed(0) ?? "—"}</TableCell>

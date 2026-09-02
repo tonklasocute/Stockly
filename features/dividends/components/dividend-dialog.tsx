@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { MarketSelect } from "@/components/market-select"
+import { toMarket } from "@/domain/market"
 import { Label } from "@/components/ui/label"
 import { apiFetch } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/format"
@@ -50,6 +52,7 @@ export function DividendDialog({
     defaultValues: {
       portfolioId,
       symbol: "",
+      market: "US",
       paymentDate: today(),
       shares: 0,
       dividendPerShare: 0,
@@ -64,6 +67,7 @@ export function DividendDialog({
     form.reset({
       portfolioId,
       symbol: dividend?.symbol ?? "",
+      market: toMarket(dividend?.market),
       paymentDate: dividend?.payment_date.slice(0, 10) ?? today(),
       shares: dividend?.shares ?? 0,
       dividendPerShare: dividend?.dividend_per_share ?? 0,
@@ -128,6 +132,12 @@ export function DividendDialog({
                 />
                 {errors.symbol && <p className="text-destructive text-sm">{errors.symbol.message}</p>}
               </div>
+
+              <MarketSelect
+                id="dividend-market"
+                value={toMarket(form.watch("market"))}
+                onChange={(next) => form.setValue("market", next)}
+              />
               <div className="space-y-2">
                 <Label htmlFor="dividend-date">Payment date</Label>
                 <Input

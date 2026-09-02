@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
 import { Percent } from "@/components/value"
+import { MarketBadge } from "@/components/market-badge"
 import { apiFetch } from "@/lib/api-client"
+import { currencyOf, symbolKey, toMarket } from "@/domain/market"
 import { formatCurrency, formatOptional } from "@/lib/format"
 import type { Quote } from "@/services/market-data/types"
 import type { WatchlistItemRow } from "@/types/database"
@@ -63,6 +65,10 @@ export function WatchlistTable({
   technicals?: Record<string, RowTechnicals>
 }) {
   const router = useRouter()
+  // Quotes and snapshots arrive keyed by market and symbol together, so a mixed-market list cannot
+  // show a US price on a SET row.
+  const keyOf = (item: WatchlistItemRow) => symbolKey(item.symbol, toMarket(item.market))
+  const mixed = new Set(items.map((i) => i.market)).size > 1
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<SortKey>("added")
 
@@ -73,8 +79,8 @@ export function WatchlistTable({
     )
     // Rows with no value for the chosen metric sort last, whatever the direction.
     const byMetric = (pick: (t: RowTechnicals | undefined) => number | null) => (a: WatchlistItemRow, b: WatchlistItemRow) => {
-      const av = pick(technicals[a.symbol])
-      const bv = pick(technicals[b.symbol])
+      const av = pick(technicals[keyOf(a)])
+      const bv = pick(technicals[keyOf(b)])
       if (av === null && bv === null) return 0
       if (av === null) return 1
       if (bv === null) return -1
@@ -84,7 +90,7 @@ export function WatchlistTable({
     return [...filtered].sort((a, b) => {
       if (sort === "symbol") return a.symbol.localeCompare(b.symbol)
       if (sort === "change") {
-        return Math.abs(quotes[b.symbol]?.changePct ?? 0) - Math.abs(quotes[a.symbol]?.changePct ?? 0)
+        return Math.abs(quotes[keyOf(b)]?.changePct ?? 0) - Math.abs(quotes[keyOf(a)]?.changePct ?? 0)
       }
       if (sort === "score") return byMetric((t) => t?.score ?? null)(a, b)
       if (sort === "rsi") return byMetric((t) => t?.rsi ?? null)(a, b)
@@ -117,16 +123,19 @@ export function WatchlistTable({
   }
 
   const priceCell = (item: WatchlistItemRow) => {
-    const quote = quotes[item.symbol]
+    const quote = quotes[keyOf(item)]
+    // The market's currency, never the provider's echo of it: a price rendered with the wrong
+    // symbol is the one mistake a mixed-currency list must not make.
+    const currency = currencyOf(toMarket(item.market))
     return (
       <span className="tabular font-medium">
-        {formatOptional(quote?.price ?? null, (v) => formatCurrency(v, quote?.currency ?? "USD"))}
+        {formatOptional(quote?.price ?? null, (v) => formatCurrency(v, currency))}
       </span>
     )
   }
 
   const changeCell = (item: WatchlistItemRow) => {
-    const changePct = quotes[item.symbol]?.changePct
+    const changePct = quotes[keyOf(item)]?.changePct
     return changePct === null || changePct === undefined ? (
       <span className="text-muted-foreground text-sm">N/A</span>
     ) : (
@@ -185,8 +194,19 @@ export function WatchlistTable({
           <ul className="grid gap-2 lg:hidden">
             {visible.map((item) => (
               <li key={item.id} className="bg-card flex items-center gap-3 rounded-xl border p-3.5">
-                <Link href={`/stocks/${item.symbol}`} className="tap min-w-0 flex-1 flex-col !items-start">
-                  <span className="block font-semibold">{item.symbol}</span>
+                <Link
+                  href={`/stocks/${item.symbol}?market=${item.market}`}
+                  className="tap min-w-0 flex-1 flex-col !items-start"
+                >
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    {item.symbol}
+                    {mixed && (
+                      <MarketBadge
+                        market={toMarket(item.market)}
+                        currency={currencyOf(toMarket(item.market))}
+                      />
+                    )}
+                  </span>
                   <span className="text-muted-foreground block truncate text-xs">
                     {item.name ?? item.exchange ?? "—"}
                   </span>
@@ -216,15 +236,24 @@ export function WatchlistTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((item) => (
+                {visible.map((item) => {
+                  const rowTechnicals = technicals[keyOf(item)]
+                  return (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Link
-                        href={`/stocks/${item.symbol}`}
+                        href={`/stocks/${item.symbol}?market=${item.market}`}
                         className="tap font-medium underline-offset-4 hover:underline"
                       >
                         {item.symbol}
                       </Link>
+                      {mixed && (
+                        <MarketBadge
+                          market={toMarket(item.market)}
+                          currency={currencyOf(toMarket(item.market))}
+                          className="ml-2"
+                        />
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">
                       {item.name ?? "—"}
@@ -232,25 +261,28 @@ export function WatchlistTable({
                     <TableCell className="text-right">{priceCell(item)}</TableCell>
                     <TableCell className="text-right">{changeCell(item)}</TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
-                      {technicals[item.symbol]?.rsi?.toFixed(0) ?? "—"}
+                      {rowTechnicals?.rsi?.toFixed(0) ?? "—"}
                     </TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
-                      {technicals[item.symbol]?.relativeVolume
-                        ? `${technicals[item.symbol]!.relativeVolume!.toFixed(1)}×`
+                      {rowTechnicals?.relativeVolume
+                        ? `${rowTechnicals.relativeVolume.toFixed(1)}×`
                         : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs capitalize">
                       {/* A glyph as well as the word, so trend is never colour alone. */}
-                      {technicals[item.symbol]
-                        ? `${technicals[item.symbol]!.trend === "bullish" ? "▲" : technicals[item.symbol]!.trend === "bearish" ? "▼" : "■"} ${technicals[item.symbol]!.trend}`
+                      {rowTechnicals
+                        ? `${rowTechnicals.trend === "bullish" ? "▲" : rowTechnicals.trend === "bearish" ? "▼" : "■"} ${rowTechnicals.trend}`
                         : "—"}
                     </TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
-                      {formatOptional(item.target_price, (v) => formatCurrency(v))}
+                      {formatOptional(item.target_price, (v) =>
+                        formatCurrency(v, currencyOf(toMarket(item.market))),
+                      )}
                     </TableCell>
                     <TableCell className="text-right">{removeButton(item)}</TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

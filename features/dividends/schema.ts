@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { normalizeSymbol } from "@/lib/symbol"
+import { CURRENCIES, MARKETS, normalizeSymbol } from "@/domain/market"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -15,6 +15,12 @@ export const dividendInputSchema = z.object({
     .string()
     .transform(normalizeSymbol)
     .refine((s) => s.length > 0, "Symbol is required."),
+  market: z.enum(MARKETS).default("US"),
+  /**
+   * Unlike a trade, a dividend's currency is not implied by the venue — a US listing can pay in a
+   * currency other than the one it trades in — so it is stored, and defaults to the market's.
+   */
+  currency: z.enum(CURRENCIES).optional(),
   paymentDate: z
     .string()
     .regex(ISO_DATE, "Use a valid date.")

@@ -79,16 +79,22 @@ which is why the universe cap is a provider constraint and not a performance one
 
 What each page costs in *upstream* requests, which is the scarce resource (8 credits/minute):
 
-| Page | Database | Market data | Notes |
-|---|---|---|---|
-| Dashboard | 1 read | **1 batched quote** | One call prices the whole portfolio. |
-| Portfolio | 1 read | 1 batched quote | Same call, deduplicated by the Next Data Cache within 60 s. |
-| Analytics | 4 reads | 1 batched quote + **1 profile per held symbol** | The only unbatched fan-out. See §4. |
-| Stock detail | 2 reads | 1 quote + 1 profile + 1 history, then indicators client-side | Indicators come from the snapshot cache when fresh. |
-| Screener | 1 read | **0**, then 1 batched quote for the 25 rows shown | A screen costs no upstream requests however often it is run. |
-| Watchlist | 2 reads | 1 batched quote | Indicators from the cache. |
-| AI question | 1–4 reads | 0–2 history calls | Only what the detected intent needs is retrieved. |
-| Cron run | ~4 reads | 12 history + 1 batched quote | Budgeted to fit the function timeout and the rate limit. |
+Since phase 9, "1 batched quote" means **one per market the portfolio touches** — a US-only portfolio
+is unchanged; one holding a Thai stock too costs two. FX is a separate, much cheaper axis: one
+request **per currency pair per 10 minutes**, for the whole deployment, and none at all for a
+single-currency portfolio (the identity conversion consults no provider).
+
+| Page | Database | Market data | FX | Notes |
+|---|---|---|---|---|
+| Dashboard | 2 reads | **1 batched quote per market** | ≤1 per pair / 10 min | One call prices each market's half of the portfolio. |
+| Portfolio | 2 reads | 1 batched quote per market | shared with the above | Deduplicated by `cache()` within a render and by the Next Data Cache within 60 s. |
+| Analytics | 5 reads | 1 batched quote per market + **1 profile per held symbol** | shared | The only unbatched fan-out. See §4. |
+| Stock detail | 2 reads | 1 quote + 1 profile + 1 history, then indicators client-side | 0 | One market: the one in the URL. Indicators come from the snapshot cache when fresh. |
+| Screener | 1 read | **0**, then 1 batched quote per market for the 25 rows shown | 0 | A screen costs no upstream requests however often it is run, and is currency-independent. |
+| Watchlist | 2 reads | 1 batched quote per market | 0 | Prices shown natively; indicators from the cache. |
+| AI question | 1–4 reads | 0–2 history calls | shared | Only what the detected intent needs is retrieved. |
+| Cron run | ~5 reads | 12 history + 1 batched quote per market + 1 status per market | ≤1 per pair per distinct base currency | Budgeted to fit the function timeout and the rate limit. |
+| Settings | 1 read | 1 status per market | 1 per pair | The Data health panel; both degrade to "unavailable" rather than failing the page. |
 
 ---
 
@@ -106,6 +112,10 @@ rate-limiting itself on first load and not.
 No other N+1 was found. Quotes, technical snapshots and watchlist reads are all batched; the alert
 job already makes one batched quote call for the union of every alert's symbol.
 
+Phase 9 kept it that way. The obvious mistake — a rate lookup per holding — is prevented by shape
+rather than by discipline: `loadFxTable(base, currencies)` takes the *set* of currencies a portfolio
+holds, so ten holdings in two currencies is one request no matter how the caller loops.
+
 ---
 
 ## 5. Budget
@@ -116,7 +126,8 @@ Numbers to notice being crossed, not laws:
 |---|---|---|
 | Baseline shell JS (uncompressed) | 750 KB | 680 KB ✅ |
 | Any single page JS (uncompressed) | 1,500 KB | 1,346 KB (`/login`) ⚠️ |
-| Upstream requests per page render | 2 batched calls | ✅ except analytics — see §3 |
+| Upstream requests per page render | 2 batched calls per market | ✅ except analytics — see §3 |
+| FX requests per page render | ≤1 per currency pair, 10-minute cache | ✅ never per holding |
 | Unbatched provider calls per request | ≤ number of *held* symbols | ✅ since §4 |
 | AI context | 24,000 chars (~6k tokens) | enforced in code |
 | AI history | 6 turns | enforced in code |

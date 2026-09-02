@@ -7,6 +7,7 @@ import { Loader2, Search, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { currencyOf } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { InstrumentSummary } from "@/services/market-data/types"
 
@@ -48,10 +49,12 @@ export function StockSearch() {
     retry: false,
   })
 
-  function go(symbol: string) {
+  // The market travels with the symbol: a stock page that does not know the venue cannot know the
+  // currency, and would price a Thai listing in dollars.
+  function go(symbol: string, market: string) {
     setOpen(false)
     setQuery("")
-    router.push(`/stocks/${symbol}`)
+    router.push(`/stocks/${symbol}?market=${market}`)
   }
 
   const results = data?.results ?? []
@@ -119,7 +122,7 @@ export function StockSearch() {
               <button
                 key={`${result.market}:${result.symbol}`}
                 type="button"
-                onClick={() => go(result.symbol)}
+                onClick={() => go(result.symbol, result.market)}
                 className="hover:bg-accent focus-visible:bg-accent flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left outline-none"
               >
                 <TrendingUp className="text-muted-foreground size-4 shrink-0" aria-hidden />
@@ -127,9 +130,9 @@ export function StockSearch() {
                   <span className="block font-medium">{result.symbol}</span>
                   <span className="text-muted-foreground block truncate text-xs">{result.name}</span>
                 </span>
-                {result.exchange && (
-                  <span className="text-muted-foreground shrink-0 text-xs">{result.exchange}</span>
-                )}
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {result.exchange ?? result.market} · {currencyOf(result.market)}
+                </span>
               </button>
             ))}
           </div>

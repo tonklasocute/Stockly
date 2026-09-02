@@ -30,8 +30,6 @@ import { DividendDialog } from "./dividend-dialog"
 
 const amountsOf = (row: DividendRow) =>
   dividendAmounts({
-    symbol: row.symbol,
-    paidOn: row.payment_date,
     shares: row.shares,
     dividendPerShare: row.dividend_per_share,
     tax: row.tax,

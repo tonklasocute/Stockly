@@ -31,7 +31,6 @@ export default async function TransactionsPage({
       <TransactionList
         transactions={pageResult.rows}
         portfolioId={active.id}
-        currency={active.currency}
       />
 
       <PaginationNav

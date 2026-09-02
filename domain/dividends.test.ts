@@ -15,7 +15,7 @@ const div = (
   dps: number,
   tax = 0,
   fee = 0,
-): DomainDividend => ({ symbol, paidOn, shares, dividendPerShare: dps, tax, fee })
+): DomainDividend => ({ symbol, currency: "USD", paidOn, shares, dividendPerShare: dps, tax, fee })
 
 const TODAY = new Date("2026-09-01T00:00:00Z")
 

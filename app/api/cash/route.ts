@@ -3,6 +3,7 @@ import { invalidatePortfolio } from "@/lib/cache"
 import { listCashPage } from "@/features/cash/queries"
 import { cashInputSchema } from "@/features/cash/schema"
 import { toPage } from "@/lib/pagination"
+import { baseCurrencyOf } from "@/domain/market"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: Request) {
@@ -19,6 +20,16 @@ export async function POST(request: Request) {
     const body = await parseBody(request, cashInputSchema)
     const supabase = await createClient()
 
+    // Defaults to the portfolio's base currency, which is what a deposit almost always is. RLS
+    // scopes the lookup, so a portfolio that is not the caller's simply is not found and the
+    // insert below fails on the ownership constraint rather than here.
+    const { data: portfolio } = await supabase
+      .from("portfolios")
+      .select("currency")
+      .eq("id", body.portfolioId)
+      .maybeSingle()
+    const currency = body.currency ?? baseCurrencyOf(portfolio?.currency)
+
     const { data, error } = await supabase
       .from("cash_transactions")
       .insert({
@@ -26,7 +37,7 @@ export async function POST(request: Request) {
         user_id: userId,
         kind: body.kind,
         amount: body.amount,
-        currency: "USD",
+        currency,
         occurred_on: body.occurredOn,
         notes: body.notes || null,
       })

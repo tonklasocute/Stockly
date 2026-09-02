@@ -27,14 +27,17 @@ export function LiveQuote({
   symbol,
   initialQuote,
   currency = "USD",
+  market = "US",
 }: {
   symbol: string
+  market?: string
   initialQuote: Quote | null
   currency?: string
 }) {
   const { data, isFetching, refetch, isError } = useQuery({
-    queryKey: ["quote", symbol],
-    queryFn: () => apiFetch<{ quote: Quote }>(`/api/stocks/${symbol}/quote`).then((r) => r.quote),
+    queryKey: ["quote", market, symbol],
+    queryFn: () =>
+      apiFetch<{ quote: Quote }>(`/api/stocks/${symbol}/quote?market=${market}`).then((r) => r.quote),
     initialData: initialQuote ?? undefined,
     staleTime: 30_000,
     // Only while the market is open and only while the tab is visible.

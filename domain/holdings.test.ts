@@ -160,7 +160,7 @@ describe("buildPortfolio", () => {
 
   it("weights sum to 100%", () => {
     near(
-      holdings.reduce((s, h) => s + h.weight, 0),
+      holdings.reduce((s, h) => s + (h.weight ?? 0), 0),
       100,
     )
   })
@@ -190,6 +190,7 @@ describe("buildPortfolio", () => {
 
   it("returns a zeroed summary for an empty portfolio", () => {
     expect(buildPortfolio([], () => ({ price: 1 })).summary).toEqual({
+      currency: "USD",
       marketValue: 0,
       investedValue: 0,
       unrealizedPnl: 0,
@@ -199,6 +200,10 @@ describe("buildPortfolio", () => {
       todayPnl: null,
       todayReturnPct: null,
       staleCount: 0,
+      untranslatedCount: 0,
+      fxStaleCount: 0,
+      exposures: [],
+      fxEffect: null,
     })
   })
 })

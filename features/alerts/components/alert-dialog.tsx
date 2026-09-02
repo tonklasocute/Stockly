@@ -31,6 +31,8 @@ import {
   SYMBOL_ALERT_TYPES,
   type AlertType,
 } from "@/domain/alerts"
+import { MarketSelect } from "@/components/market-select"
+import { toMarket, type MarketId } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { AlertRow } from "@/types/database"
 import { alertInputSchema, type AlertFormValues, type AlertInput } from "../schema"
@@ -66,6 +68,7 @@ export function AlertDialog({
   onOpenChange,
   portfolioId,
   defaultSymbol,
+  defaultMarket = "US",
   defaultType,
   defaultTarget,
   alert,
@@ -74,6 +77,7 @@ export function AlertDialog({
   onOpenChange: (open: boolean) => void
   portfolioId?: string
   defaultSymbol?: string
+  defaultMarket?: MarketId
   defaultType?: AlertType
   defaultTarget?: number
   alert?: AlertRow
@@ -86,6 +90,7 @@ export function AlertDialog({
     defaultValues: {
       type: defaultType ?? "PRICE_ABOVE",
       symbol: defaultSymbol ?? "",
+      market: defaultMarket,
       portfolioId,
       targetValue: defaultTarget ?? 0,
       cooldownMinutes: 60,
@@ -98,12 +103,13 @@ export function AlertDialog({
     form.reset({
       type: (alert?.type ?? defaultType ?? "PRICE_ABOVE") as AlertType,
       symbol: alert?.symbol ?? defaultSymbol ?? "",
+      market: toMarket(alert?.market ?? defaultMarket),
       portfolioId,
       targetValue: alert ? Number(alert.target_value) : (defaultTarget ?? 0),
       cooldownMinutes: alert?.cooldown_minutes ?? 60,
       enabled: alert?.enabled ?? true,
     })
-  }, [open, alert, defaultSymbol, defaultType, defaultTarget, portfolioId, form])
+  }, [open, alert, defaultSymbol, defaultMarket, defaultType, defaultTarget, portfolioId, form])
 
   const mutation = useMutation({
     mutationFn: (values: AlertInput) =>
@@ -189,6 +195,17 @@ export function AlertDialog({
                   />
                   {errors.symbol && <p className="text-destructive text-sm">{errors.symbol.message}</p>}
                 </div>
+              )}
+
+              {needsSymbol && (
+                <MarketSelect
+                  id="alert-market"
+                  value={toMarket(form.watch("market"))}
+                  onChange={(next) => form.setValue("market", next)}
+                  // The market decides the currency the target is compared in; changing it on an
+                  // existing alert would re-interpret a threshold the user already set.
+                  disabled={isEdit}
+                />
               )}
 
               {!isDividend && (

@@ -4,6 +4,7 @@ import { listDividendsPage } from "@/features/dividends/queries"
 import { dividendInputSchema } from "@/features/dividends/schema"
 import { toPage } from "@/lib/pagination"
 import { notifyDividendRecorded } from "@/features/alerts/dividend-hook"
+import { currencyOf } from "@/domain/market"
 import { createClient } from "@/lib/supabase/server"
 import { ApiError } from "@/lib/api"
 
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return guarded(async (userId) => {
     const body = await parseBody(request, dividendInputSchema)
+    const currency = body.currency ?? currencyOf(body.market)
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -27,13 +29,15 @@ export async function POST(request: Request) {
         portfolio_id: body.portfolioId,
         user_id: userId, // from the session, never the body
         symbol: body.symbol,
-        market: "US",
+        market: body.market,
         payment_date: body.paymentDate,
         shares: body.shares,
         dividend_per_share: body.dividendPerShare,
         tax: body.tax,
         fee: body.fee,
-        currency: "USD",
+        // A payment currency can differ from the venue's, so it is stored; when the user does not
+        // say otherwise it is the market's, which is right for the overwhelming majority of rows.
+        currency,
         notes: body.notes || null,
       })
       .select("*")
@@ -51,7 +55,7 @@ export async function POST(request: Request) {
     await notifyDividendRecorded(supabase, userId, {
       symbol: body.symbol,
       netAmount: body.shares * body.dividendPerShare - body.tax - body.fee,
-      currency: "USD",
+      currency,
     })
 
     return ok(data, 201)

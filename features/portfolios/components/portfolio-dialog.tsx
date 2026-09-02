@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { toCurrency } from "@/domain/market"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -54,7 +55,12 @@ export function PortfolioDialog({
 
   useEffect(() => {
     if (open) {
-      form.reset({ name: portfolio?.name ?? "", currency: portfolio?.currency ?? "USD" })
+      // The column is text, so a row written before the base-currency enum existed — or by hand —
+      // can hold something the picker does not offer. Fall back rather than seeding an invalid form.
+      form.reset({
+        name: portfolio?.name ?? "",
+        currency: toCurrency(portfolio?.currency) ?? "USD",
+      })
     }
   }, [open, portfolio, form])
 

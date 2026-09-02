@@ -6,6 +6,7 @@ import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { CashList } from "@/features/cash/components/cash-list"
 import { listCashPage } from "@/features/cash/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
+import { baseCurrencyOf } from "@/domain/market"
 import { formatCurrency, formatPercent } from "@/lib/format"
 import { toPage } from "@/lib/pagination"
 import { NoPortfolio } from "../_no-portfolio"
@@ -24,7 +25,7 @@ export default async function CashPage({ searchParams }: Props) {
     listCashPage(active.id, toPage(pageParam)),
   ])
 
-  const currency = active.currency
+  const currency = baseCurrencyOf(active.currency)
   const { cash, concentration } = bundle
 
   return (

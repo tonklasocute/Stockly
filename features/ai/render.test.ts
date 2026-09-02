@@ -11,6 +11,7 @@ import { renderScreenerVocabulary, renderStock } from "./render"
 
 const stock: StockFacts = {
   symbol: "NVDA",
+  market: "US",
   name: "NVIDIA Corporation",
   currency: "USD",
   price: 185.2,

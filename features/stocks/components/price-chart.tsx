@@ -74,9 +74,11 @@ function labelFor(date: string, range: Range): string {
 export function PriceChart({
   symbol,
   currency = "USD",
+  market = "US",
 }: {
   symbol: string
   currency?: string
+  market?: string
 }) {
   const [range, setRange] = useState<Range>("1M")
   // Defaults chosen to be legible rather than complete: two moving averages and nothing else.
@@ -84,8 +86,9 @@ export function PriceChart({
   const [panel, setPanel] = useState<PanelKey | null>(null)
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ["history", symbol, range],
-    queryFn: () => apiFetch<{ candles: Candle[] }>(`/api/stocks/${symbol}/history?range=${range}`),
+    queryKey: ["history", market, symbol, range],
+    queryFn: () =>
+      apiFetch<{ candles: Candle[] }>(`/api/stocks/${symbol}/history?range=${range}&market=${market}`),
     // History is near-static; the server caches it too, so never refetch on focus.
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,

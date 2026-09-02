@@ -2,7 +2,8 @@ import "server-only"
 
 import { createClient } from "@/lib/supabase/server"
 import { readSnapshots, type StoredSnapshot } from "@/features/technical/snapshots"
-import { getMarketDataProvider, isMarketDataError, type Quote } from "@/services/market-data"
+import { symbolKey, toMarket } from "@/domain/market"
+import { getQuotesFor, type Quote } from "@/services/market-data"
 import type { WatchlistItemRow } from "@/types/database"
 
 export async function listWatchlist(): Promise<WatchlistItemRow[]> {
@@ -31,30 +32,31 @@ export async function loadWatchlist(): Promise<{
     return { items, quotes: new Map(), technicals: new Map(), marketDataError: null }
   }
 
-  const symbols = items.map((i) => i.symbol)
+  const instruments = items.map((i) => ({ symbol: i.symbol, market: toMarket(i.market) }))
   // Snapshots come from the cache, so adding technical columns costs a database read and no
-  // upstream requests at all.
-  const technicals = await readSnapshots(symbols)
+  // upstream requests at all. Both maps are keyed by `symbolKey`, matching a mixed-market list.
+  const [technicals, priced] = await Promise.all([
+    readSnapshots(instruments),
+    // One batched call per market: a Thai outage still leaves the US rows priced.
+    getQuotesFor(instruments),
+  ])
 
-  try {
-    const quotes = await getMarketDataProvider().getQuotes(symbols)
-    return { items, quotes, technicals, marketDataError: null }
-  } catch (error) {
-    console.error("[watchlist] quotes failed", error)
-    return {
-      items,
-      quotes: new Map(),
-      technicals,
-      marketDataError: isMarketDataError(error)
-        ? error.message
-        : "Unable to load market data. Please try again later.",
-    }
+  return {
+    items,
+    quotes: priced.quotes,
+    technicals,
+    marketDataError: priced.error?.message ?? null,
   }
+}
+
+/** The key a watchlist row's quote and snapshot are stored under. */
+export function watchlistKey(item: { symbol: string; market: string }): string {
+  return symbolKey(item.symbol, toMarket(item.market))
 }
 
 /** Symbols on the watchlist, so a stock page can render the right star without a second query. */
 export async function watchedSymbols(): Promise<Set<string>> {
   const supabase = await createClient()
   const { data } = await supabase.from("watchlist_items").select("symbol, market")
-  return new Set((data ?? []).map((row) => `${row.market}:${row.symbol}`))
+  return new Set((data ?? []).map((row) => symbolKey(row.symbol, toMarket(row.market))))
 }

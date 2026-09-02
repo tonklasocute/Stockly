@@ -105,11 +105,12 @@ inside the quiet window.
 | disabled | skipped, rule kept |
 | no reading | skipped — a symbol with no quote is not a symbol at zero |
 | **stale reading** | quote older than 15 minutes → skipped and counted |
-| market closed | price-derived alerts skipped; provider-reported, never inferred from a clock |
+| market closed | price-derived alerts skipped; provider-reported, never inferred from a clock, and **resolved per market** — New York being shut says nothing about Bangkok |
 | market status unknown | evaluated — staleness is the real guard |
 
-A holding with no weight (the symbol is not owned) has **no reading**, not a weight of 0%. Treating
-absence as zero would fire every "weight below" alert for every symbol ever mentioned.
+A holding with no weight has **no reading**, not a weight of 0%. Two things produce that: the symbol
+is not owned, or its currency could not be translated into the portfolio's base currency. Treating
+either absence as zero would fire every "weight below" alert for every symbol ever mentioned.
 
 ---
 
@@ -117,18 +118,27 @@ absence as zero would fire every "weight below" alert for every symbol ever ment
 
 ```
 /api/cron/alerts
-  → load every enabled, schedule-driven alert          (one query)
-  → union of their symbols → ONE batched quote call    (one request)
-  → portfolios referenced → loaded once, priced from those quotes
+  → load every enabled, schedule-driven alert            (one query)
+  → union of their instruments → ONE batched quote call PER MARKET
+  → per-market session status                            (one request each)
+  → portfolios referenced → loaded once, priced from those quotes,
+    each valued in its own base currency (one FX call per pair)
   → evaluate each alert in memory
   → write state, insert events, deliver notifications
 ```
 
-The shape that matters: **one batched call for the union of symbols.** A thousand alerts on NVDA
-across a hundred users is one upstream request. The naive loop — for each user, for each alert,
-fetch — turns 100 users into 10,000 calls and exhausts a free tier's minute budget on the first ten.
+The shape that matters: **one batched call per market for the union of instruments.** A thousand
+alerts on NVDA across a hundred users is one upstream request. The naive loop — for each user, for
+each alert, fetch — turns 100 users into 10,000 calls and exhausts a free tier's minute budget on
+the first ten.
 
-If market data fails, the run ends having triggered nothing. An alert must never fire from an
+Everything per-instrument is keyed by `market:symbol`: a price alert on a SET listing must never be
+answered by a US quote that happens to share three letters, and a price target is in the currency the
+instrument is quoted in (`alerts.market` decides both). Portfolio-level alerts read the portfolio's
+own base-currency summary, so a total-return alert never compares a dollar figure against a baht one.
+
+If market data fails **for every market**, the run ends having triggered nothing. One market failing
+does not stop the others: a Thai outage must not silence US alerts. An alert must never fire from an
 absence of information.
 
 ### Idempotency

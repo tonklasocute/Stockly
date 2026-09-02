@@ -1,7 +1,7 @@
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { normalizeSymbol } from "@/lib/symbol"
+import { normalizeSymbol, symbolKey, toMarket, type MarketId } from "@/domain/market"
 import type { Database } from "@/types/database"
 
 /**
@@ -21,7 +21,14 @@ import type { Database } from "@/types/database"
  * downstream already works from a list of symbols.
  */
 
-/** A starting universe so a brand-new account is not screening an empty list. */
+/**
+ * A starting universe so a brand-new account is not screening an empty list.
+ *
+ * US-only, deliberately. Every symbol here costs an OHLCV request on every refresh cycle, and
+ * seeding Thai names for an account that holds none would spend a scarce quota on data nobody
+ * asked for. SET symbols enter the universe the moment a user holds, watches or alerts on one —
+ * which is the same rule that has always applied to US symbols outside this list.
+ */
 export const DEFAULT_UNIVERSE = [
   "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA", "AMD",
   "AVGO", "NFLX", "COST", "PLTR", "SOFI", "UBER", "SHOP", "CRM",
@@ -30,25 +37,33 @@ export const DEFAULT_UNIVERSE = [
 /** How many symbols one refresh will price. A hard ceiling on what a single run can cost. */
 export const MAX_UNIVERSE_SIZE = 60
 
+/** An instrument in the universe. Market is carried because a symbol alone does not identify one. */
+export type UniverseEntry = { symbol: string; market: MarketId }
+
 export async function resolveUniverse(
   supabase: SupabaseClient<Database>,
-): Promise<string[]> {
-  const symbols = new Set<string>(DEFAULT_UNIVERSE)
+): Promise<UniverseEntry[]> {
+  const entries = new Map<string, UniverseEntry>()
+  for (const symbol of DEFAULT_UNIVERSE) {
+    entries.set(symbolKey(symbol, "US"), { symbol, market: "US" })
+  }
 
   // Three cheap reads rather than one join: each is a single-column scan on an indexed table, and
   // they are independent.
   const [transactions, watchlist, alerts] = await Promise.all([
-    supabase.from("transactions").select("symbol"),
-    supabase.from("watchlist_items").select("symbol"),
-    supabase.from("alerts").select("symbol").eq("enabled", true),
+    supabase.from("transactions").select("symbol, market"),
+    supabase.from("watchlist_items").select("symbol, market"),
+    supabase.from("alerts").select("symbol, market").eq("enabled", true),
   ])
 
   for (const rows of [transactions.data, watchlist.data, alerts.data]) {
     for (const row of rows ?? []) {
       const symbol = normalizeSymbol(row.symbol ?? "")
-      if (symbol) symbols.add(symbol)
+      if (!symbol) continue
+      const market = toMarket(row.market)
+      entries.set(symbolKey(symbol, market), { symbol, market })
     }
   }
 
-  return [...symbols].slice(0, MAX_UNIVERSE_SIZE)
+  return [...entries.values()].slice(0, MAX_UNIVERSE_SIZE)
 }

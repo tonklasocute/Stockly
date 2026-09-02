@@ -1,5 +1,70 @@
-import { add, divide, percentOf, roundTo, subtract, sumBy } from "./money"
+import { add, divide, multiply, percentOf, roundTo, subtract, sumBy } from "./money"
+import { currencyOf, type Currency, type MarketId } from "./market"
+import type { Converter } from "./fx"
 import type { DomainTransaction, Holding, RealizedTrade } from "./types"
+
+/**
+ * Currency, once, at the top.
+ *
+ * Every function below sums money across rows, and summing baht into dollars produces a number that
+ * is not money in any currency. Rather than teaching each of them about exchange rates, the two
+ * helpers here restate a portfolio's transactions and realized trades **in the base currency**
+ * before the statistics ever see them — so the statistics stay the simple, currency-blind
+ * arithmetic they were, and there is exactly one place where a rate is applied.
+ *
+ * Rows that cannot be translated are dropped rather than counted at a made-up rate. That is only
+ * reachable when the FX provider has no rate for a pair, and the portfolio-level signal for it is
+ * `PortfolioSummary.untranslatedCount`, which the pages surface as a banner: the totals are
+ * incomplete, and they say so.
+ *
+ * The rate applied is today's, including to trades that closed years ago. That is a translation,
+ * not a re-writing of history — the stored rows never change — and it is the reason
+ * `PortfolioSummary.fxEffect` is null: separating currency movement from stock performance needs
+ * the rate on each past trade date, which Stockly does not store.
+ */
+
+function currencyOfTransaction(tx: DomainTransaction): Currency {
+  return currencyOf((tx.market ?? "US") as MarketId)
+}
+
+/** Transactions restated in the base currency. Amounts with no available rate are dropped. */
+export function translateTransactions(
+  transactions: readonly DomainTransaction[],
+  convert: Converter,
+): DomainTransaction[] {
+  const out: DomainTransaction[] = []
+  for (const tx of transactions) {
+    const currency = currencyOfTransaction(tx)
+    const price = convert(tx.price, currency)
+    if (!price) continue
+    out.push({
+      ...tx,
+      price: price.value,
+      // The same rate for both, so quantity x price + fee stays internally consistent.
+      fee: multiply(tx.fee, price.rate),
+    })
+  }
+  return out
+}
+
+/** Realized trades restated in the base currency. Trades with no available rate are dropped. */
+export function translateTrades(
+  trades: readonly RealizedTrade[],
+  convert: Converter,
+): RealizedTrade[] {
+  const out: RealizedTrade[] = []
+  for (const trade of trades) {
+    const converted = convert(trade.realizedPnl, trade.currency)
+    if (!converted) continue
+    out.push({
+      ...trade,
+      proceeds: multiply(trade.proceeds, converted.rate),
+      costBasis: multiply(trade.costBasis, converted.rate),
+      realizedPnl: converted.value,
+    })
+  }
+  return out
+}
 
 // ---------------------------------------------------------------- allocation
 
@@ -17,12 +82,16 @@ export type AllocationSlice = {
  * rounding artefact to be hidden.
  */
 export function allocateByHolding(holdings: readonly Holding[], cash: number): AllocationSlice[] {
-  const total = add(sumBy(holdings, (h) => h.marketValue), Math.max(cash, 0))
-  const slices = holdings.map((h) => ({
+  // Base-currency values: a pie whose slices are in different currencies compares nothing. A
+  // holding with no rate cannot be placed on that scale at all and is left out — the page reports
+  // it through `summary.untranslatedCount` rather than the chart implying it is worth nothing.
+  const translated = holdings.filter((h) => h.baseMarketValue !== null)
+  const total = add(sumBy(translated, (h) => h.baseMarketValue ?? 0), Math.max(cash, 0))
+  const slices = translated.map((h) => ({
     key: h.symbol,
     label: h.symbol,
-    value: h.marketValue,
-    weight: total > 0 ? (percentOf(h.marketValue, total) ?? 0) : 0,
+    value: h.baseMarketValue ?? 0,
+    weight: total > 0 ? (percentOf(h.baseMarketValue ?? 0, total) ?? 0) : 0,
   }))
 
   if (cash > 0) {
@@ -55,13 +124,14 @@ export function allocateBy(
   factOf: (symbol: string) => SymbolFacts | undefined,
   field: keyof SymbolFacts,
 ): AllocationSlice[] {
-  const total = sumBy(holdings, (h) => h.marketValue)
+  const translated = holdings.filter((h) => h.baseMarketValue !== null)
+  const total = sumBy(translated, (h) => h.baseMarketValue ?? 0)
   const buckets = new Map<string, number>()
 
-  for (const holding of holdings) {
+  for (const holding of translated) {
     const raw = factOf(holding.symbol)?.[field]
     const key = raw && String(raw).trim() ? String(raw).trim() : UNKNOWN
-    buckets.set(key, add(buckets.get(key) ?? 0, holding.marketValue))
+    buckets.set(key, add(buckets.get(key) ?? 0, holding.baseMarketValue ?? 0))
   }
 
   return [...buckets.entries()]
@@ -122,6 +192,13 @@ export function computeConcentration(
 
 export type Mover = {
   symbol: string
+  market: MarketId
+  /**
+   * The currency `pnl` is in — the instrument's own, not the portfolio's. Movers are ranked by
+   * percentage return, which is currency-neutral, so no rate is needed to order them and none is
+   * applied; the amount beside each one is the real amount in the currency it was made in.
+   */
+  currency: Currency
   pnl: number
   returnPct: number
 }
@@ -133,6 +210,8 @@ export function topMovers(
 ): { gainers: Mover[]; losers: Mover[] } {
   const rows = holdings.map((h) => ({
     symbol: h.symbol,
+    market: h.market,
+    currency: h.currency,
     pnl: h.unrealizedPnl,
     returnPct: h.returnPct,
   }))
@@ -157,6 +236,8 @@ export function todayMovers(
 
   const rows = withToday.map((h) => ({
     symbol: h.symbol,
+    market: h.market,
+    currency: h.currency,
     pnl: h.todayPnl ?? 0,
     returnPct: h.todayReturnPct ?? 0,
   }))
@@ -186,6 +267,11 @@ export type Contribution = {
   weight: number
 }
 
+/**
+ * Realized and unrealized P&L per symbol, **in the base currency**. Pass trades that have already
+ * been through `translateTrades`; holdings supply their own translated figures. A holding with no
+ * rate contributes nothing rather than contributing a wrong amount.
+ */
 export function computeContribution(
   holdings: readonly Holding[],
   trades: readonly RealizedTrade[],
@@ -201,8 +287,9 @@ export function computeContribution(
     bySymbol.set(trade.symbol, current)
   }
   for (const holding of holdings) {
+    if (holding.baseUnrealizedPnl === null) continue
     const current = row(holding.symbol)
-    current.unrealized = add(current.unrealized, holding.unrealizedPnl)
+    current.unrealized = add(current.unrealized, holding.baseUnrealizedPnl)
     bySymbol.set(holding.symbol, current)
   }
 

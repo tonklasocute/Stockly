@@ -169,7 +169,14 @@ Filters combine with `AND` or `OR`, capped at ten.
 ### The universe — the honest ceiling
 
 **Phase 6 screens the stocks this deployment already tracks**, not the whole market: everything held,
-watched or alerted on, plus a default list of sixteen, capped at 60 symbols.
+watched or alerted on, plus a default list of sixteen, capped at 60 instruments.
+
+Since phase 9 an entry is an *instrument*, not a symbol: `{ symbol, market }`, deduplicated by
+`market:symbol`. A SET listing enters the universe the moment someone holds, watches or alerts on
+one — the same rule that has always applied to US symbols outside the default list. The default list
+stays US-only on purpose: every symbol in it costs an OHLCV request on every refresh cycle, and
+seeding Thai names for an account that holds none would spend a scarce quota on data nobody asked
+for.
 
 That is a consequence of the data source, not a design preference. Indicators need an OHLCV history,
 which is one request per symbol with no batching, and the free tier allows eight a minute. Scanning
@@ -177,7 +184,19 @@ five thousand names is not slow — it is ten hours and twenty times the daily q
 
 `ponytail:` ceiling — a market-wide screener needs a provider with a bulk endpoint (a daily snapshot
 file, or a screener API). Only `resolveUniverse` changes; everything downstream already works from a
-list of symbols.
+list of instruments.
+
+### Currency (phase 9)
+
+**Indicators are computed from the instrument's own price series, always.** An RSI is a shape in a
+price history; converting the series into a portfolio's currency first would fold the exchange rate's
+movement into the indicator and produce a number describing two things at once. It would also be
+impossible in practice: a snapshot is shared reference data — NVDA's RSI is the same for every user —
+so it cannot be denominated in any one user's currency.
+
+A screen's `market` narrows the **universe** before any threshold is applied and changes no reading
+on any instrument. Every screener row carries the currency its price column is in; nothing else on
+the row depends on a currency at all. See [`MULTI-MARKET.md`](MULTI-MARKET.md) §7.
 
 ### Performance
 

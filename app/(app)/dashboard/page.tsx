@@ -13,7 +13,9 @@ import { describeAlert } from "@/domain/alerts"
 import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { namesFrom } from "@/features/portfolios/portfolio-view"
-import { formatCurrency } from "@/lib/format"
+import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
+import { baseCurrencyOf } from "@/domain/market"
+import { formatCurrency, formatCurrencyWithCode } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
 export const metadata: Metadata = { title: "Dashboard" }
@@ -32,9 +34,10 @@ export default async function DashboardPage({
   const [bundle, alerts] = await Promise.all([loadAnalytics(active.id), listAlerts().catch(() => [])])
   const activeAlerts = alerts.filter((a) => a.enabled)
   const { holdings, summary, cash, totalValue, quotes, marketDataError, dividends, fees } = bundle
+  const { missingFxPairs } = bundle
   const transactions = { length: bundle.transactionCount }
   const names = namesFrom(quotes)
-  const currency = active.currency
+  const currency = baseCurrencyOf(active.currency)
   const ranked = [...holdings].sort((a, b) => b.returnPct - a.returnPct)
   const best = ranked[0]
   const worst = ranked.length > 1 ? ranked[ranked.length - 1] : undefined
@@ -73,6 +76,8 @@ export default async function DashboardPage({
         </Alert>
       ) : null}
 
+      <CurrencyNotice summary={summary} missingFxPairs={missingFxPairs} />
+
       {transactions.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
@@ -95,7 +100,9 @@ export default async function DashboardPage({
           <StatGrid>
             <StatCard
               label="Portfolio value"
-              value={formatCurrency(totalValue, currency)}
+              // With the code, not just the symbol: this is the number a user quotes, and "825,420"
+              // or even "฿825,420" is ambiguous on a screen that also shows dollars.
+              value={formatCurrencyWithCode(totalValue, currency)}
               emphasis
               hint={
                 <span className="text-muted-foreground">
@@ -154,6 +161,9 @@ export default async function DashboardPage({
               </div>
             ))}
           </dl>
+
+          <CurrencyExposure summary={summary} />
+          <TranslationNote summary={summary} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="bg-card rounded-xl border p-4 sm:p-5">

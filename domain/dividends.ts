@@ -1,7 +1,13 @@
 import { add, multiply, percentOf, subtract, sumBy } from "./money"
+import type { Currency } from "./market"
 
 export type DomainDividend = {
   symbol: string
+  /**
+   * The currency the payment arrived in. Stored, not derived: a listing can pay in a currency other
+   * than the one it trades in, so the market cannot answer this.
+   */
+  currency: Currency
   /** The date the cash arrived; every period bucket is keyed on this. */
   paidOn: string
   shares: number
@@ -24,7 +30,10 @@ export type DividendAmounts = {
  * Net is what reaches the cash balance, so it is what every yield and total below is computed from.
  * Gross is kept because a user reconciling against a broker statement needs to see both.
  */
-export function dividendAmounts(dividend: DomainDividend): DividendAmounts {
+/** Only the four numbers matter here, so a caller rendering one row need not build a whole dividend. */
+export function dividendAmounts(
+  dividend: Pick<DomainDividend, "shares" | "dividendPerShare" | "tax" | "fee">,
+): DividendAmounts {
   const gross = multiply(dividend.shares, dividend.dividendPerShare)
   return {
     gross,

@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { SCREENER_METRICS, SCREENER_OPERATORS } from "@/domain/screener"
+import { MARKETS } from "@/domain/market"
 
 /**
  * The wire format for a screen.
@@ -42,6 +43,15 @@ export type ScreenerDefinitionInput = z.output<typeof screenerDefinitionSchema>
 
 export const screenerRunSchema = z.object({
   definition: screenerDefinitionSchema,
+  /**
+   * Which venue to screen. Omitted means all of them.
+   *
+   * A market scope is not a filter on a metric — it narrows the universe before any threshold is
+   * applied — so it lives here rather than in `filters`. Technical readings themselves are never
+   * affected by it: an RSI is computed from the instrument's own price series whatever market it
+   * belongs to and whatever currency the user's portfolio is kept in.
+   */
+  market: z.enum(MARKETS).optional(),
   page: z.coerce.number<number>().int().min(1).max(200).default(1),
 })
 

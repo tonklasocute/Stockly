@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MarketSelect } from "@/components/market-select"
+import { currencyOf, toMarket } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/format"
@@ -36,13 +38,11 @@ export function TransactionDialog({
   open,
   onOpenChange,
   portfolioId,
-  currency,
   transaction,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   portfolioId: string
-  currency: string
   /** Present when editing an existing row. */
   transaction?: TransactionRow
 }) {
@@ -54,6 +54,7 @@ export function TransactionDialog({
     defaultValues: {
       portfolioId,
       symbol: "",
+      market: "US",
       side: "buy",
       tradeDate: today(),
       quantity: 0,
@@ -68,6 +69,7 @@ export function TransactionDialog({
     form.reset({
       portfolioId,
       symbol: transaction?.symbol ?? "",
+      market: toMarket(transaction?.market),
       side: transaction?.side ?? "buy",
       tradeDate: transaction?.trade_date.slice(0, 10) ?? today(),
       quantity: transaction?.quantity ?? 0,
@@ -93,6 +95,13 @@ export function TransactionDialog({
   })
 
   const side = form.watch("side")
+  const market = toMarket(form.watch("market"))
+  /**
+   * Price, fee and total are in the **instrument's** currency, not the portfolio's. A trade on SET
+   * happens in baht regardless of what the portfolio is kept in, and labelling the field with the
+   * portfolio's currency would invite the user to type the wrong number.
+   */
+  const tradeCurrency = currencyOf(market)
   const quantity = Number(form.watch("quantity")) || 0
   const price = Number(form.watch("price")) || 0
   const fee = Number(form.watch("fee")) || 0
@@ -148,6 +157,17 @@ export function TransactionDialog({
                 {errors.symbol && <p className="text-destructive text-sm">{errors.symbol.message}</p>}
               </div>
 
+              <MarketSelect
+                id="transaction-market"
+                value={market}
+                onChange={(next) => form.setValue("market", next)}
+                // The market fixes the currency of every stored amount, so changing it on an
+                // existing row would silently reinterpret a price that was already recorded.
+                disabled={isEdit}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="tradeDate">Date</Label>
                 {/* Native date input: correct on every mobile keyboard, no picker dependency. */}
@@ -168,8 +188,8 @@ export function TransactionDialog({
               {(
                 [
                   { name: "quantity", label: "Quantity", step: "any", min: 0 },
-                  { name: "price", label: "Price", step: "any", min: 0 },
-                  { name: "fee", label: "Fee", step: "any", min: 0 },
+                  { name: "price", label: `Price (${tradeCurrency})`, step: "any", min: 0 },
+                  { name: "fee", label: `Fee (${tradeCurrency})`, step: "any", min: 0 },
                 ] as const
               ).map((field) => (
                 <div key={field.name} className="space-y-2">
@@ -202,7 +222,9 @@ export function TransactionDialog({
               <span className="text-muted-foreground">
                 {side === "buy" ? "Total cost" : "Net proceeds"}
               </span>
-              <span className="tabular font-semibold">{formatCurrency(total, currency)}</span>
+              <span className="tabular font-semibold">
+                {formatCurrency(total, tradeCurrency)}
+              </span>
             </div>
 
             {errors.root && <p className="text-destructive text-sm">{errors.root.message}</p>}

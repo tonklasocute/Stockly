@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { normalizeSymbol, type Market } from "@/lib/symbol"
+import { MARKETS, marketOf, marketOfExchange, normalizeSymbol, type Market } from "@/domain/market"
 import { MarketDataError } from "./errors"
 import { fetchJson } from "./http"
 import type {
@@ -27,6 +27,21 @@ import type {
  */
 
 const BATCH_SIZE = 20
+
+/**
+ * How each market is addressed on this provider.
+ *
+ * `exchange` is omitted for the US on purpose: a US ticker is unique across NYSE and NASDAQ, and
+ * pinning one of them would make the other's symbols look like they do not exist. SET needs it,
+ * because a bare `PTT` is ambiguous across the provider's whole universe.
+ *
+ * This table is the only place a market's provider-specific spelling lives. Adding Tokyo is a row
+ * here plus a row in `MARKET_REGISTRY`, and no call site changes.
+ */
+const PROVIDER_MARKET: Record<Market, { exchange?: string; country: string; statusExchange: string }> = {
+  US: { country: "United States", statusExchange: "NASDAQ" },
+  SET: { exchange: "SET", country: "Thailand", statusExchange: "SET" },
+}
 
 /** Twelve Data reports application-level failures with HTTP 200 and a `status: "error"` body. */
 const errorEnvelope = z.object({
@@ -184,6 +199,7 @@ export function createTwelveDataProvider(config: {
 
   return {
     name: "twelvedata",
+    markets: MARKETS,
 
     async getQuote(symbol, market = "US") {
       const quotes = await this.getQuotes([symbol], market)
@@ -198,11 +214,14 @@ export function createTwelveDataProvider(config: {
       // Batched purely to cut round trips — the provider still bills one credit per symbol.
       for (let i = 0; i < wanted.length; i += BATCH_SIZE) {
         const batch = wanted.slice(i, i + BATCH_SIZE)
+        const scope = PROVIDER_MARKET[market]
         const payload = await call<unknown>(
           "quote",
-          { symbol: batch.join(","), dp: 4 },
+          { symbol: batch.join(","), exchange: scope.exchange, country: scope.country, dp: 4 },
           QUOTE_TTL_SECONDS,
-          batch.map((s) => `quote:${s}`),
+          // Tagged by market as well as symbol: the same three letters on two venues are two prices
+          // and must never share a cache entry.
+          batch.map((s) => `quote:${market}:${s}`),
         )
 
         // A top-level error envelope must not be silently parsed away as "no quotes": a rate limit
@@ -234,16 +253,25 @@ export function createTwelveDataProvider(config: {
       return out
     },
 
-    async getHistoricalPrices(symbol, range) {
+    async getHistoricalPrices(symbol, range, market = "US") {
       const normalized = normalizeSymbol(symbol)
       if (!normalized) return []
       const { interval, outputsize } = RANGE_QUERY[range]
+      const scope = PROVIDER_MARKET[market]
 
       const payload = await call<unknown>(
         "time_series",
-        { symbol: normalized, interval, outputsize, order: "ASC", dp: 4 },
+        {
+          symbol: normalized,
+          exchange: scope.exchange,
+          country: scope.country,
+          interval,
+          outputsize,
+          order: "ASC",
+          dp: 4,
+        },
         historyTtlSeconds(range),
-        [`history:${normalized}:${range}`],
+        [`history:${market}:${normalized}:${range}`],
       )
 
       // An unknown symbol comes back as the error envelope; that is "no data", not an outage.
@@ -265,26 +293,30 @@ export function createTwelveDataProvider(config: {
         )
     },
 
-    async searchSymbols(query) {
+    async searchSymbols(query, market) {
       const trimmed = query.trim()
       if (trimmed.length === 0) return []
 
       const payload = await call<unknown>(
         "symbol_search",
-        { symbol: trimmed, outputsize: 12 },
+        { symbol: trimmed, outputsize: 24 },
         SEARCH_TTL_SECONDS,
       )
       const parsed = parse(rawSearch, payload)
 
+      // Results are mapped onto a market by the venue they name, and anything that maps to no
+      // market Stockly supports is dropped: offering a symbol the app cannot price is a dead end,
+      // and guessing a market for it would put a price in the wrong currency on the screen.
       return (parsed.data ?? [])
-        // Phase 2 is US equities only; showing venues we cannot price would be a dead end.
-        .filter((row) => (row.country ?? "United States") === "United States")
         .filter((row) => !row.instrument_type || /stock|common|etf/i.test(row.instrument_type))
+        .map((row) => ({ row, market: resolveSearchMarket(row.exchange, row.country) }))
+        .filter((r): r is { row: typeof r.row; market: Market } => r.market !== null)
+        .filter((r) => !market || r.market === market)
         .slice(0, 8)
         .map(
-          (row): InstrumentSummary => ({
+          ({ row, market: resolved }): InstrumentSummary => ({
             symbol: normalizeSymbol(row.symbol),
-            market: "US",
+            market: resolved,
             name: row.instrument_name ?? row.symbol,
             exchange: row.exchange ?? null,
             currency: row.currency ?? null,
@@ -295,12 +327,16 @@ export function createTwelveDataProvider(config: {
     async getCompanyProfile(symbol, market = "US") {
       const normalized = normalizeSymbol(symbol)
       if (!normalized) return null
+      const scope = PROVIDER_MARKET[market]
 
       let payload: unknown
       try {
-        payload = await call<unknown>("profile", { symbol: normalized }, PROFILE_TTL_SECONDS, [
-          `profile:${normalized}`,
-        ])
+        payload = await call<unknown>(
+          "profile",
+          { symbol: normalized, exchange: scope.exchange, country: scope.country },
+          PROFILE_TTL_SECONDS,
+          [`profile:${market}:${normalized}`],
+        )
       } catch (error) {
         // /profile is not on every plan. Falling back to search metadata beats an error page.
         if (error instanceof MarketDataError && error.code === "MARKET_DATA_RATE_LIMITED") throw error
@@ -330,11 +366,11 @@ export function createTwelveDataProvider(config: {
       }
     },
 
-    async getMarketStatus(): Promise<MarketStatus> {
+    async getMarketStatus(market = "US"): Promise<MarketStatus> {
       try {
         const payload = await call<unknown>(
           "market_state",
-          { exchange: "NASDAQ" },
+          { exchange: PROVIDER_MARKET[market].statusExchange },
           MARKET_STATE_TTL_SECONDS,
         )
         const asError = errorEnvelope.safeParse(payload)
@@ -351,12 +387,32 @@ export function createTwelveDataProvider(config: {
   }
 }
 
+/**
+ * Which market a search hit belongs to, from the venue it names. The exchange code is authoritative
+ * — `marketOfExchange` reads the registry — and country is the fallback for a provider that returns
+ * a venue Stockly has not listed. Null when neither identifies a supported market.
+ */
+function resolveSearchMarket(
+  exchange: string | null | undefined,
+  country: string | null | undefined,
+): Market | null {
+  const byExchange = marketOfExchange(exchange)
+  if (byExchange) return byExchange
+  if (!country) return null
+  const normalized = country.trim().toLowerCase()
+  return (
+    MARKETS.find((m) => PROVIDER_MARKET[m].country.toLowerCase() === normalized) ??
+    MARKETS.find((m) => marketOf(m).country.toLowerCase() === normalized) ??
+    null
+  )
+}
+
 async function fallbackProfile(
   provider: MarketDataProvider,
   symbol: string,
   market: Market,
 ): Promise<CompanyProfile | null> {
-  const [match] = await provider.searchSymbols(symbol)
+  const [match] = await provider.searchSymbols(symbol, market)
   if (!match || match.symbol !== symbol) return null
   return {
     ...match,

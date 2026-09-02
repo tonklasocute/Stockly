@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { ALERT_TYPES, PERCENT_ALERT_TYPES, SYMBOL_ALERT_TYPES, type AlertType } from "@/domain/alerts"
-import { normalizeSymbol } from "@/lib/symbol"
+import { MARKETS, normalizeSymbol } from "@/domain/market"
 
 /**
  * The condition is an enum, never a client-supplied expression. A field like
@@ -15,6 +15,9 @@ export const alertInputSchema = z
       .transform(normalizeSymbol)
       .refine((s) => s.length > 0, "Symbol is required.")
       .optional(),
+    // Which venue the symbol trades on, and therefore which currency `targetValue` is in. A price
+    // alert on PTT is set in baht; comparing it against a dollar quote would be nonsense.
+    market: z.enum(MARKETS).default("US"),
     portfolioId: z.uuid().optional(),
     targetValue: z.coerce.number<number>().finite("Enter a number."),
     cooldownMinutes: z.coerce

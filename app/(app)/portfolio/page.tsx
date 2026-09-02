@@ -5,7 +5,9 @@ import { Delta, Percent } from "@/components/value"
 import { HoldingsTable } from "@/features/portfolios/components/holdings-table"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadPortfolioView, namesFrom } from "@/features/portfolios/portfolio-view"
-import { formatCurrency } from "@/lib/format"
+import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
+import { baseCurrencyOf } from "@/domain/market"
+import { formatCurrency, formatCurrencyWithCode } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
 export const metadata: Metadata = { title: "Portfolio" }
@@ -19,8 +21,10 @@ export default async function PortfolioPage({
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
 
-  const { holdings, summary, quotes, marketDataError } = await loadPortfolioView(active.id)
-  const currency = active.currency
+  const { holdings, summary, quotes, marketDataError, missingFxPairs } = await loadPortfolioView(
+    active.id,
+  )
+  const currency = baseCurrencyOf(active.currency)
   const names = namesFrom(quotes)
 
   return (
@@ -38,10 +42,12 @@ export default async function PortfolioPage({
         </Alert>
       )}
 
+      <CurrencyNotice summary={summary} missingFxPairs={missingFxPairs} />
+
       <StatGrid>
         <StatCard
           label="Portfolio value"
-          value={formatCurrency(summary.marketValue, currency)}
+          value={formatCurrencyWithCode(summary.marketValue, currency)}
           emphasis
         />
         <StatCard label="Invested" value={formatCurrency(summary.investedValue, currency)} emphasis />
@@ -64,7 +70,11 @@ export default async function PortfolioPage({
         />
       </StatGrid>
 
+      <CurrencyExposure summary={summary} />
+
       <HoldingsTable holdings={holdings} currency={currency} names={names} />
+
+      <TranslationNote summary={summary} />
     </div>
   )
 }

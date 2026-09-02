@@ -30,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
+import { MarketBadge } from "@/components/market-badge"
+import { currencyOf, toMarket } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -52,13 +54,15 @@ function totalOf(t: TransactionRow) {
 export function TransactionList({
   transactions,
   portfolioId,
-  currency,
 }: {
   transactions: TransactionRow[]
   portfolioId: string
-  currency: string
 }) {
   const router = useRouter()
+  // A trade's amounts are in the currency of the venue it happened on, never the portfolio's: a
+  // ฿32 price rendered as $32 is the single most damaging mistake this page could make.
+  const currencyOfRow = (transaction: TransactionRow) => currencyOf(toMarket(transaction.market))
+  const mixed = new Set(transactions.map((t) => t.market)).size > 1
   const [query, setQuery] = useState("")
   const [side, setSide] = useState<"all" | "buy" | "sell">("all")
   const [symbol, setSymbol] = useState("all")
@@ -243,6 +247,12 @@ export function TransactionList({
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{transaction.symbol}</span>
+                      {mixed && (
+                        <MarketBadge
+                          market={toMarket(transaction.market)}
+                          currency={currencyOfRow(transaction)}
+                        />
+                      )}
                       {sideBadge(transaction)}
                     </div>
                     <p className="text-muted-foreground text-xs">
@@ -251,7 +261,7 @@ export function TransactionList({
                   </div>
                   <div className="flex items-start gap-1">
                     <span className="tabular text-right font-semibold">
-                      {formatCurrency(totalOf(transaction), currency)}
+                      {formatCurrency(totalOf(transaction), currencyOfRow(transaction))}
                     </span>
                     {rowActions(transaction)}
                   </div>
@@ -266,13 +276,13 @@ export function TransactionList({
                   <div>
                     <dt>Price</dt>
                     <dd className="tabular text-foreground">
-                      {formatCurrency(transaction.price, currency)}
+                      {formatCurrency(transaction.price, currencyOfRow(transaction))}
                     </dd>
                   </div>
                   <div>
                     <dt>Fee</dt>
                     <dd className="tabular text-foreground">
-                      {formatCurrency(transaction.fee, currency)}
+                      {formatCurrency(transaction.fee, currencyOfRow(transaction))}
                     </dd>
                   </div>
                 </dl>
@@ -301,18 +311,27 @@ export function TransactionList({
                       {formatDate(transaction.trade_date)}
                     </TableCell>
                     <TableCell>{sideBadge(transaction)}</TableCell>
-                    <TableCell className="font-medium">{transaction.symbol}</TableCell>
+                    <TableCell className="font-medium">
+                      {transaction.symbol}
+                      {mixed && (
+                        <MarketBadge
+                          market={toMarket(transaction.market)}
+                          currency={currencyOfRow(transaction)}
+                          className="ml-2"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="tabular text-right">
                       {formatQuantity(transaction.quantity)}
                     </TableCell>
                     <TableCell className="tabular text-right">
-                      {formatCurrency(transaction.price, currency)}
+                      {formatCurrency(transaction.price, currencyOfRow(transaction))}
                     </TableCell>
                     <TableCell className="tabular text-muted-foreground text-right">
-                      {formatCurrency(transaction.fee, currency)}
+                      {formatCurrency(transaction.fee, currencyOfRow(transaction))}
                     </TableCell>
                     <TableCell className="tabular text-right font-medium">
-                      {formatCurrency(totalOf(transaction), currency)}
+                      {formatCurrency(totalOf(transaction), currencyOfRow(transaction))}
                     </TableCell>
                     <TableCell className="text-right">{rowActions(transaction)}</TableCell>
                   </TableRow>
@@ -327,7 +346,6 @@ export function TransactionList({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         portfolioId={portfolioId}
-        currency={currency}
         transaction={editing}
       />
     </div>

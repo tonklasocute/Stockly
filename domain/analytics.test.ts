@@ -27,22 +27,46 @@ const tx = (
   sequence = 0,
 ): DomainTransaction => ({ symbol, side, quantity, price, fee, tradeDate, sequence })
 
-const holding = (symbol: string, marketValue: number, extra: Partial<Holding> = {}): Holding => ({
-  symbol,
-  quantity: 1,
-  investedValue: marketValue,
-  averageCost: marketValue,
-  realizedPnl: 0,
-  currentPrice: marketValue,
-  marketValue,
-  unrealizedPnl: 0,
-  returnPct: 0,
-  weight: 0,
-  todayPnl: null,
-  todayReturnPct: null,
-  stale: false,
-  ...extra,
-})
+/**
+ * A US holding in a USD portfolio — the identity conversion, which is what every pre-phase-9
+ * portfolio is. The base-currency figures mirror the native ones unless a test overrides them, so
+ * these assertions still describe the same numbers they did before phase 9.
+ */
+const holding = (symbol: string, marketValue: number, extra: Partial<Holding> = {}): Holding => {
+  const base: Holding = {
+    symbol,
+    market: "US",
+    currency: "USD",
+    quantity: 1,
+    investedValue: marketValue,
+    averageCost: marketValue,
+    realizedPnl: 0,
+    currentPrice: marketValue,
+    marketValue,
+    unrealizedPnl: 0,
+    returnPct: 0,
+    weight: 0,
+    todayPnl: null,
+    todayReturnPct: null,
+    stale: false,
+    baseCurrency: "USD",
+    fx: { rate: 1, asOf: null, freshness: "fresh", identity: true },
+    baseMarketValue: marketValue,
+    baseInvestedValue: marketValue,
+    baseUnrealizedPnl: 0,
+    baseTodayPnl: null,
+    baseRealizedPnl: 0,
+    ...extra,
+  }
+  return {
+    ...base,
+    baseMarketValue: extra.baseMarketValue ?? base.marketValue,
+    baseInvestedValue: extra.baseInvestedValue ?? base.investedValue,
+    baseUnrealizedPnl: extra.baseUnrealizedPnl ?? base.unrealizedPnl,
+    baseTodayPnl: extra.baseTodayPnl ?? base.todayPnl,
+    baseRealizedPnl: extra.baseRealizedPnl ?? base.realizedPnl,
+  }
+}
 
 const TODAY = new Date("2026-09-01T00:00:00Z")
 

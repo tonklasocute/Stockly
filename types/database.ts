@@ -8,6 +8,7 @@ export type PortfolioRow = {
   id: string
   user_id: string
   name: string
+  /** The **base currency**: what every total on this portfolio's pages is denominated in. */
   currency: string
   created_at: string
   updated_at: string
@@ -79,6 +80,12 @@ export type PortfolioSnapshotRow = {
   portfolio_id: string
   user_id: string
   snapshot_date: string
+  /**
+   * The base currency this row was recorded in. The performance chart reads only the rows matching
+   * the portfolio's current base currency — a series that mixed two units would show a cliff on the
+   * day the setting changed and call it performance.
+   */
+  currency: string
   total_value: number
   invested_value: number
   cash_value: number

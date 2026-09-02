@@ -20,6 +20,21 @@ export const serverEnv = {
   get marketDataBaseUrl() {
     return process.env.MARKET_DATA_BASE_URL ?? "https://api.twelvedata.com"
   },
+  /**
+   * Which provider prices SET (Thai) instruments. Defaults to the main provider, so a deployment
+   * that adds a Thai data vendor later changes one variable and nothing else.
+   */
+  get setMarketDataProvider() {
+    return process.env.MARKET_DATA_PROVIDER_SET ?? process.env.MARKET_DATA_PROVIDER ?? "mock"
+  },
+  /**
+   * Where exchange rates come from. Defaults to the market-data provider: they are the same account
+   * on the same rate limit, and running live prices against mock rates is never what anyone meant.
+   * An unrecognised value yields no rates at all rather than fabricated ones — see services/fx.
+   */
+  get fxProvider() {
+    return process.env.FX_PROVIDER ?? process.env.MARKET_DATA_PROVIDER ?? "mock"
+  },
 
   /** Bypasses RLS. Used only by the scheduled job, which must read every user's alerts. */
   get supabaseServiceRoleKey() {

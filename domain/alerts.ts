@@ -1,3 +1,4 @@
+import { currencyOf, symbolKey, type MarketId } from "./market"
 import { percentOf, quantize, subtract } from "./money"
 
 /**
@@ -186,6 +187,8 @@ export type AlertRule = {
   id: string
   type: AlertType
   symbol: string | null
+  /** Which venue `symbol` trades on, and therefore which currency `targetValue` is in. */
+  market: MarketId
   /** Currency for price alerts, percent for the rest. */
   targetValue: number
   enabled: boolean
@@ -334,6 +337,11 @@ export type PortfolioReading = {
   dailyChangePct: number | null
   totalReturnPct: number
   /** Weight of each held symbol, 0–100. */
+  /**
+   * Position weights, keyed by `symbolKey` (`"SET:PTT"`), in the portfolio's base currency. A
+   * holding whose currency could not be translated is **absent**, never 0 — a share of the
+   * portfolio nobody can compute must not fire a "weight below" alert.
+   */
   weights: Record<string, number>
   asOf: string
 }
@@ -365,17 +373,20 @@ export function readingFor(
   technicals: Map<string, TechnicalReading> = new Map(),
 ): AlertReading | null {
   const symbol = alert.symbol?.toUpperCase() ?? null
+  // Every per-instrument map is keyed by market and symbol together, because "PTT" alone names two
+  // different things once more than one exchange is in play.
+  const key = symbol ? symbolKey(symbol, alert.market) : null
 
   switch (alert.type) {
     case "PRICE_ABOVE":
     case "PRICE_BELOW": {
-      const quote = symbol ? quotes.get(symbol) : undefined
+      const quote = key ? quotes.get(key) : undefined
       return quote ? { value: quote.price, asOf: quote.asOf } : null
     }
 
     case "PERCENT_CHANGE_ABOVE":
     case "PERCENT_CHANGE_BELOW": {
-      const quote = symbol ? quotes.get(symbol) : undefined
+      const quote = key ? quotes.get(key) : undefined
       if (!quote || quote.previousClose === null || quote.previousClose <= 0) return null
       const change = percentOf(subtract(quote.price, quote.previousClose), quote.previousClose)
       return change === null ? null : { value: change, asOf: quote.asOf }
@@ -393,8 +404,8 @@ export function readingFor(
 
     case "POSITION_WEIGHT_ABOVE":
     case "POSITION_WEIGHT_BELOW": {
-      if (!portfolio || !symbol) return null
-      const weight = portfolio.weights[symbol]
+      if (!portfolio || !key) return null
+      const weight = portfolio.weights[key]
       // A symbol that is not held has no weight; treating that as 0% would fire every "below"
       // alert for every stock the user has ever mentioned.
       return weight === undefined ? null : { value: weight, asOf: portfolio.asOf }
@@ -405,36 +416,36 @@ export function readingFor(
 
     case "RSI_ABOVE":
     case "RSI_BELOW": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       return t?.rsi === null || !t ? null : { value: t.rsi, asOf: t.asOf }
     }
 
     case "ADX_ABOVE": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       return t?.adx === null || !t ? null : { value: t.adx, asOf: t.asOf }
     }
 
     case "RELATIVE_VOLUME_ABOVE": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       return t?.relativeVolume === null || !t ? null : { value: t.relativeVolume, asOf: t.asOf }
     }
 
     case "PRICE_ABOVE_EMA":
     case "PRICE_BELOW_EMA": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       return t?.priceVsEma200Pct === null || !t ? null : { value: t.priceVsEma200Pct, asOf: t.asOf }
     }
 
     case "MACD_BULLISH_CROSS":
     case "MACD_BEARISH_CROSS": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       if (!t) return null
       return crossReading(t.macdCross, alert.type === "MACD_BULLISH_CROSS" ? "bullish" : "bearish", t.asOf)
     }
 
     case "EMA_CROSS_BULLISH":
     case "EMA_CROSS_BEARISH": {
-      const t = symbol ? technicals.get(symbol) : undefined
+      const t = key ? technicals.get(key) : undefined
       if (!t) return null
       return crossReading(t.emaCross50200, alert.type === "EMA_CROSS_BULLISH" ? "bullish" : "bearish", t.asOf)
     }
@@ -442,19 +453,23 @@ export function readingFor(
 }
 
 /**
- * Every distinct symbol the given alerts need a quote for.
+ * Every distinct instrument the given alerts need a quote for.
  *
  * This is what keeps the job from being O(users × alerts) upstream calls: a thousand alerts on
- * NVDA across a hundred users still resolve to one symbol, fetched once.
+ * NVDA across a hundred users still resolve to one instrument, fetched once. Market is part of the
+ * identity, so a SET listing and a US one that spell the same are two fetches, not one wrong one.
  */
-export function symbolsToFetch(alerts: readonly AlertRule[]): string[] {
-  const symbols = new Set<string>()
+export function instrumentsToFetch(
+  alerts: readonly AlertRule[],
+): { symbol: string; market: MarketId }[] {
+  const out = new Map<string, { symbol: string; market: MarketId }>()
   for (const alert of alerts) {
     if (!alert.enabled || !alert.symbol) continue
     if (!SYMBOL_ALERT_TYPES.includes(alert.type)) continue
-    symbols.add(alert.symbol.toUpperCase())
+    const symbol = alert.symbol.toUpperCase()
+    out.set(symbolKey(symbol, alert.market), { symbol, market: alert.market })
   }
-  return [...symbols]
+  return [...out.values()]
 }
 
 // ---------------------------------------------------------------- messages
@@ -462,7 +477,10 @@ export function symbolsToFetch(alerts: readonly AlertRule[]): string[] {
 export type AlertMessage = { title: string; body: string; href: string }
 
 const money = (value: number, currency: string) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
+  // narrowSymbol so $ and ฿ are distinguishable at a glance in a lock-screen notification.
+  new Intl.NumberFormat("en-US", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(
+    value,
+  )
 
 const percent = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(2)}%`
 
@@ -477,11 +495,16 @@ const percent = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}$
 export function messageFor(
   alert: AlertRule,
   triggerValue: number,
-  currency = "USD",
+  /**
+   * Defaults to the currency the instrument is quoted in, which is the only currency a price alert
+   * is ever set in. A caller that knows better — a portfolio-level message — can still override it.
+   */
+  currency: string = currencyOf(alert.market),
 ): AlertMessage {
   const symbol = alert.symbol?.toUpperCase() ?? ""
   const alertsHref = "/alerts"
-  const stockHref = symbol ? `/stocks/${symbol}` : alertsHref
+  // The market is in the link so the page prices it in the right currency when it opens.
+  const stockHref = symbol ? `/stocks/${symbol}?market=${alert.market}` : alertsHref
 
   switch (alert.type) {
     case "PRICE_ABOVE":

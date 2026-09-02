@@ -10,6 +10,7 @@ import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { DividendList } from "@/features/dividends/components/dividend-list"
 import { listDividendsPage } from "@/features/dividends/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
+import { baseCurrencyOf } from "@/domain/market"
 import { formatCurrency, formatOptional, formatPercent } from "@/lib/format"
 import { toPage } from "@/lib/pagination"
 import { NoPortfolio } from "../_no-portfolio"
@@ -29,7 +30,7 @@ export default async function DividendsPage({ searchParams }: Props) {
     listDividendsPage(active.id, toPage(pageParam)),
   ])
 
-  const currency = active.currency
+  const currency = baseCurrencyOf(active.currency)
   const { summary, byPeriod, bySymbol, yieldOnValue, yieldOnCost } = bundle.dividends
 
   return (

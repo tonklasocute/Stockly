@@ -13,6 +13,8 @@ import {
   performanceSeries,
   todayMovers,
   topMovers,
+  translateTrades,
+  translateTransactions,
   type AllocationSlice,
   type CapitalPoint,
   type Concentration,
@@ -35,17 +37,31 @@ import {
 } from "@/domain/dividends"
 import { add } from "@/domain/money"
 import { buildPortfolio, replayPortfolio } from "@/domain/holdings"
+import { converterTo } from "@/domain/fx"
+import { baseCurrencyOf, currencyOf, symbolKey, type Currency, type MarketId } from "@/domain/market"
 import type { Holding, PortfolioSummary, RealizedTrade } from "@/domain/types"
 import { listCashTransactions, toDomainCash } from "@/features/cash/queries"
 import { listDividends, toDomainDividends } from "@/features/dividends/queries"
 import { listTransactions, toDomain } from "@/features/transactions/queries"
+import { dedupeInstruments } from "@/features/portfolios/portfolio-view"
 import { createClient } from "@/lib/supabase/server"
-import { getMarketDataProvider, isMarketDataError, type Quote } from "@/services/market-data"
+import { loadFxTable } from "@/services/fx"
+import { getMarketDataProvider, getQuotesFor, type Quote } from "@/services/market-data"
 import type { PortfolioSnapshotRow } from "@/types/database"
 
 export type AnalyticsBundle = {
   holdings: Holding[]
   summary: PortfolioSummary
+  /**
+   * The portfolio's base currency. **Every money figure in this bundle is in it** — summary, cash,
+   * allocation, dividends, fees and contribution alike — except `holdings[].marketValue` and its
+   * siblings, which stay in each instrument's own currency and carry `base*` twins beside them.
+   */
+  baseCurrency: Currency
+  /** Markets whose price provider failed. The rest of the portfolio is still priced. */
+  staleMarkets: MarketId[]
+  /** Currency pairs the FX provider could not answer. Their figures are null, never 0. */
+  missingFxPairs: readonly string[]
   trades: RealizedTrade[]
   cash: CashSummary
   /** Stock market value + cash. The number that answers "what is this portfolio worth". */
@@ -90,37 +106,64 @@ export type AnalyticsBundle = {
  */
 export const loadAnalytics = cache(
   async (portfolioId: string, grouping: PeriodGrouping = "month"): Promise<AnalyticsBundle> => {
-    const [transactionRows, cashRows, dividendRows, snapshots] = await Promise.all([
+    const [portfolio, transactionRows, cashRows, dividendRows, snapshots] = await Promise.all([
+      readPortfolio(portfolioId),
       listTransactions(portfolioId),
       listCashTransactions(portfolioId),
       listDividends(portfolioId),
       listSnapshots(portfolioId),
     ])
 
+    const baseCurrency = baseCurrencyOf(portfolio?.currency)
+    /**
+     * Only the snapshots taken in the currency the page is being shown in.
+     *
+     * A snapshot is the one figure Stockly cannot recompute, so a row written when the portfolio was
+     * kept in dollars stays a dollar figure forever. Plotting it beside a baht row would put a
+     * thirty-two-fold cliff in the performance chart on the day the setting changed and label it
+     * performance. Switching base currency starts a fresh series; the old rows are kept, because
+     * they are still true about the currency they were taken in.
+     */
+    const ownSnapshots = snapshots.filter((row) => baseCurrencyOf(row.currency) === baseCurrency)
     const domainTransactions = toDomain(transactionRows)
     const domainDividends = toDomainDividends(dividendRows)
-    const symbols = [...new Set(transactionRows.map((t) => t.symbol))]
+    const instruments = dedupeInstruments(transactionRows)
 
-    let quotes = new Map<string, Quote>()
     let facts = new Map<string, SymbolFacts>()
-    let marketDataError: string | null = null
 
-    if (symbols.length > 0) {
-      try {
-        quotes = await getMarketDataProvider().getQuotes(symbols)
-      } catch (error) {
-        marketDataError = isMarketDataError(error)
-          ? error.message
-          : "Unable to load market data. Please try again later."
-        console.error("[analytics] quotes failed", error)
-      }
-    }
+    // Quotes (one batched call per market) and rates (one call per currency pair) are independent
+    // and neither can take the page down.
+    const [priced, fx] = await Promise.all([
+      instruments.length > 0
+        ? getQuotesFor(instruments)
+        : Promise.resolve({ quotes: new Map<string, Quote>(), failed: [] as MarketId[], error: null }),
+      loadFxTable(baseCurrency, [...new Set(instruments.map((i) => currencyOf(i.market)))]),
+    ])
 
-    const { holdings, summary } = buildPortfolio(domainTransactions, (symbol) => {
-      const quote = quotes.get(symbol)
-      return quote ? { price: quote.price, previousClose: quote.previousClose ?? undefined } : undefined
-    })
+    const quotes = priced.quotes
+    const marketDataError = priced.error?.message ?? null
+    const convert = converterTo(baseCurrency, fx, new Date())
+
+    const { holdings, summary } = buildPortfolio(
+      domainTransactions,
+      (symbol, market) => {
+        const quote = quotes.get(symbolKey(symbol, market))
+        return quote ? { price: quote.price, previousClose: quote.previousClose ?? undefined } : undefined
+      },
+      { baseCurrency, convert },
+    )
     const { trades } = replayPortfolio(domainTransactions)
+
+    /**
+     * Everything below this line is stated in the base currency.
+     *
+     * Fees, invested-capital history and realized-trade statistics all sum money across rows, and a
+     * sum that mixes baht with dollars is not money in any currency. Restating the rows once here
+     * keeps those functions the plain arithmetic they were, and puts the single point where an
+     * exchange rate is applied somewhere it can be reasoned about — see `domain/analytics.ts`.
+     */
+    const baseTransactions = translateTransactions(domainTransactions, convert)
+    const baseTrades = translateTrades(trades, convert)
 
     // Company metadata, for the symbols that are actually **held**.
     //
@@ -133,25 +176,57 @@ export const loadAnalytics = cache(
     // Concurrent, cached upstream for 24h, and individually fault-tolerant: a failure degrades that
     // holding to "Unknown" and keeps it in the totals rather than dropping it from a chart.
     if (holdings.length > 0) {
-      const provider = getMarketDataProvider()
       const profiles = await Promise.all(
-        holdings.map((holding) => provider.getCompanyProfile(holding.symbol).catch(() => null)),
+        holdings.map(async (holding) => {
+          try {
+            // Selecting the provider can itself throw — an unconfigured key, or a market this
+            // deployment has no adapter for. Inside the try, so it degrades this holding to
+            // "Unknown" like any other profile failure rather than emptying the whole chart.
+            return await getMarketDataProvider(holding.market).getCompanyProfile(
+              holding.symbol,
+              holding.market,
+            )
+          } catch {
+            return null
+          }
+        }),
       )
       facts = new Map(
         profiles.filter((p) => p !== null).map((p) => [
           p.symbol,
-          { sector: p.sector, industry: p.industry, country: p.country, currency: p.currency },
+          {
+            sector: p.sector,
+            industry: p.industry,
+            country: p.country,
+            // The market's currency, not the provider's guess: it is what the numbers were
+            // computed against, so a currency allocation must agree with the holdings table.
+            currency: currencyOf(p.market),
+          },
         ]),
       )
     }
 
+    /**
+     * Cash is the one place a currency is genuinely stored rather than derived: a portfolio can
+     * hold a dollar balance and a baht balance at once. Each movement is translated from the
+     * currency it is recorded in; a movement with no rate is dropped rather than counted at par,
+     * and shows up as a smaller balance the FX banner already explains.
+     */
     const cash = computeCash(
-      domainTransactions,
-      toDomainCash(cashRows),
-      domainDividends.map((d) => ({
-        netAmount: d.shares * d.dividendPerShare - d.tax - d.fee,
-        paidOn: d.paidOn,
-      })),
+      baseTransactions,
+      toDomainCash(cashRows)
+        .map((row) => {
+          const converted = convert(row.amount, row.currency)
+          return converted ? { ...row, amount: converted.value } : null
+        })
+        .filter((row) => row !== null),
+      domainDividends
+        .map((d) => {
+          const net = d.shares * d.dividendPerShare - d.tax - d.fee
+          const converted = convert(net, d.currency)
+          return converted ? { netAmount: converted.value, paidOn: d.paidOn } : null
+        })
+        .filter((row) => row !== null),
     )
 
     const factOf = (symbol: string) => facts.get(symbol)
@@ -162,6 +237,11 @@ export const loadAnalytics = cache(
     return {
       holdings,
       summary,
+      baseCurrency,
+      staleMarkets: priced.failed,
+      missingFxPairs: fx.missing,
+      // Native-currency trades: each row carries the currency it was made in, so a table can show
+      // "+฿4,200" honestly instead of a translated approximation.
       trades,
       cash,
       totalValue: add(summary.marketValue, Math.max(cash.balance, 0)),
@@ -175,9 +255,9 @@ export const loadAnalytics = cache(
       concentration: computeConcentration(holdings, cash.balance),
       movers: topMovers(holdings),
       today: todayMovers(holdings),
-      contribution: computeContribution(holdings, trades),
-      tradeStats: computeTradeStatistics(domainTransactions, trades),
-      fees: computeFees(domainTransactions),
+      contribution: computeContribution(holdings, baseTrades),
+      tradeStats: computeTradeStatistics(baseTransactions, baseTrades),
+      fees: computeFees(baseTransactions),
       dividends: {
         summary: dividendSummary,
         byPeriod: groupDividends(domainDividends, grouping),
@@ -188,9 +268,9 @@ export const loadAnalytics = cache(
           summary.investedValue,
         ),
       },
-      capital: investedCapitalSeries(domainTransactions),
+      capital: investedCapitalSeries(baseTransactions),
       performance: performanceSeries(
-        snapshots.map((s) => ({
+        ownSnapshots.map((s) => ({
           date: s.snapshot_date.slice(0, 10),
           totalValue: s.total_value,
           investedValue: s.invested_value,
@@ -205,6 +285,17 @@ export const loadAnalytics = cache(
     }
   },
 )
+
+/** The portfolio row itself, for its base currency. RLS scopes it; a missing row falls back to USD. */
+async function readPortfolio(portfolioId: string): Promise<{ currency: string } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("portfolios")
+    .select("currency")
+    .eq("id", portfolioId)
+    .maybeSingle()
+  return data ?? null
+}
 
 async function listSnapshots(portfolioId: string): Promise<PortfolioSnapshotRow[]> {
   const supabase = await createClient()
@@ -233,6 +324,9 @@ async function listSnapshots(portfolioId: string): Promise<PortfolioSnapshotRow[
  * who may not open the app that week. Why not on-transaction: a portfolio's value changes with the
  * market, not with the user's typing, so it would miss every day nobody traded.
  *
+ * Each row records the base currency it was taken in, and the chart reads only the rows matching the
+ * portfolio's current one — see the filter in `loadAnalytics`.
+ *
  * Write-on-read costs nothing extra — the quotes were fetched to render the page anyway — and
  * captures a day precisely when the user cared about it. The unique constraint on
  * (portfolio_id, snapshot_date) makes a reload refresh today's row rather than duplicate it.
@@ -250,6 +344,10 @@ export async function recordSnapshot(
   if (bundle.transactionCount === 0) return
   // Never snapshot a value derived from fallback prices — it would bake a wrong day into history.
   if (bundle.marketDataError || bundle.summary.staleCount > 0) return
+  // Nor one that is missing holdings for want of an exchange rate. A snapshot is the only figure
+  // Stockly cannot recompute later, so a total that silently excluded a position would become a
+  // permanent dip in the performance chart with nothing left to explain it.
+  if (bundle.summary.untranslatedCount > 0) return
 
   const supabase = await createClient()
   const { error } = await supabase.from("portfolio_snapshots").upsert(
@@ -257,6 +355,8 @@ export async function recordSnapshot(
       portfolio_id: portfolioId,
       user_id: userId,
       snapshot_date: new Date().toISOString().slice(0, 10),
+      // Stamped, so the chart can tell a dollar row from a baht one rather than plotting both.
+      currency: bundle.baseCurrency,
       total_value: bundle.totalValue,
       invested_value: bundle.summary.investedValue,
       cash_value: Math.max(bundle.cash.balance, 0),

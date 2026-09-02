@@ -284,9 +284,10 @@ header, a range-switching price chart, overview metrics, company profile and you
 `watchlist_items` with CRUD; today's P&L across the dashboard and portfolio; and cost-basis fallback
 with a stale banner when the provider is unavailable.
 
-Symbols are normalised through `lib/symbol.ts` and keyed by `market:symbol`, so adding SET later does
-not collide with a US ticker of the same name. `market` and `currency` are on every relevant row, but
-no FX conversion is performed — a portfolio reports in its own currency only.
+Symbols are normalised and keyed by `market:symbol`, so a SET listing never collides with a US ticker
+of the same name — the identity `lib/symbol.ts` established in phase 2 and phase 9 relies on
+throughout. `market` and `currency` were put on every relevant row here; phase 9 is what finally
+reads them (§18).
 
 ## 14. What phase 3 added
 
@@ -392,10 +393,49 @@ schedule.
 The whole feature is behind `AI_ENABLED`, default off. With it off, nothing else changes, and the
 production build succeeds either way.
 
-## 18. What is deliberately not here yet
+## 18. Multi-market and multi-currency (phase 9)
 
-FX conversion, FIFO cost basis, time- and money-weighted return, benchmark comparison, SET listings,
-a market-wide screener universe, price prediction of any kind, email and LINE notification channels,
-offline mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI
-answer cache, and any autonomous action taken on a user's behalf. Each has a clear insertion
-point above; none is built until the phase that needs it.
+Full detail in [`MULTI-MARKET.md`](MULTI-MARKET.md). The four decisions that shape everything else:
+
+1. **A market is a row in a registry, never an `if` in a call site.** `domain/market.ts` carries each
+   market's currency, timezone, exchanges, sessions, holidays and symbol grammar. Adding Tokyo is a
+   row here plus one in an adapter's `PROVIDER_MARKET` table; no domain function changes.
+2. **Currency is derived from the market**, not stored beside it — `market = 'US', currency = 'THB'`
+   must not be representable. Cash and dividends are the deliberate exceptions, because a portfolio
+   really can hold two balances and a listing really can pay in another currency.
+3. **Native figures are exact; base-currency figures are a translation.** `Holding.marketValue` is in
+   the instrument's currency and is never null; `Holding.baseMarketValue` is in the portfolio's and
+   **is** null when no rate exists. `returnPct` is a ratio of two same-currency figures, so no rate
+   can move it — stock performance is never contaminated by a currency's.
+4. **Missing FX is `null`, never 0 and never 1.** A total that had to exclude a holding reports
+   `untranslatedCount`, and the page says so. `fxEffect` is typed `null` because separating currency
+   movement from stock performance needs the rate on every past trade date, and Stockly stores none.
+
+The pieces:
+
+- `services/market-data/index.ts` routes by market — `getQuotesFor` makes **one batched call per
+  market**, and a market whose provider fails is named in `failed` while the others still return.
+  Everything per-instrument (quotes, snapshots, alert readings, position weights) is keyed by
+  `symbolKey` (`"SET:PTT"`), because a bare symbol is unique only inside one market.
+- `services/fx/` mirrors it: an interface, a mock, a Twelve Data adapter on `/exchange_rate`, and one
+  place that chooses. Every method resolves — a provider outage degrades a figure to "N/A", never a
+  page to an error. `loadFxTable` costs **one request per currency pair per ten minutes** for the
+  whole deployment; a single-currency portfolio costs none.
+- `domain/calendar.ts` answers "is this market open?" in the market's own timezone via `Intl`, and
+  answers `"unknown"` past its verified holiday horizon rather than guessing "open". The provider's
+  reported status always wins over it.
+- **Technical analysis stays native.** An RSI is a shape in a price history; converting the series
+  first would fold the exchange rate into the indicator. Snapshots are shared reference data, so they
+  could not be per-portfolio-currency even if that were desirable.
+
+The migration adds **no columns** — every one already existed, defaulted to `'US'`/`'USD'`. What it
+adds are the `check` constraints that were previously only enforced in TypeScript.
+
+## 19. What is deliberately not here yet
+
+Historical FX rates and therefore FX attribution, triangulated exchange rates, more than one currency
+per market, FIFO cost basis, time- and money-weighted return, benchmark comparison, a market-wide
+screener universe, price prediction of any kind, email and LINE notification channels, offline
+mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI answer cache,
+and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
+built until the phase that needs it.

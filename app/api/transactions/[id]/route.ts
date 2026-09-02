@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
     const { data: current, error: readError } = await supabase
       .from("transactions")
-      .select("id, portfolio_id, created_at")
+      .select("id, portfolio_id, market, created_at")
       .eq("id", id)
       .maybeSingle()
 
@@ -30,6 +30,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       )
       const check = canSell(others, {
         symbol: body.symbol,
+        market: body.market,
         side: "sell",
         tradeDate: body.tradeDate,
         quantity: body.quantity,
@@ -49,6 +50,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .from("transactions")
       .update({
         symbol: body.symbol,
+        market: body.market,
         side: body.side,
         trade_date: body.tradeDate,
         quantity: body.quantity,

@@ -14,7 +14,9 @@ import { AllocationTable } from "@/features/analytics/components/allocation-tabl
 import { ExportMenu } from "@/features/analytics/components/export-menu"
 import { loadAnalytics, recordSnapshot } from "@/features/analytics/portfolio-analytics"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
-import { formatCurrency, formatOptional, formatPercent } from "@/lib/format"
+import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
+import { baseCurrencyOf } from "@/domain/market"
+import { formatCurrency, formatCurrencyWithCode, formatOptional, formatPercent } from "@/lib/format"
 import { getUser } from "@/lib/supabase/server"
 import { NoPortfolio } from "../_no-portfolio"
 
@@ -35,7 +37,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
   const range: TimeRange = toTimeRange(rangeParam)
   const bundle = await loadAnalytics(active.id)
-  const currency = active.currency
+  const currency = baseCurrencyOf(active.currency)
 
   // Write-on-read: the quotes were fetched to render this page, so capturing today's value costs
   // nothing extra. See recordSnapshot for why this beats a cron on a free-tier provider.
@@ -115,11 +117,13 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         </Alert>
       )}
 
+      <CurrencyNotice summary={summary} missingFxPairs={bundle.missingFxPairs} />
+
       {/* 1. The headline numbers. */}
       <StatGrid>
         <StatCard
           label="Portfolio value"
-          value={formatCurrency(totalValue, currency)}
+          value={formatCurrencyWithCode(totalValue, currency)}
           emphasis
           hint={
             <span className="text-muted-foreground">
@@ -234,29 +238,33 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         </Section>
         <Section
           title="Currency exposure"
-          description="Reported as held. Stockly does not convert between currencies."
+          description={`Held value by currency, translated into ${currency} at today's rate.`}
         >
-          <AllocationTable slices={currencies} currency={currency} label="Currency" />
+          {summary.exposures.length > 1 ? (
+            <CurrencyExposure summary={summary} />
+          ) : (
+            <AllocationTable slices={currencies} currency={currency} label="Currency" />
+          )}
         </Section>
       </div>
 
       {/* 4. Winners and losers. */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Top gainers" description="By return since purchase.">
-          <MoverList movers={movers.gainers} currency={currency} tone="gain" />
+          <MoverList movers={movers.gainers} tone="gain" />
         </Section>
         <Section title="Top losers" description="By return since purchase.">
-          <MoverList movers={movers.losers} currency={currency} tone="loss" />
+          <MoverList movers={movers.losers} tone="loss" />
         </Section>
       </div>
 
       {today && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Section title="Today's gainers">
-            <MoverList movers={today.gainers} currency={currency} tone="gain" />
+            <MoverList movers={today.gainers} tone="gain" />
           </Section>
           <Section title="Today's losers">
-            <MoverList movers={today.losers} currency={currency} tone="loss" />
+            <MoverList movers={today.losers} tone="loss" />
           </Section>
         </div>
       )}
@@ -413,17 +421,22 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         {summary.staleCount > 0 &&
           ` ${summary.staleCount} holding${summary.staleCount === 1 ? " has" : "s have"} no live price and ${summary.staleCount === 1 ? "is" : "are"} valued at cost.`}
       </p>
+
+      <TranslationNote summary={summary} />
     </div>
   )
 }
 
 function MoverList({
   movers,
-  currency,
   tone,
 }: {
-  movers: Array<{ symbol: string; pnl: number; returnPct: number }>
-  currency: string
+  /**
+   * Each mover carries the currency its P&L is in — the instrument's own, not the portfolio's.
+   * Ranking is by percentage return, which is currency-neutral, so nothing here needs a rate and
+   * the amount beside each row is the real amount in the currency it was made in.
+   */
+  movers: Array<{ symbol: string; market: string; currency: string; pnl: number; returnPct: number }>
   tone: "gain" | "loss"
 }) {
   if (movers.length === 0) {
@@ -452,7 +465,7 @@ function MoverList({
           </Link>
           {/* Sign and percentage, so meaning never rests on colour alone. */}
           <span className="text-right">
-            <Delta value={mover.pnl} currency={currency} />
+            <Delta value={mover.pnl} currency={mover.currency} />
             <span className="block">
               <Percent value={mover.returnPct} className="text-xs" />
             </span>

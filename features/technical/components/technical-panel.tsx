@@ -19,10 +19,18 @@ type Response = {
  * Loaded client-side, after the page has rendered: computing indicators may need a fresh OHLCV
  * request, and the price header and holdings should not wait on it.
  */
-export function TechnicalPanel({ symbol, currency }: { symbol: string; currency?: string }) {
+export function TechnicalPanel({
+  symbol,
+  currency,
+  market = "US",
+}: {
+  symbol: string
+  currency?: string
+  market?: string
+}) {
   const { data, isPending, isError } = useQuery({
-    queryKey: ["technical", symbol],
-    queryFn: () => apiFetch<Response>(`/api/stocks/${symbol}/technical`),
+    queryKey: ["technical", market, symbol],
+    queryFn: () => apiFetch<Response>(`/api/stocks/${symbol}/technical?market=${market}`),
     staleTime: 15 * 60_000,
     refetchOnWindowFocus: false,
     retry: false,

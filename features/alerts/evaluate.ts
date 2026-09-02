@@ -5,7 +5,7 @@ import {
   evaluateAlert,
   messageFor,
   readingFor,
-  symbolsToFetch,
+  instrumentsToFetch,
   TECHNICAL_ALERT_TYPES,
   type AlertRule,
   type PortfolioReading,
@@ -14,9 +14,14 @@ import {
 } from "@/domain/alerts"
 import { readSnapshots, toTechnicalReading } from "@/features/technical/snapshots"
 import { buildPortfolio } from "@/domain/holdings"
+import { symbolKey, toMarket } from "@/domain/market"
+import { dedupeInstruments } from "@/features/portfolios/portfolio-view"
 import { toDomain } from "@/features/transactions/queries"
 import { createNotificationService } from "@/services/notifications"
-import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
+import { getMarketStatuses, getQuotesFor, type MarketStatus, type Quote } from "@/services/market-data"
+import { loadFxTable } from "@/services/fx"
+import { converterTo } from "@/domain/fx"
+import { baseCurrencyOf, currencyOf, MARKETS, type MarketId } from "@/domain/market"
 import type { AlertRow, Database, NotificationCategory } from "@/types/database"
 
 /**
@@ -63,6 +68,7 @@ function toRule(row: AlertRow): AlertRule {
     id: row.id,
     type: row.type,
     symbol: row.symbol,
+    market: toMarket(row.market),
     targetValue: Number(row.target_value),
     enabled: row.enabled,
     state: row.state,
@@ -110,40 +116,50 @@ export async function evaluateAllAlerts(
     return summary
   }
 
-  const provider = getMarketDataProvider()
+  // ---- one batched quote call per market, for the union of every alert's instrument
+  //
+  // Quotes are keyed by `symbolKey`, and so is every lookup against them: a price alert on a SET
+  // listing must never be answered by a US quote that happens to share three letters.
+  const instruments = instrumentsToFetch(alerts)
+  const quotes = new Map<string, QuoteReading>()
+  let statuses: Record<MarketId, MarketStatus> = Object.fromEntries(
+    MARKETS.map((m) => [m, "unknown" as MarketStatus]),
+  ) as Record<MarketId, MarketStatus>
 
-  // ---- one batched quote call for the union of every alert's symbol
-  const symbols = symbolsToFetch(alerts)
-  let quotes = new Map<string, QuoteReading>()
-  let marketOpen: boolean | null = null
-
-  try {
-    const [quoteMap, status] = await Promise.all([
-      symbols.length > 0 ? provider.getQuotes(symbols) : Promise.resolve(new Map()),
-      provider.getMarketStatus(),
-    ])
-    quotes = new Map(
-      [...quoteMap.values()].map((quote) => [
-        quote.symbol,
-        {
-          symbol: quote.symbol,
-          price: quote.price,
-          previousClose: quote.previousClose,
-          asOf: quote.asOf,
-        },
-      ]),
-    )
-    marketOpen = status === "unknown" ? null : status === "open"
-    summary.symbolsFetched = quotes.size
-  } catch (error) {
-    // A provider outage means no evaluation this run — never an alert fired from nothing.
-    summary.marketDataError = isMarketDataError(error)
-      ? error.message
-      : "Unable to load market data."
-    console.error("[alerts] market data failed", error)
-    summary.durationMs = Date.now() - startedAt
-    return summary
+  const addQuotes = (found: Map<string, Quote>) => {
+    for (const [key, quote] of found) {
+      quotes.set(key, {
+        symbol: quote.symbol,
+        price: quote.price,
+        previousClose: quote.previousClose,
+        asOf: quote.asOf,
+      })
+    }
   }
+
+  {
+    const [priced, marketStatuses] = await Promise.all([
+      instruments.length > 0
+        ? getQuotesFor(instruments)
+        : Promise.resolve({ quotes: new Map<string, Quote>(), failed: [], error: null }),
+      getMarketStatuses(),
+    ])
+    // A provider outage means no evaluation for that market — never an alert fired from nothing —
+    // but one market being down must not stop the others being evaluated.
+    if (priced.error && priced.quotes.size === 0 && instruments.length > 0) {
+      summary.marketDataError = priced.error.message
+      console.error("[alerts] market data failed", priced.error.code)
+      summary.durationMs = Date.now() - startedAt
+      return summary
+    }
+    if (priced.error) summary.marketDataError = priced.error.message
+    addQuotes(priced.quotes)
+    statuses = marketStatuses
+    summary.symbolsFetched = quotes.size
+  }
+
+  const marketOpenFor = (market: MarketId): boolean | null =>
+    statuses[market] === "unknown" ? null : statuses[market] === "open"
 
   // ---- portfolios, loaded once each, priced from the quotes already fetched
   const portfolioIds = [
@@ -161,25 +177,35 @@ export async function evaluateAllAlerts(
       .select("*")
       .in("portfolio_id", portfolioIds)
 
-    const extraSymbols = [
-      ...new Set((transactions ?? []).map((t) => t.symbol).filter((s) => !quotes.has(s))),
-    ]
-    if (extraSymbols.length > 0) {
-      try {
-        const extra = await provider.getQuotes(extraSymbols)
-        for (const quote of extra.values()) {
-          quotes.set(quote.symbol, {
-            symbol: quote.symbol,
-            price: quote.price,
-            previousClose: quote.previousClose,
-            asOf: quote.asOf,
-          })
-        }
-        summary.symbolsFetched = quotes.size
-      } catch (error) {
-        console.error("[alerts] holdings quotes failed", error)
-      }
+    const extra = dedupeInstruments(transactions ?? []).filter(
+      (i) => !quotes.has(symbolKey(i.symbol, i.market)),
+    )
+    if (extra.length > 0) {
+      const priced = await getQuotesFor(extra)
+      addQuotes(priced.quotes)
+      summary.symbolsFetched = quotes.size
     }
+
+    // Each portfolio is valued in its own base currency, so a "total return" alert on a baht
+    // portfolio compares baht against baht. Rates are fetched once for the union of currencies.
+    const { data: portfolioRows } = await supabase
+      .from("portfolios")
+      .select("id, currency")
+      .in("id", portfolioIds)
+    const baseCurrencies = new Map(
+      (portfolioRows ?? []).map((row) => [row.id, baseCurrencyOf(row.currency)]),
+    )
+    const fxTables = new Map(
+      await Promise.all(
+        [...new Set(baseCurrencies.values())].map(
+          async (base) =>
+            [
+              base,
+              await loadFxTable(base, MARKETS.map((m) => currencyOf(m))),
+            ] as const,
+        ),
+      ),
+    )
 
     for (const portfolioId of portfolioIds) {
       const owned = (transactions ?? [])
@@ -187,12 +213,22 @@ export async function evaluateAllAlerts(
         .map((t) => ({ ...t, quantity: Number(t.quantity), price: Number(t.price), fee: Number(t.fee) }))
       if (owned.length === 0) continue
 
-      const { holdings, summary: portfolioSummary } = buildPortfolio(toDomain(owned), (symbol) => {
-        const quote = quotes.get(symbol)
-        return quote
-          ? { price: quote.price, previousClose: quote.previousClose ?? undefined }
-          : undefined
-      })
+      const baseCurrency = baseCurrencies.get(portfolioId) ?? "USD"
+      const fx = fxTables.get(baseCurrency)
+
+      const { holdings, summary: portfolioSummary } = buildPortfolio(
+        toDomain(owned),
+        (symbol, market) => {
+          const quote = quotes.get(symbolKey(symbol, market))
+          return quote
+            ? { price: quote.price, previousClose: quote.previousClose ?? undefined }
+            : undefined
+        },
+        {
+          baseCurrency,
+          convert: fx ? converterTo(baseCurrency, fx, now) : undefined,
+        },
+      )
 
       // The freshest quote in the portfolio decides how old this reading is.
       const asOf = holdings.length
@@ -206,7 +242,14 @@ export async function evaluateAllAlerts(
       portfolios.set(portfolioId, {
         dailyChangePct: portfolioSummary.todayReturnPct,
         totalReturnPct: portfolioSummary.returnPct,
-        weights: Object.fromEntries(holdings.map((h) => [h.symbol, h.weight])),
+        // Keyed per instrument, and only for holdings that could be expressed in the portfolio's
+        // base currency: a weight nobody can compute is absent, never 0, so a "weight below"
+        // alert cannot fire on a position whose share is simply unknown.
+        weights: Object.fromEntries(
+          holdings
+            .filter((h) => h.weight !== null)
+            .map((h) => [symbolKey(h.symbol, h.market), h.weight as number]),
+        ),
         asOf,
       })
       summary.portfoliosPriced += 1
@@ -217,17 +260,21 @@ export async function evaluateAllAlerts(
   //
   // Read, never computed here: an OHLCV history per symbol is one request each with no batching,
   // which would blow the provider's minute budget on the first handful of alerts.
-  const technicalSymbols = [
-    ...new Set(
+  const technicalInstruments = [
+    ...new Map(
       (rows ?? [])
         .filter((row) => row.symbol && TECHNICAL_ALERT_TYPES.includes(row.type))
-        .map((row) => row.symbol as string),
-    ),
+        .map((row) => {
+          const market = toMarket(row.market)
+          return [symbolKey(row.symbol as string, market), { symbol: row.symbol as string, market }]
+        }),
+    ).values(),
   ]
   const technicals = new Map<string, TechnicalReading>()
-  if (technicalSymbols.length > 0) {
-    const stored = await readSnapshots(technicalSymbols, supabase)
-    for (const [symbol, entry] of stored) technicals.set(symbol, toTechnicalReading(entry))
+  if (technicalInstruments.length > 0) {
+    const stored = await readSnapshots(technicalInstruments, supabase)
+    // Already keyed by `symbolKey`, which is exactly what `readingFor` looks up.
+    for (const [key, entry] of stored) technicals.set(key, toTechnicalReading(entry))
     summary.technicalSnapshotsRead = stored.size
   }
 
@@ -239,7 +286,8 @@ export async function evaluateAllAlerts(
     const rule = toRule(row)
     const portfolio = row.portfolio_id ? (portfolios.get(row.portfolio_id) ?? null) : null
     const reading = readingFor(rule, quotes, portfolio, technicals)
-    const outcome = evaluateAlert(rule, reading, { now, marketOpen })
+    // The session guard is per market: New York being shut says nothing about Bangkok.
+    const outcome = evaluateAlert(rule, reading, { now, marketOpen: marketOpenFor(rule.market) })
 
     if (outcome.action === "skip") {
       if (outcome.reason === "stale-reading") summary.skippedStale += 1

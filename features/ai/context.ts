@@ -30,8 +30,8 @@ import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
 import { readAllSnapshots, readSnapshots, type StoredSnapshot } from "@/features/technical/snapshots"
 import { DEFAULT_UNIVERSE } from "@/features/technical/universe"
 import { listWatchlist } from "@/features/watchlist/queries"
-import { normalizeSymbol } from "@/lib/symbol"
-import { getMarketDataProvider, isMarketDataError, type Quote } from "@/services/market-data"
+import { currencyOf, normalizeSymbol, symbolKey, toMarket, type MarketId } from "@/domain/market"
+import { getMarketDataProvider, getQuotesFor } from "@/services/market-data"
 import type { Database, SavedScreenRow } from "@/types/database"
 import type {
   GroundedData,
@@ -112,56 +112,76 @@ export async function resolveKnownSymbols(
 
 // ---------------------------------------------------------------- per-stock retrieval
 
+/**
+ * Which venue a symbol the user typed refers to.
+ *
+ * A question is plain language — "how is PTT doing?" — and a bare ticker does not identify an
+ * instrument once more than one exchange exists. Rather than guess, the market is resolved from the
+ * data the user already has a relationship with: what they hold, then what they watch. Only when
+ * neither knows the symbol does it fall back to US, which is what every pre-phase-9 row was.
+ *
+ * Grounding the resolution in the user's own rows is the same principle as the rest of the AI
+ * layer: retrieval is deterministic, and it never invents a fact the app does not already hold.
+ */
+function resolveInstruments(
+  symbols: readonly string[],
+  known: readonly { symbol: string; market: MarketId }[],
+): { symbol: string; market: MarketId }[] {
+  const bySymbol = new Map<string, MarketId>()
+  for (const entry of known) {
+    if (!bySymbol.has(entry.symbol)) bySymbol.set(entry.symbol, entry.market)
+  }
+  return symbols.map((symbol) => ({ symbol, market: bySymbol.get(symbol) ?? "US" }))
+}
+
 /** On-demand indicator computes per request. Each is an OHLCV call, and the free tier allows 8/min. */
 const MAX_ON_DEMAND_COMPUTES = 2
 
 async function loadStockFacts(
   supabase: SupabaseClient<Database>,
-  symbols: readonly string[],
+  instruments: readonly { symbol: string; market: MarketId }[],
   options: { portfolioId?: string; withHistory: boolean },
 ): Promise<{ stocks: StockFacts[]; marketDataError: string | null }> {
-  if (symbols.length === 0) return { stocks: [], marketDataError: null }
+  if (instruments.length === 0) return { stocks: [], marketDataError: null }
 
-  const provider = getMarketDataProvider()
-  let marketDataError: string | null = null
-
-  const [stored, watchlist, quotes] = await Promise.all([
-    readSnapshots(symbols, supabase),
+  const [stored, watchlist, priced] = await Promise.all([
+    readSnapshots(instruments, supabase),
     listWatchlist().catch(() => []),
-    provider.getQuotes(symbols).catch((error: unknown) => {
-      marketDataError = isMarketDataError(error)
-        ? error.message
-        : "Unable to load market data. Please try again later."
-      return new Map<string, Quote>()
-    }),
+    getQuotesFor(instruments),
   ])
+  const quotes = priced.quotes
+  const marketDataError: string | null = priced.error?.message ?? null
 
   // The caller's own position, from the portfolio engine — never recomputed here.
   const positions = options.portfolioId
     ? (await loadPortfolioView(options.portfolioId)).holdings
     : []
 
-  const watched = new Set(watchlist.map((item) => normalizeSymbol(item.symbol)))
+  const watched = new Set(
+    watchlist.map((item) => symbolKey(normalizeSymbol(item.symbol), toMarket(item.market))),
+  )
 
   // Anything without a usable cached snapshot is computed now, within a hard budget. A user asking
   // about one stock is worth one OHLCV request; a user asking about five is not worth five.
-  const missing = symbols.filter((s) => {
-    const entry = stored.get(s)
+  const missing = instruments.filter((i) => {
+    const entry = stored.get(symbolKey(i.symbol, i.market))
     return !entry || entry.stale
   })
   const computed = new Map<string, { snapshot: TechnicalSnapshot; calculatedAt: string }>()
   const historyBySymbol = new Map<string, HistorySummary | null>()
 
-  for (const symbol of missing.slice(0, MAX_ON_DEMAND_COMPUTES)) {
+  for (const { symbol, market } of missing.slice(0, MAX_ON_DEMAND_COMPUTES)) {
+    const key = symbolKey(symbol, market)
     try {
-      const candles = await provider.getHistoricalPrices(symbol, "1Y")
+      // Indicators come from the instrument's native price series — see docs/MULTI-MARKET.md.
+      const candles = await getMarketDataProvider(market).getHistoricalPrices(symbol, "1Y", market)
       if (candles.length >= 50) {
-        computed.set(symbol, {
+        computed.set(key, {
           snapshot: analyze(symbol, candles),
           calculatedAt: new Date().toISOString(),
         })
       }
-      if (options.withHistory) historyBySymbol.set(symbol, summarizeHistory(candles))
+      if (options.withHistory) historyBySymbol.set(key, summarizeHistory(candles))
     } catch (error) {
       // A stale snapshot, clearly labelled, beats no answer. The failure is logged, not surfaced
       // as a provider message.
@@ -169,19 +189,22 @@ async function loadStockFacts(
     }
   }
 
-  const stocks: StockFacts[] = symbols.map((symbol) => {
-    const fresh = computed.get(symbol)
-    const cached: StoredSnapshot | undefined = stored.get(symbol)
+  const stocks: StockFacts[] = instruments.map(({ symbol, market }) => {
+    const key = symbolKey(symbol, market)
+    const fresh = computed.get(key)
+    const cached: StoredSnapshot | undefined = stored.get(key)
     const snapshot = fresh?.snapshot ?? cached?.snapshot ?? null
     const calculatedAt = fresh?.calculatedAt ?? cached?.calculatedAt ?? null
     const delayed = fresh ? false : (cached?.stale ?? true)
-    const quote = quotes.get(symbol)
-    const position = positions.find((h) => h.symbol === symbol)
+    const quote = quotes.get(key)
+    const position = positions.find((h) => h.symbol === symbol && h.market === market)
 
     return {
       symbol,
+      market,
       name: quote?.name ?? null,
-      currency: quote?.currency ?? "USD",
+      // The market's currency, not the provider's: it is what every figure below was computed in.
+      currency: currencyOf(market),
       price: quote?.price ?? snapshot?.price ?? null,
       previousClose: quote?.previousClose ?? null,
       changePct: quote?.changePct ?? null,
@@ -208,7 +231,7 @@ async function loadStockFacts(
       candleCount: snapshot?.candleCount ?? 0,
       indicatorsAsOf: calculatedAt,
       indicatorsDelayed: snapshot === null ? true : delayed,
-      history: historyBySymbol.get(symbol) ?? null,
+      history: historyBySymbol.get(key) ?? null,
       position: position
         ? {
             quantity: position.quantity,
@@ -219,7 +242,7 @@ async function loadStockFacts(
             weightPct: position.weight,
           }
         : null,
-      watched: watched.has(symbol),
+      watched: watched.has(key),
     }
   })
 
@@ -270,8 +293,19 @@ export async function buildContext(input: BuildContextInput): Promise<AIContext>
     marketDataError: null,
   }
 
-  if (plan.stocks && input.symbols.length > 0) {
-    const { stocks, marketDataError } = await loadStockFacts(input.supabase, input.symbols, {
+  // Resolve each symbol to a venue from the user's own holdings and watchlist before retrieving —
+  // a bare ticker is ambiguous, and retrieval must be deterministic.
+  const known = [
+    ...(input.portfolioId ? (await loadPortfolioView(input.portfolioId)).holdings : []),
+    ...(await listWatchlist().catch(() => [])).map((item) => ({
+      symbol: normalizeSymbol(item.symbol),
+      market: toMarket(item.market),
+    })),
+  ]
+  const instruments = resolveInstruments(input.symbols, known)
+
+  if (plan.stocks && instruments.length > 0) {
+    const { stocks, marketDataError } = await loadStockFacts(input.supabase, instruments, {
       portfolioId: input.portfolioId,
       withHistory: plan.history,
     })
@@ -290,8 +324,8 @@ export async function buildContext(input: BuildContextInput): Promise<AIContext>
 
   if (plan.watchlist) grounded.watchlist = await loadWatchlistFacts(input.supabase)
   if (plan.market) grounded.market = await loadMarketFacts(input.supabase)
-  if (plan.screen && input.symbols.length > 0) {
-    grounded.screen = await explainScreen(input.supabase, input.symbols[0], input.savedScreens ?? [])
+  if (plan.screen && instruments.length > 0) {
+    grounded.screen = await explainScreen(input.supabase, instruments[0], input.savedScreens ?? [])
   }
 
   const sections: string[] = []
@@ -383,9 +417,12 @@ async function loadPortfolioFacts(
   const bundle = await loadAnalytics(portfolioId)
   if (bundle.transactionCount === 0) return null
 
-  const symbols = bundle.holdings.map((h) => h.symbol)
-  const snapshots = await readSnapshots(symbols, supabase)
-  const sorted = [...bundle.holdings].sort((a, b) => b.weight - a.weight)
+  const snapshots = await readSnapshots(
+    bundle.holdings.map((h) => ({ symbol: h.symbol, market: h.market })),
+    supabase,
+  )
+  // A holding with no FX rate has no knowable weight; it sorts last rather than as 0%.
+  const sorted = [...bundle.holdings].sort((a, b) => (b.weight ?? -1) - (a.weight ?? -1))
 
   return {
     name,
@@ -419,11 +456,14 @@ async function loadWatchlistFacts(
   const items = await listWatchlist().catch(() => [])
   if (items.length === 0) return { count: 0, bullish: 0, neutral: 0, bearish: 0, rows: [] }
 
-  const symbols = items.map((i) => normalizeSymbol(i.symbol))
-  const snapshots = await readSnapshots(symbols, supabase)
+  const instruments = items.map((i) => ({
+    symbol: normalizeSymbol(i.symbol),
+    market: toMarket(i.market),
+  }))
+  const snapshots = await readSnapshots(instruments, supabase)
 
-  const rows = symbols.map((symbol) => {
-    const snapshot = snapshots.get(symbol)?.snapshot
+  const rows = instruments.map(({ symbol, market }) => {
+    const snapshot = snapshots.get(symbolKey(symbol, market))?.snapshot
     return {
       symbol,
       trend: snapshot?.trend ?? "unknown",
@@ -474,10 +514,12 @@ async function loadMarketFacts(supabase: SupabaseClient<Database>): Promise<Mark
  */
 async function explainScreen(
   supabase: SupabaseClient<Database>,
-  symbol: string,
+  instrument: { symbol: string; market: MarketId },
   savedScreens: SavedScreenRow[],
 ): Promise<ScreenExplanation | null> {
-  const stored = (await readSnapshots([symbol], supabase)).get(symbol)
+  const stored = (await readSnapshots([instrument], supabase)).get(
+    symbolKey(instrument.symbol, instrument.market),
+  )
   if (!stored) return null
 
   const saved = savedScreens[0]
@@ -496,7 +538,7 @@ async function explainScreen(
 
   return {
     screenName,
-    symbol,
+    symbol: instrument.symbol,
     passedAll: results.every((r) => r.passed),
     results,
   }

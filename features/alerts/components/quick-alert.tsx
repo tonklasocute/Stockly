@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Bell, BellRing } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { AlertType } from "@/domain/alerts"
+import type { Currency, MarketId } from "@/domain/market"
+import { formatCurrency } from "@/lib/format"
 import type { AlertRow } from "@/types/database"
 import { AlertDialog } from "./alert-dialog"
 
@@ -16,11 +18,16 @@ import { AlertDialog } from "./alert-dialog"
  */
 export function QuickAlert({
   symbol,
+  market,
+  currency,
   price,
   portfolioId,
   existing,
 }: {
   symbol: string
+  market: MarketId
+  /** The instrument's own currency: a price alert's target is in the currency it is quoted in. */
+  currency: Currency
   price: number | null
   portfolioId?: string
   existing: AlertRow[]
@@ -30,12 +37,21 @@ export function QuickAlert({
 
   const suggestions = price
     ? [
-        { label: `Above ${round(price * 1.05)}`, type: "PRICE_ABOVE" as const, target: round(price * 1.05) },
-        { label: `Below ${round(price * 0.95)}`, type: "PRICE_BELOW" as const, target: round(price * 0.95) },
+        {
+          label: `Above ${formatCurrency(round(price * 1.05), currency)}`,
+          type: "PRICE_ABOVE" as const,
+          target: round(price * 1.05),
+        },
+        {
+          label: `Below ${formatCurrency(round(price * 0.95), currency)}`,
+          type: "PRICE_BELOW" as const,
+          target: round(price * 0.95),
+        },
       ]
     : []
 
-  const mine = existing.filter((a) => a.symbol === symbol)
+  // Scoped to this venue: an alert on a SET ticker is not an alert on a US one that spells the same.
+  const mine = existing.filter((a) => a.symbol === symbol && a.market === market)
 
   function open_(type?: AlertType, target?: number) {
     setPreset(type && target !== undefined ? { type, target } : undefined)
@@ -50,10 +66,7 @@ export function QuickAlert({
             <li key={alert.id} className="flex items-center gap-2">
               <BellRing className="size-3.5 shrink-0" aria-hidden />
               {alert.type === "PRICE_ABOVE" ? "Above" : alert.type === "PRICE_BELOW" ? "Below" : "Alert at"}{" "}
-              {Number(alert.target_value).toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })}
+              {formatCurrency(Number(alert.target_value), currency)}
               <span className="text-xs">· {alert.enabled ? "active" : "disabled"}</span>
             </li>
           ))}
@@ -82,6 +95,7 @@ export function QuickAlert({
         onOpenChange={setOpen}
         portfolioId={portfolioId}
         defaultSymbol={symbol}
+        defaultMarket={market}
         defaultType={preset?.type}
         defaultTarget={preset?.target}
       />

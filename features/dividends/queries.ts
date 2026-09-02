@@ -1,5 +1,6 @@
 import "server-only"
 
+import { baseCurrencyOf } from "@/domain/market"
 import type { DomainDividend } from "@/domain/dividends"
 import { pageRange, toPageResult, type Page, PAGE_SIZE } from "@/lib/pagination"
 import { createClient } from "@/lib/supabase/server"
@@ -29,6 +30,7 @@ export async function listDividends(portfolioId: string): Promise<DividendRow[]>
 export function toDomainDividends(rows: readonly DividendRow[]): DomainDividend[] {
   return rows.map((row) => ({
     symbol: row.symbol,
+    currency: baseCurrencyOf(row.currency),
     paidOn: row.payment_date.slice(0, 10),
     shares: row.shares,
     dividendPerShare: row.dividend_per_share,

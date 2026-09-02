@@ -1,12 +1,12 @@
 import { z } from "zod"
-import { MARKETS, normalizeSymbol } from "@/lib/symbol"
+import { MARKETS, normalizeSymbol } from "@/domain/market"
 
 export const watchlistInputSchema = z.object({
   symbol: z
     .string()
     .transform(normalizeSymbol)
     .refine((s) => s.length > 0, "Symbol is required."),
-  market: z.enum(MARKETS as unknown as [string, ...string[]]).default("US"),
+  market: z.enum(MARKETS).default("US"),
   name: z.string().trim().max(120).optional(),
   exchange: z.string().trim().max(40).optional(),
   targetPrice: z.coerce

@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { analyze, type TechnicalSnapshot } from "@/domain/technical"
 import type { TechnicalReading } from "@/domain/alerts"
+import { symbolKey, toMarket, type MarketId } from "@/domain/market"
 import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
 import { createClient } from "@/lib/supabase/server"
 import type { Database, TechnicalSnapshotRow } from "@/types/database"
@@ -23,7 +24,13 @@ import { resolveUniverse } from "./universe"
 /** Beyond this, a snapshot is shown as stale rather than presented as current. */
 export const SNAPSHOT_STALE_MINUTES = 90
 
-export type StoredSnapshot = { snapshot: TechnicalSnapshot; calculatedAt: string; stale: boolean }
+export type StoredSnapshot = {
+  snapshot: TechnicalSnapshot
+  /** The venue the indicators were computed from. Prices in a snapshot are in that market's currency. */
+  market: MarketId
+  calculatedAt: string
+  stale: boolean
+}
 
 function rowToSnapshot(row: TechnicalSnapshotRow): TechnicalSnapshot {
   const n = (v: unknown) => (v === null || v === undefined ? null : Number(v))
@@ -61,10 +68,10 @@ function rowToSnapshot(row: TechnicalSnapshotRow): TechnicalSnapshot {
   }
 }
 
-function snapshotToRow(snapshot: TechnicalSnapshot): TechnicalSnapshotRow {
+function snapshotToRow(snapshot: TechnicalSnapshot, market: MarketId): TechnicalSnapshotRow {
   return {
     symbol: snapshot.symbol,
-    market: "US",
+    market,
     timeframe: "1D",
     source_timestamp: snapshot.asOf ? `${snapshot.asOf.slice(0, 10)}T00:00:00Z` : null,
     calculated_at: new Date().toISOString(),
@@ -105,20 +112,28 @@ function isStale(calculatedAt: string, now = Date.now()): boolean {
   return Number.isNaN(at) || now - at > SNAPSHOT_STALE_MINUTES * 60_000
 }
 
-/** Reads cached snapshots for the given symbols. Missing symbols are simply absent. */
+/**
+ * Reads cached snapshots for the given instruments, keyed by `symbolKey` (`"SET:PTT"`). Missing
+ * instruments are simply absent.
+ *
+ * The query filters on symbols and the results are then matched on market, rather than building a
+ * composite `in` clause: the symbol list is already narrow, and the extra rows a shared spelling
+ * pulls back are a handful at most.
+ */
 export async function readSnapshots(
-  symbols: readonly string[],
+  instruments: readonly { symbol: string; market: MarketId }[],
   client?: SupabaseClient<Database>,
 ): Promise<Map<string, StoredSnapshot>> {
   const out = new Map<string, StoredSnapshot>()
-  if (symbols.length === 0) return out
+  if (instruments.length === 0) return out
 
+  const wanted = new Set(instruments.map((i) => symbolKey(i.symbol, i.market)))
   const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from("technical_snapshots")
     .select("*")
     .eq("timeframe", "1D")
-    .in("symbol", [...symbols])
+    .in("symbol", [...new Set(instruments.map((i) => i.symbol))])
 
   if (error) {
     console.error("[technical] snapshot read failed", error.code)
@@ -126,8 +141,12 @@ export async function readSnapshots(
   }
 
   for (const row of data ?? []) {
-    out.set(row.symbol, {
+    const market = toMarket(row.market)
+    const key = symbolKey(row.symbol, market)
+    if (!wanted.has(key)) continue
+    out.set(key, {
       snapshot: rowToSnapshot(row),
+      market,
       calculatedAt: row.calculated_at,
       stale: isStale(row.calculated_at),
     })
@@ -151,8 +170,10 @@ export async function readAllSnapshots(
     return out
   }
   for (const row of data ?? []) {
-    out.set(row.symbol, {
+    const market = toMarket(row.market)
+    out.set(symbolKey(row.symbol, market), {
       snapshot: rowToSnapshot(row),
+      market,
       calculatedAt: row.calculated_at,
       stale: isStale(row.calculated_at),
     })
@@ -196,23 +217,28 @@ export async function refreshSnapshots(
   // Oldest first, so every symbol is refreshed in turn rather than the same few every run.
   const existing = await readAllSnapshots(supabase)
   const ordered = [...universe].sort((a, b) => {
-    const at = existing.get(a)?.calculatedAt ?? ""
-    const bt = existing.get(b)?.calculatedAt ?? ""
+    const at = existing.get(symbolKey(a.symbol, a.market))?.calculatedAt ?? ""
+    const bt = existing.get(symbolKey(b.symbol, b.market))?.calculatedAt ?? ""
     return at.localeCompare(bt)
   })
 
-  const provider = getMarketDataProvider()
   const rows: TechnicalSnapshotRow[] = []
 
-  for (const symbol of ordered.slice(0, budget)) {
+  for (const { symbol, market } of ordered.slice(0, budget)) {
     try {
+      /**
+       * Indicators are computed from the instrument's **native** price series, never a translated
+       * one. An RSI is a shape in a price history; converting the series into the portfolio's
+       * currency first would fold the exchange rate's movement into the indicator and produce a
+       * number that describes two things at once.
+       */
       // A year of daily candles: enough for a 200 EMA plus the warm-up every other indicator needs.
-      const candles = await provider.getHistoricalPrices(symbol, "1Y")
+      const candles = await getMarketDataProvider(market).getHistoricalPrices(symbol, "1Y", market)
       if (candles.length < 50) {
         summary.skippedNoHistory += 1
         continue
       }
-      rows.push(snapshotToRow(analyze(symbol, candles)))
+      rows.push(snapshotToRow(analyze(symbol, candles), market))
       summary.computed += 1
     } catch (error) {
       summary.failed += 1

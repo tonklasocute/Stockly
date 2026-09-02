@@ -1,6 +1,9 @@
-import type { Market } from "@/lib/symbol"
+import type { AssetType, Currency, MarketId } from "@/domain/market"
 
-export type { Market }
+export type { AssetType, Currency, MarketId }
+
+/** Kept as an alias: `Market` is the name the phase 2–8 call sites use. */
+export type Market = MarketId
 
 export type MarketStatus = "open" | "closed" | "pre" | "post" | "unknown"
 
@@ -46,7 +49,13 @@ export type InstrumentSummary = {
   market: Market
   name: string
   exchange: string | null
+  /**
+   * What the provider says this instrument is quoted in. Kept as a loose string because a provider
+   * may report anything; `currencyOf(market)` is the value the engine trusts, and a disagreement
+   * between the two is a data-quality signal rather than something to silently resolve.
+   */
   currency: string | null
+  assetType?: AssetType
 }
 
 export type CompanyProfile = InstrumentSummary & {
@@ -67,12 +76,18 @@ export type CompanyProfile = InstrumentSummary & {
  */
 export interface MarketDataProvider {
   readonly name: string
+  /**
+   * The markets this adapter can price. The router refuses to send it anything else rather than
+   * letting a US endpoint answer a SET symbol with a plausible-looking wrong price.
+   */
+  readonly markets: readonly Market[]
   /** Null when the provider has no such symbol, rather than a thrown error. */
   getQuote(symbol: string, market?: Market): Promise<Quote | null>
   /** Batched where the provider supports it. Missing symbols are simply absent from the map. */
   getQuotes(symbols: readonly string[], market?: Market): Promise<Map<string, Quote>>
   getHistoricalPrices(symbol: string, range: Range, market?: Market): Promise<Candle[]>
-  searchSymbols(query: string): Promise<InstrumentSummary[]>
+  /** Scoped to one market when given; otherwise every market the adapter covers. */
+  searchSymbols(query: string, market?: Market): Promise<InstrumentSummary[]>
   getCompanyProfile(symbol: string, market?: Market): Promise<CompanyProfile | null>
   getMarketStatus(market?: Market): Promise<MarketStatus>
 }

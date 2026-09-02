@@ -1,3 +1,14 @@
+/**
+ * Money formatting, in one place.
+ *
+ * `currencyDisplay: "narrowSymbol"` is the phase 9 change and it matters: the default renders THB as
+ * "THB 1,234.56" and USD as "$1,234.56", so two currencies on the same screen look like different
+ * kinds of thing. Narrow symbols give "$1,234.56" and "฿1,234.56" — same shape, unmistakably
+ * different unit, which is exactly what a mixed-currency holdings table needs.
+ *
+ * Where a symbol alone could still be misread — a headline portfolio total, an exported CSV — use
+ * `formatCurrencyWithCode`, which appends the ISO code.
+ */
 const CURRENCY_CACHE = new Map<string, Intl.NumberFormat>()
 
 function currencyFormatter(currency: string, maximumFractionDigits: number) {
@@ -7,6 +18,7 @@ function currencyFormatter(currency: string, maximumFractionDigits: number) {
     formatter = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency,
+      currencyDisplay: "narrowSymbol",
       minimumFractionDigits: maximumFractionDigits,
       maximumFractionDigits,
     })
@@ -17,6 +29,43 @@ function currencyFormatter(currency: string, maximumFractionDigits: number) {
 
 export function formatCurrency(value: number, currency = "USD", fractionDigits = 2): string {
   return currencyFormatter(currency, fractionDigits).format(value)
+}
+
+/** "฿825,420.00 THB" — for a headline figure, where the unit must not be inferred from a glyph. */
+export function formatCurrencyWithCode(value: number, currency = "USD", fractionDigits = 2): string {
+  return `${formatCurrency(value, currency, fractionDigits)} ${currency}`
+}
+
+/**
+ * A money figure that may not exist — an unconverted holding, a missing rate. Never a fabricated 0:
+ * "N/A" is a smaller lie than a zero in a column of real amounts.
+ */
+export function formatOptionalCurrency(
+  value: number | null | undefined,
+  currency = "USD",
+  fractionDigits = 2,
+): string {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "N/A"
+    : formatCurrency(value, currency, fractionDigits)
+}
+
+/** Same rule for percentages, which are just as often unknowable. */
+export function formatOptionalPercent(
+  value: number | null | undefined,
+  options?: { signed?: boolean },
+): string {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "N/A"
+    : formatPercent(value, options)
+}
+
+/** "USD/THB 32.4500" — how a rate is written everywhere it is shown. */
+export function formatFxRate(from: string, to: string, rate: number): string {
+  return `${from}/${to} ${new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(rate)}`
 }
 
 /** Same as formatCurrency but always carries an explicit + or −, for P&L figures. */

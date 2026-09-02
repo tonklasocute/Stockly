@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { MARKETS } from "@/domain/market"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -18,6 +19,12 @@ export const transactionInputSchema = z.object({
     .min(1, "Symbol is required.")
     .max(20, "Symbol is too long.")
     .regex(/^[A-Z0-9.\-&]+$/, "Symbols use letters, digits, '.', '-' and '&' only."),
+  /**
+   * The venue, which fixes the currency: `price` and `fee` are always in the market's own currency.
+   * Storing the currency separately would let it disagree with the market, and there would be no
+   * way to tell which of the two was right.
+   */
+  market: z.enum(MARKETS).default("US"),
   side: z.enum(["buy", "sell"], { message: "Choose buy or sell." }),
   tradeDate: z
     .string()
