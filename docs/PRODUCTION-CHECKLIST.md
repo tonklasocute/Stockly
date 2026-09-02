@@ -108,6 +108,9 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 
 - ✅ Per-user, per-minute limits on everything that costs money: AI (6), market data (20–60 by
   endpoint), screener (30), alerts (20), push (10).
+- ✅ **Added in phase 12:** import preview 30/min and apply 10/min. Neither spends an upstream
+  credit, but both parse an untrusted file, so the limit is on CPU and memory rather than money.
+  `/api/data-quality` reads the already-cached analytics pass and adds no upstream call.
 - ✅ Phase 11 adds no simulation endpoint at all: the engine is pure and runs in the browser, so
   there is no server-side calculation to limit. Only persistence is a request.
 - ✅ Phase 10 endpoints cost a database round trip and no upstream credit, so they carry no limit
@@ -136,6 +139,19 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Indexes on every foreign key and on the columns actually filtered and sorted. Two added in
   phase 8, both partial, both matching a real query; phase 9 widened the transactions symbol index
   to `(portfolio_id, market, symbol)`, which is how the engine now groups positions.
+- ✅ **Added in phase 12:** `import_sessions`, `import_rows` and `job_executions`, plus three
+  provenance columns on `transactions`. The user-owned tables carry `user_id`, RLS and four explicit
+  policies; `job_executions` is operational history with a select-only policy for signed-in users
+  and no insert, update or delete policy at all, so only the service-role job can write to it.
+  **The uploaded file is not stored** — no bytes, no path, no URL — and `import_rows` holds only the
+  rows a user may need to act on, as normalized values.
+- ✅ **The idempotency guarantee is a database object, not application code:** a partial unique
+  index on `transactions (user_id, import_fingerprint) where import_fingerprint is not null`.
+  Re-importing the same file cannot create a second transaction even if two applies race; the
+  loser's batch fails `23505` and is retried row by row so genuinely new rows still land.
+- ✅ `transactions_import_session_fkey` is `on delete set null`, so **deleting an import never
+  deletes money** — the transactions stay and lose only their provenance link. A check constraint
+  keeps `import_session_id` and `source_row` present or absent together.
 - ✅ **Added in phase 11:** `saved_simulations`, with `user_id` for RLS, four explicit policies, a
   composite foreign key to `(portfolio_id, user_id)`, a 50-per-user cap the database can answer, and
   a size check on the inputs document that backs up the 64 KB request limit. It stores **inputs,
@@ -154,6 +170,25 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   would be routed to the wrong provider and valued in the wrong unit — a silently-wrong number
   rather than a visible error — so it is now unstorable rather than merely rejected in TypeScript.
 - ✅ No connection pool to exhaust — Supabase is reached over HTTP, not the Postgres wire protocol.
+
+### Untrusted uploads (phase 12)
+
+- ✅ Size, row, column and cell caps applied **before** parsing: 2 MB, 5000 rows, 60 columns, 500
+  characters per cell. `parseBody` caps the JSON path by declared length and by measured bytes.
+- ✅ `MAX_ENTRY_BYTES` (40 MB) per inflated ZIP entry, so a small workbook cannot become a large
+  allocation.
+- ✅ Format is decided by **magic bytes**, never by extension. The filename is rendered as text and
+  used for nothing else — never as a path, never in a filesystem call.
+- ✅ The XLSX reader takes the cached `<v>` value and never touches `<f>`. An uploaded workbook is
+  data; evaluating anything inside it would make it code.
+- ✅ Binary content posing as CSV is detected after decoding, via the replacement character.
+- ✅ Nothing is written to disk. The bytes are parsed in the request that received them and dropped —
+  which also means no retention, no encryption-at-rest question and no signed URL to leak.
+- ✅ CSV **export** still escapes a leading `= + - @`; the import path re-uses that same writer.
+- ✅ Logs carry counters only — created, duplicate, rejected, raced. No cell value, no symbol, no
+  price, no file content.
+- ✅ The service worker does not intercept `/api/**` at all, so an uploaded statement can never be
+  written to a device cache shared with another user of that browser.
 
 ## Reliability
 
@@ -260,7 +295,11 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ `npm run verify` runs locally exactly what CI runs.
 - ✅ Rollback documented and instant — promote the previous Vercel deployment.
 - ✅ Migrations are forward-only and additive, so code can roll back without touching the schema.
-- ✅ Feature flags for AI, market data and the scheduled job, all changeable without a deploy.
+- ✅ Feature flags for AI, market data and the scheduled jobs, all changeable without a deploy.
+- ✅ **Phase 12 adds no environment variable.** `/api/cron/data` reuses the alerts job's
+  `CRON_SECRET` and its constant-time check; an unset secret rejects every request rather than
+  opening the endpoint. Both scheduled jobs are bounded (`maxDuration = 60`), skip work that would
+  be wasted, and are safe to run twice — neither touches a transaction.
 - ✅ Function runtime and `maxDuration` set explicitly on every AI route.
 - ✅ Backup and restore documented, with the auth-schema trap called out.
 - ⚠️ No backup restore has been rehearsed in this environment. [DISASTER-RECOVERY.md](DISASTER-RECOVERY.md)
@@ -275,7 +314,8 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Domain docs: [PORTFOLIO-CALCULATIONS.md](PORTFOLIO-CALCULATIONS.md),
   [TECHNICAL-ANALYSIS.md](TECHNICAL-ANALYSIS.md), [ALERTS.md](ALERTS.md), [PWA.md](PWA.md),
   [AI.md](AI.md), [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md), [AI-SECURITY.md](AI-SECURITY.md),
-  [AI-PROMPTS.md](AI-PROMPTS.md).
+  [AI-PROMPTS.md](AI-PROMPTS.md), [MULTI-MARKET.md](MULTI-MARKET.md),
+  [INTELLIGENCE.md](INTELLIGENCE.md), [SIMULATION.md](SIMULATION.md), [IMPORT.md](IMPORT.md).
 - ✅ Legal: `/privacy`, `/terms`, `/disclaimer`, written from the code rather than a template.
 
 ---

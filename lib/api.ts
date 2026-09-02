@@ -43,6 +43,15 @@ export const ERROR_CODES = {
  */
 export const MAX_REQUEST_BYTES = 64 * 1024
 
+/**
+ * The one endpoint family that legitimately needs more.
+ *
+ * A five-hundred-row broker export is a few hundred kilobytes of grid, and refusing it would make
+ * import useless. Raised deliberately, applied only where it is passed, and still bounded — the
+ * import schemas cap the rows, the columns and each cell on top of this.
+ */
+export const MAX_IMPORT_REQUEST_BYTES = 2 * 1024 * 1024
+
 export type ErrorCode = keyof typeof ERROR_CODES
 
 export type ApiSuccess<T> = { success: true; data: T }
@@ -206,15 +215,19 @@ export function enforceRateLimit(
  * all. Only then is it handed to `JSON.parse` — parsing is where an oversized body actually costs
  * memory, so checking afterwards would be checking too late.
  */
-export async function parseBody<T>(request: Request, schema: ZodType<T>): Promise<T> {
+export async function parseBody<T>(
+  request: Request,
+  schema: ZodType<T>,
+  { maxBytes = MAX_REQUEST_BYTES }: { maxBytes?: number } = {},
+): Promise<T> {
   const declared = Number(request.headers.get("content-length"))
-  if (Number.isFinite(declared) && declared > MAX_REQUEST_BYTES) {
+  if (Number.isFinite(declared) && declared > maxBytes) {
     throw new ApiError("PAYLOAD_TOO_LARGE", "That request is too large.")
   }
 
   const raw = await request.text().catch(() => "")
   // Bytes, not characters: a body of multi-byte characters is bigger than its length suggests.
-  if (new TextEncoder().encode(raw).length > MAX_REQUEST_BYTES) {
+  if (new TextEncoder().encode(raw).length > maxBytes) {
     throw new ApiError("PAYLOAD_TOO_LARGE", "That request is too large.")
   }
 

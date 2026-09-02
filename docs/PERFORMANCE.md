@@ -99,6 +99,23 @@ single-currency portfolio (the identity conversion consults no provider).
 
 ---
 
+### Import requests (phase 12, by design)
+
+| Request | Upstream credits | Database round trips |
+|---|---|---|
+| `POST /api/imports/preview` | 0 | 1 — every existing fingerprint for the portfolio, in one query, never one per row |
+| `POST /api/imports` | 0 | 1 read + `ceil(rows / 200)` batched inserts + 1 session + 1 problem-rows insert |
+| `GET /api/data-quality` | 0 | shares the dashboard's cached `loadIntelligence` pass; adds an import-row count and one job-history read |
+| `GET|POST /api/cron/data` | one batched quote call per **open** market + one per active FX pair | 1 job-history write |
+
+Parsing is the cost that scales, and it is bounded rather than measured: 2 MB of bytes, 5000 rows,
+60 columns. A 5000-row CSV parses in a few tens of milliseconds; an XLSX of the same size costs the
+inflate as well. Both sit well inside the 60 s function limit, and neither holds anything after the
+response.
+
+The scheduled refresh skips closed markets entirely, so a weekday run outside both sessions spends
+nothing at all.
+
 ## 4. What was fixed in phase 8
 
 **Company profiles were fetched for every symbol ever traded**, not for symbols currently held.

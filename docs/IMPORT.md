@@ -1,0 +1,285 @@
+# Data Import & Automation (Phase 12)
+
+How a spreadsheet becomes transactions, why importing the same file twice is safe, and what the
+scheduled jobs are allowed to do.
+
+Everything here obeys the rule the rest of Stockly is built on: **transactions are the source of
+truth**. An import does not create a second kind of holding, a second cost basis or a second P&L.
+It creates ordinary rows in `transactions`, and the same engine that has always derived the
+portfolio derives it afterwards, unchanged.
+
+---
+
+## 1. The shape of it
+
+```
+file bytes ──► parse ──► grid ──► mapping ──► normalize ──► validate ──► preview
+   (request scope only)   (strings)  (user's)   (domain)     (domain)   (writes nothing)
+                                                                            │
+                                                                     user confirms
+                                                                            │
+                                                                            ▼
+                                                              re-validate ──► insert transactions
+                                                                              + import_sessions
+                                                                              + import_rows (problems only)
+```
+
+Two properties are worth stating outright, because the rest of the design follows from them:
+
+- **Preview writes nothing.** No session row, no staging table, no uploaded file. A user who
+  uploads their broker statement and then closes the tab leaves nothing behind. It also makes the
+  side-effect test trivial: `domain/import/invariants.test.ts` asserts holdings, cost basis, P&L
+  and cash are byte-identical before and after a preview.
+- **The file is never stored.** It is parsed inside the request that received it and the bytes are
+  dropped. Nothing to leak, nothing to expire, nothing to put behind a signed URL — and nothing
+  that needs a filesystem Vercel does not have.
+
+### Where the code lives
+
+| Concern | File |
+|---|---|
+| CSV parsing | `lib/csv.ts` |
+| XLSX reading | `lib/xlsx.ts` |
+| Format dispatch, size caps | `features/imports/parse.ts` |
+| Header aliases, value parsing | `domain/import/normalize.ts` |
+| Row validation | `domain/import/validate.ts` |
+| Duplicate identity | `domain/import/fingerprint.ts` |
+| Reconciliation | `domain/import/reconcile.ts` |
+| Reads and preview assembly | `features/imports/queries.ts` |
+| The write | `features/imports/apply.ts` |
+| Data-quality rules | `domain/data-quality.ts` |
+| Scheduled refresh | `features/automation/refresh.ts` |
+
+`domain/import/**` has no Supabase client, no `fetch`, no framework import and no `server-only`. A
+structural test reads the source of every file in the folder and fails if one appears.
+
+---
+
+## 2. Supported formats
+
+**CSV** — `lib/csv.ts` parses RFC 4180 and the ways real exporters bend it: a UTF-8 BOM, CRLF / LF /
+bare CR line endings, quoted delimiters and newlines, doubled quotes. The delimiter is detected
+from `, ; \t |` by counting occurrences *outside* quoted fields, so a European export whose every
+row contains `"1.234,56"` is not mistaken for comma-separated. An unterminated quoted field
+terminates at end of input rather than throwing — a truncated download should produce a row you can
+see is wrong, not a stack trace.
+
+The parser does **no type inference**. Every cell arrives as a string and stays one until
+`domain/import/normalize.ts` is told, by the mapping, what it is supposed to be. Guessing at parse
+time is how `0012345` becomes `12345` and a date becomes a number.
+
+**XLSX** — `lib/xlsx.ts` is a small reader written here rather than taken from npm. The reasoning is
+in a comment at the top of the file: the ubiquitous `xlsx` package is pinned at 0.18.5 on npm with
+open ReDoS and prototype-pollution advisories, which `npm run audit:ci` would fail on every run;
+ExcelJS brings a large dependency tree to read four XML files. So the reader walks the ZIP central
+directory and inflates only what it needs — `xl/workbook.xml`, its rels, `xl/sharedStrings.xml`,
+`xl/styles.xml` and the worksheets — using `node:zlib`, which is already there.
+
+It reads **values, never formulas**: the cached `<v>` result, never `<f>`. An uploaded workbook is
+data, and evaluating anything inside it would make it code.
+
+Two guards matter. `MAX_ENTRY_BYTES` (40 MB) caps each inflated entry, so a 2 MB zip bomb cannot
+become a gigabyte in memory. And dates: Excel stores them as serial numbers, and `styles.xml`
+decides which numeric cells are dates at all — a number-format id in the built-in date range, or a
+custom format containing date tokens. `excelSerialToIsoDate` refuses any serial below 61 rather
+than reimplementing the Lotus 1-2-3 leap-year bug that makes 1900-02-29 a date Excel believes in.
+A 1900 trade date is not a thing a portfolio has; a silently wrong one is.
+
+The fixture in `lib/xlsx.test.ts` was generated by Python's `zipfile` — a different implementation
+than the one under test, which is the point.
+
+**Format is chosen by content, not by name.** `looksLikeXlsx` checks the ZIP magic bytes. A
+filename is attacker-controlled text; it is echoed back in the UI and used for nothing else.
+
+---
+
+## 3. Mapping
+
+`suggestMapping` proposes a column for each field from `HEADER_ALIASES` — the header spellings real
+brokers use (`Trade Date`, `Transaction Date`, `Qty`, `Shares`, `Unit Price`, `Commission`, …). A
+column is claimed by the first field that matches, in field order, so one header cannot fill two
+fields.
+
+The suggestion is a *suggestion*. It is shown in the mapping step with every column selectable, and
+nothing is imported until the user has looked at it. Required: trade date, symbol, side, quantity,
+price. Optional: market, fee, currency, notes, reference.
+
+`looksLikeHeader` decides whether row 1 is a header or data, so a file exported without headers
+still works.
+
+### Value parsing
+
+`parseDecimal` handles thousands separators, European decimal commas, currency symbols, non-breaking
+spaces and parenthesised negatives. `parseDate` accepts ISO, `dd/mm/yyyy` and `mm/dd/yyyy` — and
+**refuses ambiguity**: `03/04/2026` with no other evidence is rejected with a reason rather than
+resolved by a coin flip. Dates carry no timezone conversion; a trade date is a calendar date, and
+shifting it by a zone offset moves trades across quarter boundaries.
+
+Anything unparseable is `null` and becomes a rejection with a reason. It is never `0`.
+
+---
+
+## 4. Duplicate detection and idempotency
+
+The fingerprint is a **canonical string, not a hash**:
+
+```
+v1|<portfolioId>|BUY|US:AAPL|2026-03-04|10.00000000|187.4200|1.0000
+v1:ref:<portfolioId>|<broker reference>
+```
+
+A hash would be shorter and a collision would silently skip a real trade. That is not a trade worth
+making for a few bytes per row.
+
+When the file supplies a broker reference the values are deliberately **excluded** from the
+fingerprint. The reference *is* the identity. So a row whose price the broker later corrected
+re-imports as a duplicate rather than as a second transaction, and the difference surfaces in
+reconciliation as a **conflict** for the user to resolve. Stockly never silently corrects a number
+the user owns.
+
+Idempotency is enforced by the database, not by the application:
+
+```sql
+create unique index transactions_import_fingerprint_key
+  on public.transactions (user_id, import_fingerprint)
+  where import_fingerprint is not null;
+```
+
+The application check exists too — one query fetches every existing fingerprint for the portfolio,
+never one query per row — but it is an optimisation and a UI affordance. The index is the guarantee.
+Two concurrent applies of the same file cannot both win: the loser's batch fails with `23505`, and
+`applyImport` retries that batch one row at a time so genuinely new rows still land, counting what
+it lost as `racedDuplicates`.
+
+Hand-entered transactions have a null fingerprint and are therefore not deduplicated against. That
+is deliberate: the index would otherwise reject a legitimate second purchase of the same stock at
+the same price on the same day.
+
+---
+
+## 5. Applying
+
+`applyImport` **re-validates every row server-side**. The preview the client posts back is treated
+as a claim about what the user saw, never as an instruction — the mapping and the grid are
+re-normalized, re-validated and re-fingerprinted before anything is written. A client that edits its
+own preview payload achieves nothing.
+
+- Inserts go in batches of 200.
+- `allowPartial` (default **false**) decides whether a file containing rejected rows imports the
+  valid remainder or refuses entirely. Off by default, because a half-imported statement is a
+  portfolio that silently disagrees with the broker.
+- `import_rows` stores only DUPLICATE and REJECT rows — the ones the user may need to act on — and
+  stores normalized values, not the original line.
+- Every write calls `invalidatePortfolio()` and `invalidateImports()`.
+- Logs carry counters only: created, duplicate, rejected, raced. No symbol, no price, no filename
+  content, no cell values.
+
+Deleting an import session **never deletes money**. The foreign key is
+`on delete set null`: the transactions stay, and lose their provenance link. Reversing an import
+means deleting the transactions, which is an ordinary transaction deletion the user performs
+knowingly.
+
+---
+
+## 6. Reconciliation
+
+`reconcile(rows, existing, portfolioId)` compares a file against what is already recorded and
+reports, per row:
+
+| Status | Meaning |
+|---|---|
+| `MATCHED` | the same trade exists |
+| `MISSING_IN_STOCKLY` | in the file, not recorded |
+| `MISSING_IN_SOURCE` | recorded, not in the file |
+| `CONFLICT` | same reference, different numbers |
+| `DUPLICATE_IN_SOURCE` | the file contains the row twice |
+
+Transactions with no fingerprint — everything entered by hand — are counted separately as
+`unfingerprinted` and are **not** discrepancies. A statement covering March says nothing about a
+trade in February.
+
+Reconciliation reports. It does not write, does not merge and does not offer to "fix" anything.
+
+---
+
+## 7. Data quality
+
+`domain/data-quality.ts` scans the loaded portfolio and returns issues with a category and a
+severity (`INFO` · `NOTICE` · `WARNING` · `ERROR`). It covers: missing prices, stale prices
+(`stalePriceMinutes: 15`) and stale FX (`staleFxMinutes: 60`), holdings whose market metadata the
+provider did not supply, untranslated holdings in a cross-currency total, negative cash, dividends
+on positions never held, and unresolved import rows.
+
+There is **no quality score**. A single number invites optimising the number. The page shows counts
+and the issues themselves.
+
+Nothing is stored: the scan runs on the same cached `loadIntelligence` pass the dashboard already
+made, so it cannot go stale and cannot disagree with the page beside it. The dashboard shows one
+line when something needs attention and nothing when it does not.
+
+---
+
+## 8. Scheduled jobs
+
+| Job | Schedule | Endpoint |
+|---|---|---|
+| Alerts | `*/5 * * * *` | `/api/cron/alerts` (phase 5) |
+| Market & FX refresh | `30 21 * * 1-5` | `/api/cron/data` |
+
+`marketsWorthRefreshing(now)` asks `domain/calendar.ts` for each market's session status in that
+market's own timezone. A `closed` market is skipped — refreshing it spends a credit to receive the
+number already cached. A market whose status is `unknown` (past the verified holiday horizon) **is**
+refreshed: one wasted request costs less than a stale portfolio on a day the exchange was open.
+
+Each run is bounded: `MAX_REFRESH_SYMBOLS = 120`, one batched quote call per market, one FX call per
+active base-currency pair, `maxDuration = 60`. Nothing iterates over holdings.
+
+`recordJob` writes a row to `job_executions` with counters and a duration — never a symbol, a price
+or a user's figures. The table is select-only for signed-in users through RLS; only the
+service-role scheduled job writes to it.
+
+### Security
+
+`/api/cron/data` reuses phase 5's `isAuthorizedCronRequest` rather than introducing a second
+credential. It accepts either the `Authorization: Bearer` header Vercel Cron sends or an
+`x-cron-secret` header for any other scheduler, compares in constant time, and **rejects every
+request when `CRON_SECRET` is unset**. An unset secret is not open access.
+
+Running the job twice is safe: it refreshes caches and appends a history row. It touches no
+transaction.
+
+Phase 12 adds no new environment variable.
+
+---
+
+## 9. Untrusted input, concretely
+
+| Threat | What stops it |
+|---|---|
+| Enormous upload | `MAX_IMPORT_BYTES` 2 MB, checked before parsing; `parseBody` byte cap on JSON |
+| Zip bomb | `MAX_ENTRY_BYTES` 40 MB per inflated entry |
+| Wide or long file | `MAX_IMPORT_ROWS` 5000, `MAX_IMPORT_COLUMNS` 60, `MAX_CELL_LENGTH` 500 |
+| Binary disguised as CSV | replacement-character detection after decoding |
+| Wrong extension | format chosen by magic bytes, not by name |
+| Malicious filename | never used as a path; stored and rendered as text only |
+| Formula injection **out** | `lib/csv.ts` escapes leading `= + - @` on export |
+| Formula evaluation **in** | the reader takes cached values and never touches `<f>` |
+| Another user's import | RLS on `import_sessions` / `import_rows`, plus the composite FK to `(portfolio_id, user_id)` |
+| Cached financial file | the service worker does not intercept `/api/**` at all |
+| Client-supplied totals | everything is re-derived server-side; the preview is never trusted |
+
+Rate limits: preview 30/min, apply 10/min.
+
+---
+
+## 10. What phase 12 deliberately does not do
+
+- **No broker API connections.** OAuth to a brokerage is a different security posture and a
+  different support burden.
+- **No scheduled auto-import.** A file arriving unattended and creating transactions unattended is
+  the one automation that can silently corrupt a portfolio.
+- **No automatic conflict resolution.** A conflict is shown; the user decides.
+- **No stored original files.** Adding storage means adding retention, encryption at rest, signed
+  URLs and a deletion path. Nothing needs it.
+- **No broker-specific presets.** `IMPORT_SOURCES` has one entry, `GENERIC`. The alias table covers
+  the common headers; a preset earns its place when a real broker's export defeats it.

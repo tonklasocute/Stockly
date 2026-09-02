@@ -66,6 +66,15 @@ export function invalidateSimulations(): void {
   revalidatePath("/simulations")
 }
 
+/**
+ * An import was applied. The transactions it created are invalidated by `invalidatePortfolio`;
+ * this refreshes the history and the data-quality page, which count imports rather than money.
+ */
+export function invalidateImports(): void {
+  revalidatePath("/imports")
+  revalidatePath("/data-quality")
+}
+
 /** The watchlist is independent of portfolio maths, so it invalidates on its own. */
 export function invalidateWatchlist(): void {
   revalidatePath("/watchlist")

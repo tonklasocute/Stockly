@@ -12,6 +12,7 @@ import { listAlerts } from "@/features/alerts/queries"
 import { describeAlert } from "@/domain/alerts"
 import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadIntelligence } from "@/features/intelligence/loader"
+import { loadDataQuality } from "@/features/data-quality/loader"
 import { InsightList } from "@/features/intelligence/components/insight-list"
 import { GoalProgressBar } from "@/features/goals/components/goal-progress-bar"
 import { Section } from "@/components/metric"
@@ -38,9 +39,11 @@ export default async function DashboardPage({
   // and a single batched quote call, so the dashboard cannot disagree with analytics.
   // `loadIntelligence` calls the same cached `loadAnalytics`, so goals, insights and risk cost no
   // extra pass over the transactions and no extra quote call.
-  const [intelligence, alerts] = await Promise.all([
+  const [intelligence, alerts, dataQuality] = await Promise.all([
     loadIntelligence(active.id),
     listAlerts().catch(() => []),
+    // Shares the same cached pass, so this costs one import count and one job-history read.
+    loadDataQuality(active.id).catch(() => ({ issues: [], worst: null }) as const),
   ])
   const bundle = intelligence.analytics
   const activeAlerts = alerts.filter((a) => a.enabled)
@@ -205,6 +208,27 @@ export default async function DashboardPage({
 
           <CurrencyExposure summary={summary} />
           <TranslationNote summary={summary} />
+
+          {/*
+            One line when something needs looking at, and nothing at all when it does not. The
+            dashboard is not an administration console: the detail lives on its own page.
+          */}
+          {dataQuality.worst !== null && (
+            <Alert>
+              <AlertDescription className="flex flex-wrap items-center gap-x-2">
+                <span>
+                  {dataQuality.issues.length} data issue
+                  {dataQuality.issues.length === 1 ? "" : "s"} — {dataQuality.issues[0].title}.
+                </span>
+                <Link
+                  href={`/data-quality?p=${active.id}`}
+                  className="underline underline-offset-4"
+                >
+                  Review
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/*
             Investment intelligence, kept to what is worth seeing without scrolling: the goals that

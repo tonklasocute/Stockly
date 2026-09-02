@@ -122,6 +122,9 @@ Filter by `event`:
 | `ai.error` | an AI failure code |
 | `ready.database` | the readiness probe could not reach Postgres |
 | `[cron:alerts]` | one scheduled run: counters only |
+| `cron.data` / `cron.data_failed` | one scheduled refresh: counters and duration, never a price |
+| `refresh.completed` | markets refreshed, symbols and FX pairs touched |
+| `import.applied` | one import: created, duplicate, rejected, raced. No cell value, no symbol |
 
 A user reporting a failure will have a **reference id** on the error card. That is `requestId`;
 search for it and every line from that request is together.
@@ -193,6 +196,37 @@ If you find one, that is a bug — fix the call site, not the redaction list.
    ```
 5. Remember an alert fires on a **crossing**, not a comparison. A price that was already above the
    target when the alert was created does not fire until it goes below and comes back.
+
+### An import did not create what the user expected
+
+1. `GET /api/imports/:id` (or the session page) shows the counters and every `DUPLICATE` or
+   `REJECT` row with its reason. `CREATE` rows are not stored — they are transactions now.
+2. **"It imported nothing the second time"** is correct behaviour, not a fault. The partial unique
+   index on `(user_id, import_fingerprint)` makes a re-import a no-op; the rows come back as
+   duplicates.
+3. **"The broker corrected a price and it did not update"** is also correct. With a broker
+   reference the reference *is* the identity, so the corrected row is a duplicate and the
+   difference shows in reconciliation as a conflict. Stockly never rewrites a number the user owns:
+   the fix is to edit or delete the transaction.
+4. **"Only part of the file imported"** — `allowPartial` was on. With it off, a file containing any
+   rejected row refuses entirely.
+5. Deleting an import session deletes **history only**. The transactions stay, with a null
+   `import_session_id`. To reverse an import, delete the transactions.
+6. Nothing here can be diagnosed from the file, because the file is not stored. Ask the user to
+   re-run the preview: it writes nothing.
+
+### Prices are stale and the refresh job is suspect
+
+1. Vercel → Cron Jobs → `/api/cron/data`. Look for recent invocations.
+2. `job_executions` is the durable history: job, counters, duration, error. Figures are never in it.
+3. A run that refreshed **no** market is usually right — every market was closed. The job skips
+   `closed` and refreshes `unknown`.
+4. Manual run:
+   ```
+   curl -H "x-cron-secret: $CRON_SECRET" $BASE/api/cron/data
+   ```
+   Safe to repeat: it refreshes caches and appends a history row. It touches no transaction.
+5. An unset `CRON_SECRET` rejects every request, including yours. That is the intended failure.
 
 ### Authentication broken
 

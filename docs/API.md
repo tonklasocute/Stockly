@@ -187,6 +187,33 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## Import and data quality (phase 12)
+
+**Preview writes nothing.** No session row, no staging table, no stored file — a user who abandons an
+import leaves nothing behind. The uploaded bytes are parsed inside the request that received them
+and dropped.
+
+| | Limit | |
+|---|---|---|
+| `POST /api/imports/preview` | 30 | Two content types. `multipart/form-data` with `file` + `portfolioId` for the first upload: the format is chosen from the file's **magic bytes**, never its extension or name. `application/json` with `{ portfolioId, grid, mapping, sheet? }` afterwards, so re-mapping a column costs no re-upload. Returns rows classified `CREATE` / `DUPLICATE` / `REJECT`, each rejection carrying a reason code. 2 MB, 5000 rows, 60 columns, 500 characters per cell. |
+| `GET /api/imports?portfolioId&page` | — | Session history. Counters only — the file is not there to return. |
+| `POST /api/imports` | 10 | `{ portfolioId, grid, mapping, allowPartial? }` → 201. **Re-validates and re-fingerprints every row server-side**; the posted preview is a claim about what the user saw, not an instruction. `allowPartial` defaults `false`, so a file with rejected rows refuses rather than importing half a statement. |
+| `GET /api/imports/:id` | — | One session plus its problem rows. Only `DUPLICATE` and `REJECT` rows are stored, as normalized values. |
+| `DELETE /api/imports/:id` | — | Deletes the **history row only**. The FK is `on delete set null`: the transactions stay and lose their provenance link. Reversing an import means deleting transactions, knowingly. |
+| `GET /api/data-quality?portfolioId` | — | Freshness and completeness issues with a category and a severity. There is no `POST /scan`: the scan is a pure read over the already-cached analytics pass, so there is nothing to trigger. |
+
+Importing the same file twice creates nothing the second time, and the guarantee is a partial unique
+index on `(user_id, import_fingerprint)` rather than an application check. Concurrent applies cannot
+both win: the loser's batch fails `23505` and is retried row by row so genuinely new rows still land.
+
+### `GET|POST /api/cron/data` · shared secret
+
+Market and FX refresh, `30 21 * * 1-5`. Reuses the alerts job's `CRON_SECRET` and its constant-time
+check rather than introducing a second credential, and **rejects every request when the secret is
+unset**. Bounded: closed markets are skipped, `unknown` ones are refreshed, one batched quote call
+per market, one FX call per pair, `maxDuration = 60`. Safe to run twice — it refreshes caches and
+appends a `job_executions` row containing counters, never figures.
+
 ## Alerts and notifications
 
 | | Limit | |

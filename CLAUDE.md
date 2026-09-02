@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 11 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 12 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -25,7 +25,11 @@ journal and thesis record, portfolio goals with scenario modelling, cash-flow-aw
 measurement (TWR and IRR), a risk centre, benchmark comparison, and a deterministic insights engine
 that describes and never advises. Phase 11 added planning and simulation: compound growth and DCA,
 goal projection with a required-contribution solver, dividend projection, and a portfolio what-if —
-all pure, all client-side, and none of it able to touch a transaction.
+all pure, all client-side, and none of it able to touch a transaction. Phase 12 added data and
+automation: CSV and Excel import with column mapping, a preview that writes nothing, duplicate
+detection whose idempotency is a database guarantee, reconciliation against a broker statement, a
+data-quality centre, and scheduled market and FX refresh with a job history — every imported row
+becoming an ordinary transaction processed by the engine that was already there.
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -67,6 +71,7 @@ production**: they create and delete portfolio records.
 | Exchange rates | `FxRateProvider` — mock, Twelve Data `/exchange_rate` | one credit per pair per 10-minute cache window; a missing rate is `null`, never a fabricated one |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
+| Import | Same file's parser + `lib/xlsx.ts` | no dependency: npm `xlsx` carries open advisories `audit:ci` would fail, ExcelJS is a tree to read four XML files |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
 | Benchmarks | `BenchmarkProvider` — market-data adapter, mock | index series are not on Twelve Data's free tier; the adapter says so and the UI renders N/A |
 | AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
@@ -124,7 +129,9 @@ domain/      pure business logic. No framework imports. Heavily tested.
              Sharpe, beta, HHI) · goals.ts (progress semantics, projections) ·
              research.ts (journal, thesis, sell-review vocabulary) ·
              insights.ts (deterministic rules + INSIGHT_THRESHOLDS) ·
-             simulation/ (growth + DCA, goal plan, dividend plan, what-if — pure, no I/O at all)
+             simulation/ (growth + DCA, goal plan, dividend plan, what-if — pure, no I/O at all) ·
+             import/ (mapping, value parsing, fingerprint, validation, reconciliation) ·
+             data-quality.ts (freshness + completeness rules, no score)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -277,6 +284,41 @@ Full detail in [`docs/SIMULATION.md`](docs/SIMULATION.md).
   from a forecast.
 - **Nothing simulates on the server.** The engine is pure, so it runs in the browser as an input
   changes. The only endpoint is persistence.
+
+## Import & Automation Rules
+
+Full detail in [`docs/IMPORT.md`](docs/IMPORT.md).
+
+- **An imported row is an ordinary transaction.** Import creates rows in `transactions` and nothing
+  else derives from them differently. There is no second holdings system, no staging table that
+  becomes authoritative, no import-specific cost basis.
+- **Preview writes nothing** — no session row, no file, no staging. A user who abandons an import
+  leaves nothing behind, and the side-effect test is then trivially true.
+- **The uploaded file is never stored.** It is parsed in the request that received it and dropped.
+  Storage would mean retention, encryption at rest, signed URLs and a deletion path, for no gain.
+- **Idempotency is a database guarantee, not an application check.** The partial unique index on
+  `(user_id, import_fingerprint)` is what makes re-importing the same file safe; the pre-query is an
+  optimisation. A `23505` retries the batch row by row so genuinely new rows still land.
+- **The fingerprint is a canonical string, never a hash.** A hash collision silently skips a real
+  trade. With a broker reference the values are excluded, so a corrected row is a *conflict* to
+  resolve, never a second transaction.
+- **The server re-validates every row.** The posted preview is a claim about what the user saw, not
+  an instruction. Mapping, normalization, validation and fingerprinting all run again before a write.
+- **No silent correction.** An unparseable value is `null` and becomes a rejection with a reason —
+  never a repaired guess and never `0`. An ambiguous date is refused rather than resolved by a coin
+  flip.
+- **Format is decided by content, never by filename.** A filename is attacker-controlled text: it is
+  displayed and used for nothing else, never as a path.
+- **Read values, never formulas.** The XLSX reader takes the cached `<v>` and never touches `<f>`.
+  Every entry it inflates is size-capped, so a small zip cannot become a large allocation.
+- **Deleting an import never deletes money.** The FK is `on delete set null`; the transactions stay.
+- **Reconciliation reports and never writes.** Transactions with no fingerprint are counted
+  separately, not treated as discrepancies.
+- **Data quality has counts, not a score.** A single number invites optimising the number. Nothing
+  is stored — the scan runs on the cached analytics pass, so it cannot disagree with the dashboard.
+- **A scheduled job is bounded, secret-guarded and safe to run twice.** It skips closed markets,
+  refreshes `unknown` ones, batches one call per market, and writes counters — never figures — to
+  `job_executions`. An unset `CRON_SECRET` rejects everything.
 
 ## Analytics Rules
 
@@ -540,7 +582,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 9 ✅ | Multi-market foundation: market/instrument registry, portfolio base currency, FX abstraction and caching, provider routing, SET support, market calendars, cross-currency valuation |
 | 10 ✅ | Investment intelligence: journal, theses, sell reviews, goals and projections, TWR/IRR, risk centre, benchmarks, deterministic insights engine |
 | 11 ✅ | Planning & simulation: compound growth and DCA, goal projection and required contribution, dividend projection, portfolio what-if, saved scenarios |
-| 12 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
+| 12 ✅ | Data & automation: CSV/Excel import, mapping, duplicate detection, reconciliation, data-quality centre, scheduled refresh and job history |
+| 13 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

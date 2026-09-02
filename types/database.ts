@@ -26,6 +26,16 @@ export type TransactionRow = {
   price: number
   fee: number
   notes: string | null
+  /**
+   * Import provenance, all null for a transaction entered by hand.
+   *
+   * `import_fingerprint` is the idempotency key, unique per user — the database is what makes
+   * re-importing the same file create nothing, rather than a check that two concurrent requests
+   * could both pass.
+   */
+  import_fingerprint: string | null
+  import_session_id: string | null
+  source_row: number | null
   created_at: string
   updated_at: string
 }
@@ -395,6 +405,58 @@ export type SavedSimulationRow = {
   updated_at: string
 }
 
+// ---------------------------------------------------------------- phase 12: import & automation
+
+/** A session records an import that was applied; a preview writes nothing and has no row. */
+export type ImportStatus = "APPLIED" | "PARTIAL" | "FAILED"
+export type ImportFormat = "CSV" | "XLSX"
+
+/** One upload. The file itself is never stored — only what was read out of it. */
+export type ImportSessionRow = {
+  id: string
+  user_id: string
+  portfolio_id: string
+  filename: string
+  format: ImportFormat
+  status: ImportStatus
+  /** The column mapping the user confirmed, so history explains how the file was read. */
+  mapping: unknown
+  total_rows: number
+  create_count: number
+  duplicate_count: number
+  reject_count: number
+  applied_count: number
+  applied_at: string
+  error: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Only rows that did NOT become transactions; a created one is a transaction carrying its id. */
+export type ImportRowRow = {
+  id: string
+  session_id: string
+  user_id: string
+  row_number: number
+  outcome: "DUPLICATE" | "REJECT"
+  issues: unknown
+  values: unknown
+  created_at: string
+}
+
+/** Deployment-wide operational history. Counters only, never a provider payload. */
+export type JobExecutionRow = {
+  id: string
+  job: string
+  started_at: string
+  completed_at: string | null
+  status: "RUNNING" | "OK" | "PARTIAL" | "FAILED"
+  processed: number
+  succeeded: number
+  failed: number
+  error_summary: string | null
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -421,7 +483,14 @@ export type Database = {
       }
       transactions: {
         Row: TransactionRow
-        Insert: Omit<TransactionRow, "id" | Timestamps> & { id?: string }
+        // Import provenance is optional on insert: a hand-entered transaction has none, which is
+        // exactly what makes "where did this come from?" answerable.
+        Insert: Omit<TransactionRow, "id" | Timestamps | "import_fingerprint" | "import_session_id" | "source_row"> & {
+          id?: string
+          import_fingerprint?: string | null
+          import_session_id?: string | null
+          source_row?: number | null
+        }
         Update: Partial<Omit<TransactionRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
         Relationships: []
       }
@@ -535,6 +604,31 @@ export type Database = {
         Update: Partial<Pick<PortfolioBenchmarkRow, "benchmark_id">>
         Relationships: []
       }
+      import_sessions: {
+        Row: ImportSessionRow
+        // `error` and `applied_at` have defaults; the counts do too, but the apply path sets them.
+        Insert: Omit<ImportSessionRow, "id" | Timestamps | "error" | "applied_at"> & {
+          id?: string
+          error?: string | null
+          applied_at?: string
+        }
+        Update: Partial<Omit<ImportSessionRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      import_rows: {
+        Row: ImportRowRow
+        Insert: Omit<ImportRowRow, "id" | "created_at"> & { id?: string }
+        Update: never
+        Relationships: []
+      }
+      job_executions: {
+        Row: JobExecutionRow
+        // Everything but the job name has a default; a run is opened with the name alone.
+        Insert: Pick<JobExecutionRow, "job"> &
+          Partial<Omit<JobExecutionRow, "id" | "job">> & { id?: string }
+        Update: Partial<Omit<JobExecutionRow, "id" | "job">>
+        Relationships: []
+      }
       saved_simulations: {
         Row: SavedSimulationRow
         Insert: Omit<SavedSimulationRow, "id" | Timestamps> & { id?: string }
@@ -561,6 +655,8 @@ export type Database = {
       thesis_status: ThesisStatus
       goal_type: GoalType
       simulation_type: SimulationType
+      import_status: ImportStatus
+      import_format: ImportFormat
     }
     CompositeTypes: Record<string, never>
   }

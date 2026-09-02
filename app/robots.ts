@@ -36,6 +36,8 @@ export default function robots(): MetadataRoute.Robots {
           "/goals",
           "/journal",
           "/simulations",
+          "/imports",
+          "/data-quality",
           "/offline",
         ],
       },

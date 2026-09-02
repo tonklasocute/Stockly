@@ -483,13 +483,43 @@ Full detail in [`SIMULATION.md`](SIMULATION.md). The decisions that matter:
 realised and unrealised P&L and cash come back byte-identical. Transactions remain the single source
 of truth; a simulation cannot create one.
 
-## 21. What is deliberately not here yet
+## 21. Data import and automation (phase 12)
+
+Full detail in [`IMPORT.md`](IMPORT.md). The decisions that matter:
+
+1. **An imported row is an ordinary transaction.** Import writes to `transactions` and stops. The
+   same engine derives holdings, cost basis and P&L afterwards as before — there is no import-side
+   holdings model, no staging table that becomes authoritative, nothing that can drift.
+2. **Preview is stateless and the file is never stored.** Parsing happens in the request that
+   received the bytes; nothing is written until the user confirms. That makes the side-effect
+   property provable rather than argued, avoids keeping a stranger's brokerage statement for an
+   import they abandoned, and needs no filesystem Vercel does not have.
+3. **Idempotency belongs to the database.** A partial unique index on
+   `(user_id, import_fingerprint)` is the guarantee; the fingerprint pre-query is one query for the
+   whole portfolio and only an optimisation. The fingerprint is a canonical string, not a hash — a
+   collision would silently skip a real trade.
+4. **A conflict is shown, never resolved.** When a row carries a broker reference the reference is
+   the identity, so a corrected row re-imports as a duplicate and reconciliation reports the
+   difference. Stockly does not quietly rewrite a number the user owns.
+5. **No dependency for the file formats.** `lib/csv.ts` gained a parser beside its writer, and
+   `lib/xlsx.ts` reads a workbook with `node:zlib` — values only, never formulas, every inflated
+   entry size-capped. The npm alternative carries advisories `npm run audit:ci` would fail on.
+6. **Automation is bounded and observable.** `/api/cron/data` reuses the alerts secret, skips closed
+   markets, batches one call per market and writes counters — never figures — to `job_executions`.
+
+`domain/import/invariants.test.ts` asserts a preview leaves holdings, cost basis, P&L and cash
+byte-identical, that applying only ever adds transactions, that re-applying the same file is a no-op,
+and — structurally, by reading the source — that nothing in `domain/import/` can reach a client, a
+network or a framework.
+
+## 22. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
 exchange rates, more than one currency per market, FIFO cost basis and tax lots, tax modelling,
 automatic thesis invalidation, a composite risk score,
 multiple benchmarks per portfolio, full-text journal search, a market-wide screener universe, price prediction of any kind, email and LINE notification channels, offline
-mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI answer cache,
+mutation queues, broker API connections, scheduled unattended imports, stored original upload files,
+broker-specific import presets, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

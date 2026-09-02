@@ -8,8 +8,10 @@ import {
   ClipboardCheck,
   Coins,
   Eye,
+  FileUp,
   LayoutDashboard,
   Settings,
+  ShieldCheck,
   Sparkles,
   Target,
   Telescope,
@@ -37,6 +39,10 @@ export const NAV_ITEMS = [
   // between — so it stays off the four-item bottom bar like the rest of the analysis pages.
   { href: "/simulations", label: "Planning", icon: Calculator, mobile: false, badge: null },
   { href: "/journal", label: "Journal", icon: BookOpen, mobile: false, badge: null },
+  // Phase 12. Import is something you do occasionally with a file in hand, and data quality is
+  // somewhere you go when a figure reads N/A — neither belongs on the four-item bottom bar.
+  { href: "/imports", label: "Import", icon: FileUp, mobile: false, badge: null },
+  { href: "/data-quality", label: "Data quality", icon: ShieldCheck, mobile: false, badge: null },
   { href: "/alerts", label: "Alerts", icon: Bell, mobile: false, badge: null },
   { href: "/screener", label: "Screener", icon: Telescope, mobile: false, badge: null },
   { href: "/dividends", label: "Dividends", icon: Coins, mobile: false, badge: null },

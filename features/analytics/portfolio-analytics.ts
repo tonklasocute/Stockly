@@ -75,6 +75,13 @@ export type AnalyticsBundle = {
   /** Set when the provider gave no metadata at all, so those sections can be hidden. */
   hasSectorData: boolean
   hasIndustryData: boolean
+  /**
+   * Held instruments the provider returned no sector for.
+   *
+   * Named here rather than inferred from the "Unknown" allocation slice, which knows a total but
+   * not which holdings produced it. The data-quality scan needs the names.
+   */
+  holdingsWithoutMetadata: Array<{ symbol: string; market: MarketId }>
   concentration: Concentration
   movers: { gainers: Mover[]; losers: Mover[] }
   today: { gainers: Mover[]; losers: Mover[] } | null
@@ -274,6 +281,12 @@ export const loadAnalytics = cache(
       countries: allocateBy(holdings, factOf, "country"),
       currencies: allocateBy(holdings, factOf, "currency"),
       hasSectorData: sectors.length > 0 && !isAllUnknown(sectors),
+      holdingsWithoutMetadata: holdings
+        .filter((holding) => {
+          const fact = facts.get(holding.symbol)
+          return !fact?.sector && !fact?.industry && !fact?.country
+        })
+        .map((holding) => ({ symbol: holding.symbol, market: holding.market })),
       hasIndustryData: industries.length > 0 && !isAllUnknown(industries),
       concentration: computeConcentration(holdings, cash.balance),
       movers: topMovers(holdings),
