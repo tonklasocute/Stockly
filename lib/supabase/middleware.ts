@@ -3,8 +3,26 @@ import { NextResponse, type NextRequest } from "next/server"
 import { env } from "@/lib/env"
 import { REQUEST_ID_HEADER } from "@/lib/log"
 
-/** Reachable without a session. Everything else redirects (pages) or 401s (API). */
-const PUBLIC_ROUTES = ["/login", "/register", "/auth", "/privacy", "/terms", "/disclaimer", "/offline"]
+/**
+ * Reachable without a session. Everything else redirects (pages) or 401s (API).
+ *
+ * The three sharing routes are here because a shared portfolio is, by definition, for someone who
+ * has no account. What they can actually see is decided further down: `/p/<slug>` reads a published
+ * document that anonymous RLS allows, and the two token routes read one through a definer function
+ * that requires the token. Being listed here grants a *route*, never a portfolio.
+ */
+const PUBLIC_ROUTES = [
+  "/login",
+  "/register",
+  "/auth",
+  "/privacy",
+  "/terms",
+  "/disclaimer",
+  "/offline",
+  "/p",
+  "/share",
+  "/snapshot",
+]
 
 function isUnder(pathname: string, routes: readonly string[]): boolean {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`))

@@ -75,6 +75,24 @@ export function invalidateImports(): void {
   revalidatePath("/data-quality")
 }
 
+/**
+ * Sharing changed: settings, a link, a snapshot, or what is published.
+ *
+ * The two slugs matter and are not decoration. A public page is rendered for an address, so
+ * changing the address leaves a rendered page at the **old** one — and that page was built from
+ * settings the owner has just replaced. Revalidating both is what stops a withdrawn section
+ * surviving at a URL somebody already has.
+ *
+ * Link and snapshot pages are absent from this deliberately: they are rendered per request and
+ * never cached, because a revocation that waits for a cache to expire is not a revocation.
+ */
+export function invalidateSharing(previousSlug: string | null, slug: string | null): void {
+  revalidatePath("/sharing")
+  for (const value of new Set([previousSlug, slug])) {
+    if (value) revalidatePath(`/p/${value}`)
+  }
+}
+
 /** The watchlist is independent of portfolio maths, so it invalidates on its own. */
 export function invalidateWatchlist(): void {
   revalidatePath("/watchlist")

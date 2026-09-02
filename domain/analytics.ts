@@ -105,6 +105,30 @@ export function allocateByHolding(holdings: readonly Holding[], cash: number): A
   return slices.sort((a, b) => b.value - a.value)
 }
 
+/**
+ * Groups holdings by the market they trade on.
+ *
+ * Beside `allocateBy` rather than inside it because a market is not provider metadata: it is known
+ * for every holding, from `domain/market.ts`, so there is no "Unknown" bucket and no symbol can
+ * fall out. Cash is excluded — it belongs to no venue.
+ */
+export function allocateByMarket(holdings: readonly Holding[]): AllocationSlice[] {
+  const translated = holdings.filter((h) => h.baseMarketValue !== null)
+  const total = sumBy(translated, (h) => h.baseMarketValue ?? 0)
+  const buckets = new Map<string, number>()
+  for (const holding of translated) {
+    buckets.set(holding.market, add(buckets.get(holding.market) ?? 0, holding.baseMarketValue ?? 0))
+  }
+  return [...buckets.entries()]
+    .map(([key, value]) => ({
+      key,
+      label: key,
+      value,
+      weight: total > 0 ? (percentOf(value, total) ?? 0) : 0,
+    }))
+    .sort((a, b) => b.value - a.value)
+}
+
 /** Metadata the provider may or may not have for a symbol. Missing is normal, not an error. */
 export type SymbolFacts = {
   sector?: string | null

@@ -125,6 +125,8 @@ Filter by `event`:
 | `cron.data` / `cron.data_failed` | one scheduled refresh: counters and duration, never a price |
 | `refresh.completed` | markets refreshed, symbols and FX pairs touched |
 | `import.applied` | one import: created, duplicate, rejected, raced. No cell value, no symbol |
+| `share.published` | a visibility and a section count. Never a slug's traffic and never a figure |
+| `share.publish_failed` | a rebuild failed; the published document was removed rather than left stale |
 
 A user reporting a failure will have a **reference id** on the error card. That is `requestId`;
 search for it and every line from that request is together.
@@ -227,6 +229,32 @@ If you find one, that is a bug — fix the call site, not the redaction list.
    ```
    Safe to repeat: it refreshes caches and appends a history row. It touches no transaction.
 5. An unset `CRON_SECRET` rejects every request, including yours. That is the intended failure.
+
+### Somebody can still see a shared portfolio after it was withdrawn
+
+This should be impossible, and the order to check it in is:
+
+1. `published_shares` — is there still a row for that portfolio? Setting visibility to PRIVATE
+   deletes it. If a row is there, the save did not complete.
+2. If the row is there and is stale, the rebuild failed after the settings saved. That path deletes
+   the row deliberately (`share.publish_failed` in the logs); a surviving stale row means something
+   wrote it afterwards.
+3. Share links are **independent of visibility only up to a point**: `share_by_token` returns the
+   published document, so a portfolio set back to PRIVATE has no document to return and every link
+   to it stops resolving. Revoking a link is the other switch; either one closes the door.
+4. Nothing shared is cached. `/p/<slug>` is revalidated on every publish, and the token pages are
+   `revalidate = 0`. If a stale page is being served, it is a CDN-level cache and worth capturing
+   the response headers before clearing it.
+5. Emergency stop for one portfolio: set its visibility to PRIVATE, which deletes the published row.
+   Emergency stop for all of them: `delete from public.published_shares;` — it removes pages only,
+   and every owner's settings survive.
+
+### A share link stopped working and the owner wants to know why
+
+`portfolio_share_links` has the answer, and it is the only place with it: `revoked_at` set means the
+owner closed it, `expires_at` in the past means it lapsed. The public page never says which, on
+purpose. Stockly cannot recover the token itself — only the SHA-256 is stored — so the fix is always
+to issue a new link.
 
 ### Authentication broken
 

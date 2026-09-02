@@ -457,6 +457,100 @@ export type JobExecutionRow = {
   error_summary: string | null
 }
 
+export type ShareVisibility = "PRIVATE" | "LINK_ONLY" | "PUBLIC"
+
+export type PortfolioShareRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  visibility: ShareVisibility
+  slug: string | null
+  display_name: string | null
+  description: string | null
+  owner_display_name: string | null
+  show_overview: boolean
+  show_holdings: boolean
+  show_allocation: boolean
+  show_performance: boolean
+  show_risk: boolean
+  show_dividends: boolean
+  show_benchmark: boolean
+  show_insights: boolean
+  show_goals: boolean
+  show_absolute_values: boolean
+  show_quantity: boolean
+  show_unrealized_pnl: boolean
+  show_realized_pnl: boolean
+  show_cash: boolean
+  allow_search_indexing: boolean
+  settings_version: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * The published projection. `payload` is a `PublicPortfolio` document — already filtered by the
+ * owner's settings before it was written, which is why an anonymous role may read this table and
+ * no other.
+ */
+export type PublishedShareRow = {
+  portfolio_id: string
+  slug: string
+  visibility: Exclude<ShareVisibility, "PRIVATE">
+  /** Denormalised from portfolio_shares: the anonymous role cannot read that table. */
+  allow_search_indexing: boolean
+  payload: unknown
+  settings_version: number
+  published_at: string
+}
+
+export type PortfolioShareLinkRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  /** SHA-256 hex. The raw token is never stored. */
+  token_hash: string
+  label: string | null
+  expires_at: string | null
+  revoked_at: string | null
+  access_count: number
+  last_accessed_at: string | null
+  created_at: string
+}
+
+/** Immutable. Distinct from `portfolio_snapshots`, which is the daily value series. */
+export type ShareSnapshotRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  token_hash: string
+  version: number
+  label: string | null
+  base_currency: string
+  calculated_at: string
+  payload: unknown
+  created_at: string
+}
+
+export type ShareEventAction =
+  | "VISIBILITY_CHANGED"
+  | "SETTINGS_CHANGED"
+  | "PUBLISHED"
+  | "UNPUBLISHED"
+  | "LINK_CREATED"
+  | "LINK_REVOKED"
+  | "SNAPSHOT_CREATED"
+  | "SNAPSHOT_DELETED"
+
+export type ShareEventRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  action: ShareEventAction
+  detail: Record<string, unknown>
+  created_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -635,6 +729,46 @@ export type Database = {
         Update: Partial<Pick<SavedSimulationRow, "name" | "inputs">>
         Relationships: []
       }
+      portfolio_shares: {
+        Row: PortfolioShareRow
+        // Every flag has a database default of false, so a row can be created from the ids alone.
+        Insert: Pick<PortfolioShareRow, "portfolio_id" | "user_id"> &
+          Partial<Omit<PortfolioShareRow, "id" | "portfolio_id" | "user_id" | Timestamps>> & { id?: string }
+        Update: Partial<Omit<PortfolioShareRow, "id" | "portfolio_id" | "user_id" | Timestamps>>
+        Relationships: []
+      }
+      published_shares: {
+        Row: PublishedShareRow
+        Insert: Omit<PublishedShareRow, "published_at"> & { published_at?: string }
+        Update: Partial<Omit<PublishedShareRow, "portfolio_id">>
+        Relationships: []
+      }
+      portfolio_share_links: {
+        Row: PortfolioShareLinkRow
+        Insert: Pick<PortfolioShareLinkRow, "portfolio_id" | "user_id" | "token_hash"> &
+          Partial<Omit<PortfolioShareLinkRow, "id" | "portfolio_id" | "user_id" | "token_hash" | "created_at">> & {
+            id?: string
+          }
+        // Revocation only. The token hash and the portfolio it belongs to are never rewritten.
+        Update: Partial<Pick<PortfolioShareLinkRow, "revoked_at" | "label">>
+        Relationships: []
+      }
+      share_snapshots: {
+        Row: ShareSnapshotRow
+        Insert: Omit<ShareSnapshotRow, "id" | "created_at" | "version"> & { id?: string; version?: number }
+        /** Immutable: there is no update policy on the table, so there is no update type here. */
+        Update: never
+        Relationships: []
+      }
+      share_events: {
+        Row: ShareEventRow
+        Insert: Omit<ShareEventRow, "id" | "created_at" | "detail"> & {
+          id?: string
+          detail?: Record<string, unknown>
+        }
+        Update: never
+        Relationships: []
+      }
       watchlist_items: {
         Row: WatchlistItemRow
         Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
@@ -643,7 +777,26 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    /**
+     * Token-gated reads. Both are `security definer`, so an anonymous caller can present a token
+     * without being granted any select on the tables behind them.
+     */
+    Functions: {
+      share_by_token: {
+        Args: { p_token_hash: string }
+        Returns: Array<{ payload: unknown; published_at: string; visibility: ShareVisibility }>
+      }
+      snapshot_by_token: {
+        Args: { p_token_hash: string }
+        Returns: Array<{
+          payload: unknown
+          version: number
+          label: string | null
+          calculated_at: string
+          created_at: string
+        }>
+      }
+    }
     Enums: {
       transaction_side: TransactionSide
       cash_transaction_kind: CashTransactionKind
@@ -657,6 +810,7 @@ export type Database = {
       simulation_type: SimulationType
       import_status: ImportStatus
       import_format: ImportFormat
+      share_visibility: ShareVisibility
     }
     CompositeTypes: Record<string, never>
   }

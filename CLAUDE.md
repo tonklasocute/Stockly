@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 12 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 13 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -29,7 +29,11 @@ all pure, all client-side, and none of it able to touch a transaction. Phase 12 
 automation: CSV and Excel import with column mapping, a preview that writes nothing, duplicate
 detection whose idempotency is a database guarantee, reconciliation against a broker statement, a
 data-quality centre, and scheduled market and FX refresh with a job history — every imported row
-becoming an ordinary transaction processed by the engine that was already there.
+becoming an ordinary transaction processed by the engine that was already there. Phase 13 added
+sharing: a portfolio can be published as a page — private, link-only or public — with every section
+and every figure switched off until its owner turns it on, plus expiring and revocable share links,
+immutable snapshots, and a preview that is the real page. An anonymous visitor never reads a
+portfolio; they read a projection the owner's own session produced.
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -71,6 +75,7 @@ production**: they create and delete portfolio records.
 | Exchange rates | `FxRateProvider` — mock, Twelve Data `/exchange_rate` | one credit per pair per 10-minute cache window; a missing rate is `null`, never a fabricated one |
 | Tests | Vitest (unit). Playwright when E2E is first needed | |
 | Export | Hand-written CSV writer (`lib/csv.ts`) | 20 lines, with formula-injection escaping |
+| Sharing | Published jsonb projection + `security definer` token functions | no service-role key on any request path; the anonymous role's whole grant is one table where `visibility = 'PUBLIC'` |
 | Import | Same file's parser + `lib/xlsx.ts` | no dependency: npm `xlsx` carries open advisories `audit:ci` would fail, ExcelJS is a tree to read four XML files |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
 | Benchmarks | `BenchmarkProvider` — market-data adapter, mock | index series are not on Twelve Data's free tier; the adapter says so and the UI renders N/A |
@@ -131,7 +136,8 @@ domain/      pure business logic. No framework imports. Heavily tested.
              insights.ts (deterministic rules + INSIGHT_THRESHOLDS) ·
              simulation/ (growth + DCA, goal plan, dividend plan, what-if — pure, no I/O at all) ·
              import/ (mapping, value parsing, fingerprint, validation, reconciliation) ·
-             data-quality.ts (freshness + completeness rules, no score)
+             data-quality.ts (freshness + completeness rules, no score) ·
+             sharing.ts (visibility, presets, slugs, link state, the public projection)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -319,6 +325,42 @@ Full detail in [`docs/IMPORT.md`](docs/IMPORT.md).
 - **A scheduled job is bounded, secret-guarded and safe to run twice.** It skips closed markets,
   refreshes `unknown` ones, batches one call per market, and writes counters — never figures — to
   `job_executions`. An unset `CRON_SECRET` rejects everything.
+
+## Sharing Rules
+
+Full detail in [`docs/SHARING.md`](docs/SHARING.md).
+
+- **An anonymous visitor never reads a portfolio.** They read a *published projection* — a jsonb
+  document the owner's own session produced, already filtered by their settings. The anonymous
+  role's entire grant is `select` on `published_shares where visibility = 'PUBLIC'` plus two
+  token-gated `security definer` functions. There is no service-role key on any request path.
+- **A shared page is a publication, not a live feed**, and it says so. It prints when it was
+  published and offers no sentence that implies a current price. A snapshot is labelled harder still.
+- **`projectPublicPortfolio` is the privacy boundary and the only way out.** It constructs its
+  output field by field, never spreads an input, and is fed a narrow `ShareSource` — so it cannot
+  leak a journal entry, a thesis, a goal note or a transaction, because it is never handed one.
+- **A withheld section is absent, not null.** `null` means "not computable" and renders `N/A`; the
+  key simply not being there means the owner did not share it. Never conflate the two.
+- **Every switch defaults to false, and no preset turns on realised P&L, cash or search indexing.**
+  A preset called "everything" is exactly where an unnoticed default does its damage.
+- **A token is a capability: 32 CSPRNG bytes, stored only as SHA-256, shown once.** Never a uuid,
+  never derived from an id or a timestamp, never logged, never recoverable.
+- **Expiry and revocation are checked in the same statement that reads the row**, and token pages
+  are `revalidate = 0`. A revoked link that survives a cache has not been revoked.
+- **Every failure to open a shared page is the same failure.** Private, revoked, expired, deleted
+  and never-existed are one sentence — distinguishing them answers a question only a prober asks.
+- **A snapshot is immutable**: no update policy on the table, and a version so an old one stays
+  readable. It is a rendering held still, never a source of truth.
+- **Saving republishes, and a failed rebuild deletes the published row.** The dangerous case is an
+  owner switching a section off, the save succeeding and the rebuild failing — sharing fails closed.
+- **Indexing is opt-in twice** (PUBLIC *and* `allow_search_indexing`), enforced by a check
+  constraint in both tables. `/share/` and `/snapshot/` are `noindex` and disallowed in robots.txt.
+- **Viewer analytics is a counter and a timestamp.** No address, no user agent, no referrer, no
+  geography. The audit trail records what the owner did, never who looked.
+- **Deleting anything in the sharing layer deletes a page, never money.** No sharing table
+  references `transactions` at all.
+- **The preview is the real page** — same projection, same component. A separately-rendered preview
+  can be wrong about what a stranger sees.
 
 ## Analytics Rules
 
@@ -583,7 +625,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 10 ✅ | Investment intelligence: journal, theses, sell reviews, goals and projections, TWR/IRR, risk centre, benchmarks, deterministic insights engine |
 | 11 ✅ | Planning & simulation: compound growth and DCA, goal projection and required contribution, dividend projection, portfolio what-if, saved scenarios |
 | 12 ✅ | Data & automation: CSV/Excel import, mapping, duplicate detection, reconciliation, data-quality centre, scheduled refresh and job history |
-| 13 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
+| 13 ✅ | Sharing & ecosystem: visibility model, per-section privacy controls, public pages, expiring and revocable share links, immutable snapshots, share presets, preview |
+| 14 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

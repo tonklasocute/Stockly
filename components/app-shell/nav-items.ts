@@ -11,6 +11,7 @@ import {
   FileUp,
   LayoutDashboard,
   Settings,
+  Share2,
   ShieldCheck,
   Sparkles,
   Target,
@@ -43,6 +44,9 @@ export const NAV_ITEMS = [
   // somewhere you go when a figure reads N/A — neither belongs on the four-item bottom bar.
   { href: "/imports", label: "Import", icon: FileUp, mobile: false, badge: null },
   { href: "/data-quality", label: "Data quality", icon: ShieldCheck, mobile: false, badge: null },
+  // Phase 13. Sharing is a settings-shaped decision made once and revisited rarely, so it sits
+  // beside the other configuration rather than on the bottom bar.
+  { href: "/sharing", label: "Sharing", icon: Share2, mobile: false, badge: null },
   { href: "/alerts", label: "Alerts", icon: Bell, mobile: false, badge: null },
   { href: "/screener", label: "Screener", icon: Telescope, mobile: false, badge: null },
   { href: "/dividends", label: "Dividends", icon: Coins, mobile: false, badge: null },

@@ -187,6 +187,27 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## Sharing (phase 13)
+
+**There is no public JSON API**, and that is the design. A shared portfolio is a page; adding a
+JSON endpoint for it would be a second projection to keep in step with the first and a second place
+to leak from. The routes below are all authenticated and all belong to the owner.
+
+| | Limit | |
+|---|---|---|
+| `GET /api/shares?portfolioId` | — | Config, links, snapshots, publication state and the owner's own audit trail. |
+| `PUT /api/shares` | 20 | Saves the settings **and republishes in the same request** — leaving a stale document behind after an owner withdrew a section would harm exactly the person who just tried to stop it. A rebuild that fails deletes the published row rather than leaving the old one standing. |
+| `PATCH /api/shares` | 20 | Applies a preset. Presets start from all-off and never enable realised P&L, cash or search indexing. |
+| `POST /api/shares/publish` | 10 | Rebuilds the published document from today's figures. The one endpoint here that spends an upstream credit. |
+| `GET|POST /api/shares/links` | 20 | **The raw token is in the create response and nowhere else** — the database holds only its SHA-256, and it cannot be shown again. Max 20 active links. |
+| `DELETE /api/shares/links/:id` | — | Revokes immediately. A link that is not the caller's is a `404`, never a `403`. |
+| `GET|POST /api/shares/snapshots` | 10 | Freezes the current projection at its own token address. A request can supply neither a payload nor a token. Max 50. |
+| `DELETE /api/shares/snapshots/:id` | — | Deletes a page. No transaction, holding or P&L figure is touched. |
+
+Public reads happen in the page, not through this API: `/p/<slug>` selects from `published_shares`
+under anonymous RLS, and `/share/<token>` and `/snapshot/<token>` call `security definer` functions
+that require the token. All three return the same nothing for every reason they can fail.
+
 ## Import and data quality (phase 12)
 
 **Preview writes nothing.** No session row, no staging table, no stored file — a user who abandons an

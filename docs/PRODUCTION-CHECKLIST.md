@@ -108,6 +108,10 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 
 - ✅ Per-user, per-minute limits on everything that costs money: AI (6), market data (20–60 by
   endpoint), screener (30), alerts (20), push (10).
+- ✅ **Added in phase 13:** share config 20/min, publish 10/min, link 20/min, snapshot 10/min.
+  Publishing and snapshotting each run an analytics pass and a batched quote call, so those two are
+  the money brake. A **public page read costs one indexed row and no upstream call at all** — which
+  is the property that makes a link posted to social media survivable, rather than a rate limit.
 - ✅ **Added in phase 12:** import preview 30/min and apply 10/min. Neither spends an upstream
   credit, but both parse an untrusted file, so the limit is on CPU and memory rather than money.
   `/api/data-quality` reads the already-cached analytics pass and adds no upstream call.
@@ -139,6 +143,19 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Indexes on every foreign key and on the columns actually filtered and sorted. Two added in
   phase 8, both partial, both matching a real query; phase 9 widened the transactions symbol index
   to `(portfolio_id, market, symbol)`, which is how the engine now groups positions.
+- ✅ **Added in phase 13:** `portfolio_shares`, `published_shares`, `portfolio_share_links`,
+  `share_snapshots` and `share_events`. Every owner-facing one carries `user_id`, RLS and a
+  composite foreign key to `(portfolio_id, user_id)`. Every `show_*` column defaults to **false**.
+- ✅ **`published_shares` carries the schema's one anonymous grant**, and it holds a pre-filtered
+  document rather than a portfolio: no `user_id`, no transaction and no id reachable from a row a
+  stranger can read. Named for what it is so nobody adds a private column to it later.
+- ✅ **`share_snapshots` has no update policy at all**, deliberately — RLS denies what it does not
+  permit, so an immutable artefact is immutable in the database rather than by convention.
+- ✅ Both token-gated reads are `security definer` with a **pinned `search_path`**, and `execute` is
+  revoked from `public` and granted explicitly to `anon, authenticated`. An anonymous caller can
+  present a token without being able to read the table it unlocks.
+- ✅ **No sharing table references `transactions`.** Deleting a share, a link or a snapshot removes a
+  page and can reach no money at all.
 - ✅ **Added in phase 12:** `import_sessions`, `import_rows` and `job_executions`, plus three
   provenance columns on `transactions`. The user-owned tables carry `user_id`, RLS and four explicit
   policies; `job_executions` is operational history with a select-only policy for signed-in users
@@ -170,6 +187,31 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   would be routed to the wrong provider and valued in the wrong unit — a silently-wrong number
   rather than a visible error — so it is now unstorable rather than merely rejected in TypeScript.
 - ✅ No connection pool to exhaust — Supabase is reached over HTTP, not the Postgres wire protocol.
+
+### Sharing (phase 13)
+
+- ✅ **No service-role key on any request path.** The public pages read through anonymous RLS and two
+  token-gated definer functions; the projection that feeds them is produced by the owner's own
+  session. The phase 5 rule still holds: the service-role key is used by the scheduled jobs and
+  nowhere reachable from a request.
+- ✅ Tokens are 32 CSPRNG bytes, stored only as SHA-256, shown once, never logged and never in an
+  audit row. `lib/share-token.test.ts` asserts entropy, uniqueness, URL-safety and that consecutive
+  tokens share no prefix a counter or timestamp would produce.
+- ✅ Expiry and revocation are checked inside the statement that reads the row; token pages are
+  `revalidate = 0` so nothing cached can outlive a revocation.
+- ✅ Private, revoked, expired, deleted and never-existed all return the same `null` and render the
+  same sentence. A 404 rather than a 403 everywhere a resource is not the caller's.
+- ✅ Indexing is opt-in twice — PUBLIC *and* `allow_search_indexing` — enforced by a check constraint
+  in both tables, `noindex` metadata on every token page, and `/share/`, `/snapshot/` and `/sharing`
+  disallowed in robots.txt.
+- ✅ Saving republishes in the same request, and a **failed rebuild deletes the published document**
+  rather than leaving a stale one. Sharing fails closed.
+- ✅ Viewer analytics is an access count and a last-seen timestamp. No address, no user agent, no
+  referrer, no geography — the audit trail records what the owner did, never who looked.
+- ✅ Logs carry a visibility and a section count. No token, no slug traffic, no figure.
+- ✅ `domain/sharing-leak.test.ts` walks the real published document across every settings
+  combination, by forbidden key *and* by planted private value. Frontend hiding is not a control and
+  nothing in that test renders anything.
 
 ### Untrusted uploads (phase 12)
 
@@ -296,6 +338,9 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Rollback documented and instant — promote the previous Vercel deployment.
 - ✅ Migrations are forward-only and additive, so code can roll back without touching the schema.
 - ✅ Feature flags for AI, market data and the scheduled jobs, all changeable without a deploy.
+- ✅ **Phase 13 adds no environment variable either.** Sharing is switched off per portfolio by its
+  own default, which is a stronger off switch than a deployment flag: there is nothing to publish
+  until an owner asks.
 - ✅ **Phase 12 adds no environment variable.** `/api/cron/data` reuses the alerts job's
   `CRON_SECRET` and its constant-time check; an unset secret rejects every request rather than
   opening the endpoint. Both scheduled jobs are bounded (`maxDuration = 60`), skip work that would
@@ -315,7 +360,8 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   [TECHNICAL-ANALYSIS.md](TECHNICAL-ANALYSIS.md), [ALERTS.md](ALERTS.md), [PWA.md](PWA.md),
   [AI.md](AI.md), [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md), [AI-SECURITY.md](AI-SECURITY.md),
   [AI-PROMPTS.md](AI-PROMPTS.md), [MULTI-MARKET.md](MULTI-MARKET.md),
-  [INTELLIGENCE.md](INTELLIGENCE.md), [SIMULATION.md](SIMULATION.md), [IMPORT.md](IMPORT.md).
+  [INTELLIGENCE.md](INTELLIGENCE.md), [SIMULATION.md](SIMULATION.md), [IMPORT.md](IMPORT.md),
+  [SHARING.md](SHARING.md).
 - ✅ Legal: `/privacy`, `/terms`, `/disclaimer`, written from the code rather than a template.
 
 ---

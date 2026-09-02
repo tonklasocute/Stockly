@@ -82,7 +82,7 @@ test("private pages redirect a signed-out visitor to sign in", async ({ page, re
 
   // The journal and theses hold the user's own reasoning; a signed-out visitor reaching one would
   // be the most damaging authorisation failure in the application.
-  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener", "/review", "/goals", "/journal", "/simulations", "/imports", "/data-quality"]) {
+  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener", "/review", "/goals", "/journal", "/simulations", "/imports", "/data-quality", "/sharing"]) {
     await page.goto(path)
     await expect(page).toHaveURL(/\/login/)
   }
@@ -99,10 +99,44 @@ test("the public pages render for a signed-out visitor", async ({ page }) => {
   }
 })
 
+/**
+ * Phase 13. A shared address that does not resolve must answer, not redirect to a login page — a
+ * visitor with a link has no account and never will, and bouncing them to /login would both
+ * confuse them and confirm nothing about whether the address exists.
+ */
+test("a shared address answers a signed-out visitor instead of redirecting", async ({ page, request }) => {
+  test.skip(!(await databaseReady(request)), "Needs a configured database to resolve a share.")
+
+  for (const path of [
+    "/p/a-portfolio-that-does-not-exist",
+    "/share/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "/snapshot/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  ]) {
+    await page.goto(path)
+    await expect(page).not.toHaveURL(/\/login/)
+    // The same sentence for every reason it could have failed. A page that distinguished "revoked"
+    // from "never existed" would be answering a question only somebody probing would ask.
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/not available|private/i)
+  }
+})
+
+test("a share link page tells crawlers to stay away", async ({ page, request }) => {
+  test.skip(!(await databaseReady(request)), "Needs a configured database to resolve a share.")
+
+  await page.goto("/share/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+  const robots = await page.locator('meta[name="robots"]').getAttribute("content")
+  expect(robots).toContain("noindex")
+})
+
 test("robots.txt keeps crawlers out of the private area", async ({ request }) => {
   const body = await (await request.get("/robots.txt")).text()
   expect(body).toContain("Disallow: /api/")
   expect(body).toContain("Disallow: /dashboard")
   expect(body).toContain("Disallow: /journal")
+  // A share link and a snapshot token are capabilities. A crawler that indexes one turns "anyone
+  // with the link" into "anyone".
+  expect(body).toContain("Disallow: /share/")
+  expect(body).toContain("Disallow: /snapshot/")
+  expect(body).toContain("Disallow: /sharing")
   expect(body).toContain("Sitemap:")
 })

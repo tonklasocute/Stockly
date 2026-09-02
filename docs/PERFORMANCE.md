@@ -99,6 +99,23 @@ single-currency portfolio (the identity conversion consults no provider).
 
 ---
 
+### Shared pages (phase 13, by design)
+
+| Request | Upstream credits | Database round trips |
+|---|---|---|
+| `GET /p/<slug>` | **0** | 1 — one indexed row, `cache()`d so the page and its metadata share it |
+| `GET /share/<token>` | **0** | 1 — one `security definer` call that resolves, validates and counts the access together |
+| `GET /snapshot/<token>` | **0** | 1 |
+| `PUT /api/shares` · `POST /api/shares/publish` | one batched quote call per market + one FX call per pair | an analytics pass plus one upsert |
+
+This asymmetry is the whole reason a shared page is a publication rather than a live view. A link
+posted to social media brings traffic that is unrelated to how many people have accounts, and a
+public page that ran the engine per request would turn one popular portfolio into an outage and a
+provider bill. Publishing moves that cost to a moment the owner chooses, once.
+
+The document itself is capped at 256 KB by a check constraint, holdings at 50 and the performance
+series at 400 points — so a page stays a page whatever the portfolio behind it looks like.
+
 ### Import requests (phase 12, by design)
 
 | Request | Upstream credits | Database round trips |

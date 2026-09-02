@@ -512,7 +512,37 @@ byte-identical, that applying only ever adds transactions, that re-applying the 
 and — structurally, by reading the source — that nothing in `domain/import/` can reach a client, a
 network or a framework.
 
-## 22. What is deliberately not here yet
+## 22. Sharing and snapshots (phase 13)
+
+Full detail in [`SHARING.md`](SHARING.md). The decisions that matter:
+
+1. **Sharing is a projection, not a portfolio.** An anonymous visitor never reads portfolio data.
+   They read a jsonb document the owner's own session produced through
+   `domain/sharing.ts:projectPublicPortfolio`, already filtered by their settings.
+2. **Which is why there is no privileged read.** The service-role key stays unreachable from a
+   request, as it has since phase 5. The anonymous role's whole grant is `select` on
+   `published_shares where visibility = 'PUBLIC'`, plus two `security definer` functions that
+   require a token — so there is no path from an anonymous request to a `transactions` row, and a
+   bug in the projector can leak at most what the owner published.
+3. **The cost is stated rather than hidden.** A shared page is as fresh as the last publish and
+   prints when that was. Calling it "live" would be the exact dishonesty the freshness fields
+   elsewhere in this codebase exist to prevent. It also makes a public page one indexed row read —
+   no engine pass, no quote call — which is what makes a link posted to social media survivable.
+4. **Everything defaults to off, and withheld is not null.** An absent key means the owner did not
+   share it; `null` keeps its usual meaning of "not computable" and renders `N/A`.
+5. **A token is a capability**: 32 CSPRNG bytes, stored only as SHA-256, shown once. Expiry and
+   revocation are evaluated inside the same statement that reads the row, and token pages are never
+   cached.
+6. **The preview is the real page** — same projection, same component — because a preview rendered
+   by different code can be wrong about what a stranger sees.
+
+`domain/sharing-leak.test.ts` walks the actual published document across every combination of
+settings, checking by key and by value; `domain/sharing-boundary.test.ts` asserts holdings, cost
+basis, P&L and cash are byte-identical after every sharing operation and that no calculation module
+imports the sharing layer. `supabase/sharing-policies.test.ts` reads the migration and fails if a
+policy, a pinned `search_path` or the missing snapshot update policy ever changes.
+
+## 23. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
@@ -520,6 +550,8 @@ exchange rates, more than one currency per market, FIFO cost basis and tax lots,
 automatic thesis invalidation, a composite risk score,
 multiple benchmarks per portfolio, full-text journal search, a market-wide screener universe, price prediction of any kind, email and LINE notification channels, offline
 mutation queues, broker API connections, scheduled unattended imports, stored original upload files,
-broker-specific import presets, an event bus, any Go service, streamed AI responses, an AI answer cache,
+broker-specific import presets, a public portfolio directory, public profiles or search, likes,
+comments, followers and every other social feature, shared transactions, journals or simulations,
+dynamic Open Graph image generation, live (rather than published) public pages, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.
