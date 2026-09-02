@@ -19,6 +19,7 @@ import { baseCurrencyOf } from "@/domain/market"
 import { formatCurrency, formatCurrencyWithCode, formatOptional, formatPercent } from "@/lib/format"
 import { getUser } from "@/lib/supabase/server"
 import { NoPortfolio } from "../_no-portfolio"
+import { describeError, logger } from "@/lib/log"
 
 export const metadata: Metadata = { title: "Analytics" }
 
@@ -48,7 +49,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     const user = await getUser()
     if (user) await recordSnapshot(active.id, user.id, bundle)
   } catch (error) {
-    console.error("[analytics] snapshot skipped", error)
+    logger.warn("analytics.snapshot_skipped", describeError(error))
   }
 
   const {

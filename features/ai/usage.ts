@@ -5,6 +5,7 @@ import { serverEnv } from "@/lib/env.server"
 import { AIError } from "@/services/ai/errors"
 import type { AIUsage } from "@/services/ai/types"
 import type { Database } from "@/types/database"
+import { logger } from "@/lib/log"
 
 /**
  * Usage accounting: the daily quota, the cost estimate and the audit row.
@@ -63,7 +64,7 @@ export async function assertWithinDailyQuota(
 
   if (error) {
     // Failing open here would make the quota advisory. It is a spending limit, so it fails closed.
-    console.error("[ai] quota read failed", error.code)
+    logger.error("ai.quota_read_failed", { code: error.code })
     throw AIError.unavailable(error.code)
   }
 
@@ -113,5 +114,5 @@ export async function recordUsage(
 
   // Accounting must never take the answer away from the user: a failed insert is logged loudly and
   // the response still goes out.
-  if (error) console.error("[ai] usage insert failed", error.code)
+  if (error) logger.error("ai.usage_insert_failed", { code: error.code })
 }

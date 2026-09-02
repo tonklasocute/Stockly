@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { log, logger, resolveRequestId } from "./log"
+import { describeError, log, logger, resolveRequestId } from "./log"
 
 /**
  * A logger is only worth having if it is safe to call from anywhere. These assert the two
@@ -103,5 +103,62 @@ describe("resolveRequestId", () => {
     for (const hostile of ["abc\r\nSet-Cookie: a=b", "<script>alert(1)</script>", "x".repeat(200), "short"]) {
       expect(resolveRequestId(hostile)).toMatch(/^[0-9a-f-]{36}$/)
     }
+  })
+})
+
+describe("describing a thrown value", () => {
+  it("reads a plain object, which is what supabase-js throws", () => {
+    // `String(error)` on this yields "[object Object]", which is what the catch-all in `guarded()`
+    // used to log — the branch that matters most, recording nothing usable.
+    const supabaseError = { code: "23505", message: "duplicate key value violates unique constraint" }
+    expect(describeError(supabaseError)).toMatchObject({
+      code: "23505",
+      message: "duplicate key value violates unique constraint",
+    })
+  })
+
+  it("never carries the Postgres details or hint", () => {
+    // On a unique violation those quote the values of the conflicting row — a portfolio's own data,
+    // in a log line.
+    const described = describeError({
+      code: "23505",
+      message: "duplicate key",
+      details: "Key (user_id, import_fingerprint)=(abc, v1|NVDA|2026-01-02|10|170.00) already exists.",
+      hint: "consider the transaction 170.00",
+    })
+    const serialised = JSON.stringify(described)
+    expect(serialised).not.toContain("170.00")
+    expect(serialised).not.toContain("NVDA")
+    expect("details" in described).toBe(false)
+    expect("hint" in described).toBe(false)
+  })
+
+  it("reads a real Error, with its code when it has one", () => {
+    const error = Object.assign(new TypeError("fetch failed"), { code: "ECONNRESET" })
+    expect(describeError(error)).toEqual({
+      name: "TypeError",
+      message: "fetch failed",
+      code: "ECONNRESET",
+    })
+  })
+
+  it("bounds a primitive so a thrown megabyte cannot become a log line", () => {
+    const described = describeError("x".repeat(10_000))
+    expect(String(described.message)).toHaveLength(200)
+  })
+
+  it("survives null and undefined", () => {
+    expect(describeError(null).name).toBe("object")
+    expect(describeError(undefined).name).toBe("undefined")
+  })
+
+  it("is redacted like any other field once it reaches the logger", () => {
+    // The value-shaped guard applies to a message too: a provider that echoes a key back in its
+    // error text must not put it in the log.
+    const [line] = captured(() =>
+      logger.error("test.error", describeError(new Error("rejected key sk-live-abcdefghijklmno"))),
+    )
+    expect(JSON.stringify(line)).not.toContain("sk-live-abcdefghijklmno")
+    expect(line.message).toBe("[redacted]")
   })
 })

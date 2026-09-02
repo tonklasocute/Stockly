@@ -7,6 +7,7 @@ import { MarketDataError } from "./errors"
 import { mockMarketDataProvider } from "./mock-provider"
 import { createTwelveDataProvider } from "./twelve-data-provider"
 import type { InstrumentSummary, MarketDataProvider, MarketStatus, Quote } from "./types"
+import { logger } from "@/lib/log"
 
 /**
  * Provider selection and routing.
@@ -35,7 +36,7 @@ function create(name: string): MarketDataProvider {
     }
 
     default:
-      console.warn(`[market-data] Unknown provider "${name}"; using mock prices instead.`)
+      logger.warn("market-data.unknown_provider", { provider: name })
       return mockMarketDataProvider
   }
 }

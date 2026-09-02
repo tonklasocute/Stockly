@@ -3,6 +3,7 @@ import "server-only"
 import { cache } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { PAGE_SIZE, pageRange, toPageResult, type Page } from "@/lib/pagination"
+import { logger } from "@/lib/log"
 import type {
   NotificationCategory,
   NotificationPreferencesRow,
@@ -43,7 +44,7 @@ export const unreadCount = cache(async (): Promise<number> => {
 
   // The badge is decoration: a failure here must not take down every page in the app.
   if (error) {
-    console.error("[notifications] unread count failed", error.code)
+    logger.error("notifications.unread_count_failed", { code: error.code })
     return 0
   }
   return count ?? 0

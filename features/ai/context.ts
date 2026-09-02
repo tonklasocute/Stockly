@@ -49,6 +49,7 @@ import {
   renderWatchlist,
 } from "./render"
 import { MAX_CONTEXT_CHARS } from "./schema"
+import { describeError, logger } from "@/lib/log"
 
 export type * from "./facts"
 export { renderScreenerVocabulary } from "./render"
@@ -185,7 +186,7 @@ async function loadStockFacts(
     } catch (error) {
       // A stale snapshot, clearly labelled, beats no answer. The failure is logged, not surfaced
       // as a provider message.
-      console.error("[ai] indicator compute failed", symbol, error)
+      logger.error("ai.indicator_failed", { symbol, ...describeError(error) })
     }
   }
 

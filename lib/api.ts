@@ -4,7 +4,7 @@ import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 import { ZodError, type ZodType } from "zod"
 import { isSupabaseConfigured } from "@/lib/env"
-import { logger, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveRequestId } from "@/lib/log"
+import { describeError, logger, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveRequestId } from "@/lib/log"
 import { rateLimit } from "@/lib/rate-limit"
 import { isAIError } from "@/services/ai/errors"
 import { isMarketDataError } from "@/services/market-data/errors"
@@ -63,8 +63,19 @@ export type ApiFailure = {
 }
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
+/**
+ * Every API response carries `private, no-store`.
+ *
+ * Belt and braces rather than a fix for a known bug: Vercel does not edge-cache a dynamic route
+ * handler, and every handler in this app is dynamic. But *every* endpoint here is authenticated and
+ * user-specific, and the failure mode if that ever stops being true — one user's holdings served to
+ * the next from a shared cache — is the worst bug this application could have. One header removes
+ * the question.
+ */
+const NO_STORE = { "Cache-Control": "private, no-store" } as const
+
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json<ApiSuccess<T>>({ success: true, data }, { status })
+  return NextResponse.json<ApiSuccess<T>>({ success: true, data }, { status, headers: NO_STORE })
 }
 
 export function fail(
@@ -79,7 +90,10 @@ export function fail(
       error: { code, message, ...(details ? { details } : {}) },
       ...(requestId ? { requestId } : {}),
     },
-    { status: ERROR_CODES[code], headers: requestId ? { [REQUEST_ID_HEADER]: requestId } : undefined },
+    {
+      status: ERROR_CODES[code],
+      headers: { ...NO_STORE, ...(requestId ? { [REQUEST_ID_HEADER]: requestId } : {}) },
+    },
   )
 }
 
@@ -174,14 +188,16 @@ export async function guarded(
       logger.error("ai.error", { requestId, route, code: error.code })
       return finish(fail(error.code, error.message, undefined, requestId), "error")
     }
-    // Never the stack, never the Postgres detail, never the SQL. The id is the link between what
-    // the user saw and what is in the log.
-    logger.error("api.error", {
-      requestId,
-      route,
-      name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-    })
+    /*
+     * Never the stack, never the Postgres `details` or `hint`, never the SQL. The id is the link
+     * between what the user saw and what is in the log.
+     *
+     * `describeError` rather than an inline ternary because supabase-js throws a **plain object**,
+     * not an Error — the previous `String(error)` produced `[object Object]` and this branch, the
+     * one that matters most, logged nothing usable. It also refuses `details` and `hint`, which on
+     * a unique violation quote the values of the conflicting row.
+     */
+    logger.error("api.error", { requestId, route, ...describeError(error) })
     return finish(
       fail("INTERNAL_ERROR", "Something went wrong. Please try again.", undefined, requestId),
       "error",

@@ -1,3 +1,4 @@
+import { staleAfterMinutes } from "@/domain/freshness"
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
@@ -8,6 +9,7 @@ import { getMarketDataProvider, isMarketDataError } from "@/services/market-data
 import { createClient } from "@/lib/supabase/server"
 import type { Database, TechnicalSnapshotRow } from "@/types/database"
 import { resolveUniverse } from "./universe"
+import { logger } from "@/lib/log"
 
 /**
  * Cached technical snapshots.
@@ -22,7 +24,7 @@ import { resolveUniverse } from "./universe"
  */
 
 /** Beyond this, a snapshot is shown as stale rather than presented as current. */
-export const SNAPSHOT_STALE_MINUTES = 90
+export const SNAPSHOT_STALE_MINUTES = staleAfterMinutes("snapshot")
 
 export type StoredSnapshot = {
   snapshot: TechnicalSnapshot
@@ -136,7 +138,7 @@ export async function readSnapshots(
     .in("symbol", [...new Set(instruments.map((i) => i.symbol))])
 
   if (error) {
-    console.error("[technical] snapshot read failed", error.code)
+    logger.error("technical.snapshot_read_failed", { code: error.code })
     return out
   }
 
@@ -166,7 +168,7 @@ export async function readAllSnapshots(
 
   const out = new Map<string, StoredSnapshot>()
   if (error) {
-    console.error("[technical] snapshot read failed", error.code)
+    logger.error("technical.snapshot_read_failed", { code: error.code })
     return out
   }
   for (const row of data ?? []) {
@@ -254,7 +256,7 @@ export async function refreshSnapshots(
     const { error } = await supabase
       .from("technical_snapshots")
       .upsert(rows, { onConflict: "symbol,market,timeframe" })
-    if (error) console.error("[technical] snapshot upsert failed", error.code)
+    if (error) logger.error("technical.snapshot_upsert_failed", { code: error.code })
   }
 
   summary.durationMs = Date.now() - startedAt

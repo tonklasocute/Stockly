@@ -1,3 +1,4 @@
+import { staleAfterMinutes } from "./freshness"
 import { currencyOf, symbolKey, type MarketId } from "./market"
 import { percentOf, quantize, subtract } from "./money"
 
@@ -226,7 +227,7 @@ export type SkipReason =
   | "not-scheduled"
 
 /** A quote older than this is not evidence of anything; acting on it would be a false alert. */
-export const MAX_READING_AGE_MINUTES = 15
+export const MAX_READING_AGE_MINUTES = staleAfterMinutes("quote")
 
 export type EvaluationContext = {
   now: Date

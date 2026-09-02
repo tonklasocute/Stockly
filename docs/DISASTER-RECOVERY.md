@@ -159,3 +159,88 @@ A backup that has never been restored is a belief.
 - **AI conversations older than 180 days,** and usage rows older than 365. Deleted by design.
 - **Service worker caches.** Per device, holding nothing authenticated.
 - **The in-memory rate limiter.** Resets on every cold start, and is documented as advisory.
+
+---
+
+## 7. Recovering from a change rather than a loss
+
+Sections 1–6 are about losing the database. Far more likely is a change somebody regrets, and those
+recover differently — usually without touching a backup at all, because Stockly's write paths were
+built so the damaging operations are reversible.
+
+### An import created the wrong transactions
+
+The rows are ordinary transactions carrying `import_session_id` and `source_row`, so the import is
+addressable:
+
+```sql
+-- What did this import create?
+select id, symbol, side, trade_date, quantity, price
+  from public.transactions
+ where import_session_id = '<session-id>'
+ order by source_row;
+
+-- Reverse it. Deletes transactions, which is what an import created and nothing else.
+delete from public.transactions where import_session_id = '<session-id>';
+```
+
+Deleting the **session** does not do this: the foreign key is `on delete set null`, deliberately, so
+that removing a history row can never remove money. Reversing an import means deleting transactions,
+knowingly.
+
+Re-importing the same file afterwards works: the fingerprints went with the rows, so the partial
+unique index no longer blocks them.
+
+### A transaction was edited or deleted by mistake
+
+There is no soft delete and no audit trail on `transactions` — a decision worth restating here
+because it is the one place it costs something. Recovery is point-in-time restore (§4) or re-entry
+by hand from the broker statement. For a single row, re-entry is almost always faster and is what
+the reconciliation feature exists to verify afterwards: import the broker's file and let
+`MISSING_IN_STOCKLY` tell you what is absent.
+
+### A portfolio's base currency was changed
+
+Stored snapshot rows keep the currency they were taken in and the analytics pass reads only those
+matching the current base currency, so switching back restores the old series intact. Nothing is
+lost and nothing needs recovering — the rows for the other currency are still there and still true.
+
+### Sharing was left on by accident
+
+Two independent switches, either of which closes the door immediately:
+
+```sql
+-- Stop publishing one portfolio. The settings survive; the page does not.
+delete from public.published_shares where portfolio_id = '<portfolio-id>';
+
+-- Stop every shared page in the deployment. Pages only; no portfolio is touched.
+delete from public.published_shares;
+
+-- Revoke every share link for one portfolio.
+update public.portfolio_share_links
+   set revoked_at = now()
+ where portfolio_id = '<portfolio-id>' and revoked_at is null;
+```
+
+Nothing shared is cached, so all three take effect on the next request.
+
+### A migration went wrong
+
+Migrations are forward-only and additive, which is what makes this survivable: application code can
+always roll back without touching the schema, so the first move is **redeploy the previous version**
+and leave the database alone. A migration that has already run and needs undoing is a new migration
+that reverses it, never an edit to the applied file — editing a file that has run on a shared
+environment leaves two environments with the same migration name and different contents.
+
+A destructive change (a dropped column, a narrowed type) needs a two-step deploy: ship the code that
+stops using it, confirm, then ship the migration. There is no destructive migration in the history
+so far.
+
+## 8. What has and has not been rehearsed
+
+- **Not rehearsed:** a restore, in any environment. §5 says how, and the number it produces is the
+  only real RTO. Everything in §2 is an estimate until then.
+- **Not rehearsed:** the import reversal above, against production data.
+- **Verified by test, not by execution:** the migrations, including phase 13's policies, which are
+  asserted structurally by `supabase/sharing-policies.test.ts` rather than applied to a database in
+  the development environment.

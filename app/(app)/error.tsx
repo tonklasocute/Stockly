@@ -13,6 +13,8 @@ export default function AppError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Browser console, deliberately: this runs in the user's tab, where `lib/log.ts` would emit
+    // JSON nobody reads and the server has already logged the failure against its request id.
     console.error(error)
   }, [error])
 

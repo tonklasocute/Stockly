@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import type { AIConversationRow, AIMessageRow, Database } from "@/types/database"
 import { MAX_HISTORY_MESSAGES } from "./schema"
 import type { AIResearchResult } from "./research-service"
+import { logger } from "@/lib/log"
 
 /**
  * Conversation storage.
@@ -164,8 +165,8 @@ export async function sweepExpiredAIData(
     admin.from("ai_usage").delete({ count: "exact" }).lt("created_at", cutoff(USAGE_RETENTION_DAYS)),
   ])
 
-  if (conversations.error) console.error("[ai] retention sweep failed", conversations.error.code)
-  if (usage.error) console.error("[ai] usage sweep failed", usage.error.code)
+  if (conversations.error) logger.error("ai.retention_sweep_failed", { code: conversations.error.code })
+  if (usage.error) logger.error("ai.usage_sweep_failed", { code: usage.error.code })
 
   return { conversations: conversations.count ?? 0, usage: usage.count ?? 0 }
 }

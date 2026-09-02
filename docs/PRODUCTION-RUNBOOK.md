@@ -136,6 +136,22 @@ If you find one, that is a bug — fix the call site, not the redaction list.
 
 ## 6. Incidents
 
+### Severity
+
+Deciding this first is what stops a cosmetic bug being debugged at 3am and a data-integrity problem
+being left until Monday.
+
+| | Meaning | Examples | Expected response |
+|---|---|---|---|
+| **SEV-1** | Financial correctness, data integrity, or a security or privacy breach | A user can see another user's data; a shared page shows a withheld figure; holdings or P&L are wrong; a share token leaked | Stop and act immediately. Take the affected capability offline *before* diagnosing — set the portfolio private, `delete from published_shares`, revoke the links. Correctness is restored before the cause is understood. |
+| **SEV-2** | A major feature is unavailable, but nothing is wrong | Sign-in failing; the dashboard 500ing; every scheduled job failing; the database unreachable | Act now. Roll back first (§3) and diagnose from the logs afterwards. |
+| **SEV-3** | Degraded, and degrading as designed | Market data unavailable so figures fall back to cost; FX missing so a total excludes a holding; AI down | No emergency — the application already says what it cannot do. Confirm the degradation is being *reported*; a silent fallback is a SEV-2. |
+| **SEV-4** | Cosmetic or minor | A label, a layout, one N/A that could be explained better | Normal work. |
+
+The distinction that matters most is **SEV-3 versus SEV-1**: a provider outage that shows N/A is the
+system working, and the same outage showing `0` is a SEV-1. The difference is whether a number that
+does not exist is being presented as though it did.
+
 ### The site is down
 
 1. `curl $BASE/api/health`. If it answers, the platform is fine and the problem is narrower.

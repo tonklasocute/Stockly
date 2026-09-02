@@ -1,3 +1,4 @@
+import { staleAfterMinutes } from "./freshness"
 import type { Currency, MarketId } from "./market"
 
 /**
@@ -65,10 +66,13 @@ export type DataQualityIssue = {
  * These decide whether something is *worth listing*, never whether it is good or bad.
  */
 export const DATA_QUALITY_THRESHOLDS = {
-  /** Beyond this a quote is presented as delayed rather than current. Matches the alert engine. */
-  stalePriceMinutes: 15,
-  /** An exchange rate is refreshed every ten minutes; an hour old is worth naming. */
-  staleFxMinutes: 60,
+  /**
+   * Read from `FRESHNESS_POLICY` rather than restated. These used to be the literals `15` and `60`
+   * beside a comment claiming they matched the alert engine — a claim nothing enforced, and the
+   * exact shape a threshold drifts out of agreement in.
+   */
+  stalePriceMinutes: staleAfterMinutes("quote"),
+  staleFxMinutes: staleAfterMinutes("fx"),
 } as const
 
 /**

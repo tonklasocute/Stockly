@@ -7,6 +7,7 @@ import { createAnthropicProvider } from "./anthropic-provider"
 import { createOpenAIProvider } from "./openai-provider"
 import { mockAIProvider } from "./mock-provider"
 import type { AIProvider } from "./types"
+import { logger } from "@/lib/log"
 
 /**
  * The single place a model vendor is named. Everything above depends on the interface only.
@@ -54,7 +55,7 @@ export const getAIProvider = cache((): AIProvider => {
     }
 
     default:
-      console.warn(`[ai] Unknown provider "${serverEnv.aiProvider}"; using the mock provider.`)
+      logger.warn("ai.unknown_provider", { provider: serverEnv.aiProvider })
       return mockAIProvider
   }
 })

@@ -3,6 +3,7 @@ import "server-only"
 import webpush, { WebPushError } from "web-push"
 import { serverEnv } from "@/lib/env.server"
 import type { PushSubscriptionRow } from "@/types/database"
+import { logger } from "@/lib/log"
 
 let configured = false
 
@@ -58,12 +59,28 @@ export async function sendPush(
     if (error instanceof WebPushError && (error.statusCode === 404 || error.statusCode === 410)) {
       return "expired"
     }
-    // The endpoint is logged, the payload is not — it describes a user's holdings.
-    console.error("[push] send failed", {
+    // The endpoint's origin is logged, the payload is not — the payload describes a user's
+    // holdings, and the endpoint's path segment is the push subscription's own secret.
+    logger.error("push.send_failed", {
       status: error instanceof WebPushError ? error.statusCode : "unknown",
-      endpoint: subscription.endpoint.slice(0, 60),
+      endpoint: originOf(subscription.endpoint),
     })
     return "failed"
+  }
+}
+
+/**
+ * Just the service's origin — `https://fcm.googleapis.com`.
+ *
+ * The full endpoint URL is a **capability**: anyone holding it can push to that device. Logging 60
+ * characters of it was already close to the line; the origin is what actually answers the question
+ * a log is asked ("is Firefox's service failing?") and discloses nothing.
+ */
+function originOf(endpoint: string): string {
+  try {
+    return new URL(endpoint).origin
+  } catch {
+    return "unknown"
   }
 }
 

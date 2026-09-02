@@ -19,6 +19,7 @@
  *
  * Pure: no clock beyond what is passed in, no database, no framework.
  */
+import { staleAfterMinutes } from "./freshness"
 import { roundTo } from "./money"
 import type { Currency } from "./market"
 
@@ -74,8 +75,12 @@ export const INSIGHT_THRESHOLDS = {
     changeInfoPct: 10,
   },
   staleness: {
-    /** Quotes older than this make every value-derived insight a statement about the past. */
-    quoteMinutes: 30,
+    /**
+     * Quotes older than this make every value-derived insight a statement about the past.
+     * Deliberately looser than the alert engine's guard: see `domain/freshness.ts` for why an
+     * insight is quieter than the badge beside the figure.
+     */
+    quoteMinutes: staleAfterMinutes("quoteNotice"),
   },
 } as const
 

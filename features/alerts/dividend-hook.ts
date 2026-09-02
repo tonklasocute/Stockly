@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createNotificationService } from "@/services/notifications"
 import type { Database } from "@/types/database"
+import { describeError, logger } from "@/lib/log"
 
 /**
  * DIVIDEND_RECEIVED is the one alert type the scheduled job never evaluates.
@@ -39,6 +40,6 @@ export async function notifyDividendRecorded(
       alertId: alert.id,
     })
   } catch (error) {
-    console.error("[alerts] dividend notification failed", error)
+    logger.error("alerts.dividend_notification_failed", describeError(error))
   }
 }

@@ -23,6 +23,7 @@ import { loadFxTable } from "@/services/fx"
 import { converterTo } from "@/domain/fx"
 import { baseCurrencyOf, currencyOf, MARKETS, type MarketId } from "@/domain/market"
 import type { AlertRow, Database, NotificationCategory } from "@/types/database"
+import { logger } from "@/lib/log"
 
 /**
  * The scheduled evaluation.
@@ -148,7 +149,7 @@ export async function evaluateAllAlerts(
     // but one market being down must not stop the others being evaluated.
     if (priced.error && priced.quotes.size === 0 && instruments.length > 0) {
       summary.marketDataError = priced.error.message
-      console.error("[alerts] market data failed", priced.error.code)
+      logger.error("alerts.market_data_failed", { code: priced.error.code })
       summary.durationMs = Date.now() - startedAt
       return summary
     }
@@ -336,7 +337,7 @@ export async function evaluateAllAlerts(
 
     if (eventError?.code === "23505") continue // already recorded by a concurrent run
     if (eventError || !event) {
-      console.error("[alerts] event insert failed", { alertId: row.id, code: eventError?.code })
+      logger.error("alerts.event_insert_failed", { alertId: row.id, code: eventError?.code })
       continue
     }
 

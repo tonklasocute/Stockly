@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 13 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 14 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -33,7 +33,11 @@ becoming an ordinary transaction processed by the engine that was already there.
 sharing: a portfolio can be published as a page — private, link-only or public — with every section
 and every figure switched off until its owner turns it on, plus expiring and revocable share links,
 immutable snapshots, and a preview that is the real page. An anonymous visitor never reads a
-portfolio; they read a projection the owner's own session produced.
+portfolio; they read a projection the owner's own session produced. Phase 14 was a hardening and
+observability pass rather than a feature: a full production audit, a bounded provider retry that
+the documentation had claimed but the code never had, every server log routed through the
+structured logger, a centralised freshness policy, `private, no-store` on every API response, and
+the cross-phase invariant suite that proves only a transaction can move a number.
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -137,7 +141,8 @@ domain/      pure business logic. No framework imports. Heavily tested.
              simulation/ (growth + DCA, goal plan, dividend plan, what-if — pure, no I/O at all) ·
              import/ (mapping, value parsing, fingerprint, validation, reconciliation) ·
              data-quality.ts (freshness + completeness rules, no score) ·
-             sharing.ts (visibility, presets, slugs, link state, the public projection)
+             sharing.ts (visibility, presets, slugs, link state, the public projection) ·
+             freshness.ts (one policy for how old a reading may be before it stops being current)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -548,6 +553,32 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## Observability Rules
+
+Full detail in [`docs/observability.md`](docs/observability.md). Audit findings in
+[`docs/production-audit.md`](docs/production-audit.md), controls in
+[`docs/security-checklist.md`](docs/security-checklist.md).
+
+- **No bare `console` in server code.** Everything goes through `lib/log.ts` with a stable dotted
+  event name. The three that remain are client-side, where structured JSON reaches nobody and the
+  server has already logged the failure against its request id.
+- **Never spread a thrown value into a log.** Use `describeError()`: a Postgres error's `details`
+  and `hint` quote the values of the conflicting row. And never `String(error)` — supabase-js throws
+  a plain object, so that yields `[object Object]` in the branch that matters most.
+- **A log field is flat.** `LogFields` accepts no nested object, deliberately: a nested value is how
+  a whole provider payload or a database row ends up in a log line by accident.
+- **A push endpoint is logged as an origin, never in full.** The full URL is a bearer capability.
+- **How old a reading may be is decided in `domain/freshness.ts` and nowhere else.** Four named
+  policies. A copied threshold with a comment claiming it matches another one is how they drift —
+  that is exactly what phase 14 found and fixed.
+- **Retryability rides on the error, not on its code.** A 401 and a 502 are both "unavailable" to a
+  caller; only one is worth asking again. Two attempts, never more — an unbounded retry on a 429 is
+  how a rate limit becomes an outage of your own making.
+- **Every API response carries `private, no-store`.** Every endpoint here is authenticated and
+  user-specific, and one header removes the question of whether that is still true.
+- **A doc that claims a reliability property must be checked against the code.** Two of this
+  phase's findings were guarantees that were written down and never implemented.
+
 ## Production Rules
 
 Full detail in [`docs/PRODUCTION-CHECKLIST.md`](docs/PRODUCTION-CHECKLIST.md),
@@ -626,7 +657,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 11 ✅ | Planning & simulation: compound growth and DCA, goal projection and required contribution, dividend projection, portfolio what-if, saved scenarios |
 | 12 ✅ | Data & automation: CSV/Excel import, mapping, duplicate detection, reconciliation, data-quality centre, scheduled refresh and job history |
 | 13 ✅ | Sharing & ecosystem: visibility model, per-section privacy controls, public pages, expiring and revocable share links, immutable snapshots, share presets, preview |
-| 14 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
+| 14 ✅ | Production hardening & observability: production audit, provider retry, structured logging everywhere, centralised freshness policy, cache headers, security checklist, incident severity, cross-phase invariants |
+| 15 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

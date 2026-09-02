@@ -5,6 +5,7 @@ import { sweepExpiredAIData } from "@/features/ai/queries"
 import { refreshSnapshots } from "@/features/technical/snapshots"
 import { serverEnv } from "@/lib/env.server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { describeError, logger } from "@/lib/log"
 
 /**
  * Scheduled alert evaluation.
@@ -42,15 +43,27 @@ export async function GET(request: Request) {
     // holds the only service-role credential in the app — rather than a second scheduler, a second
     // secret and a second endpoint to protect.
     const retention = await sweepExpiredAIData(supabase).catch((error: unknown) => {
-      console.error("[cron:alerts] ai retention sweep failed", error)
+      logger.error("cron.alerts_retention_failed", describeError(error))
       return null
     })
 
-    // Structured, and free of anything identifying: counters only, no user ids or symbols.
-    console.info("[cron:alerts]", JSON.stringify({ ...summary, technical, retention }))
+    /*
+     * Counters only — no user id and no symbol — and **flat**, because `LogFields` accepts no
+     * nested object. That restriction is deliberate rather than an inconvenience: a nested value is
+     * how a whole provider payload or a row ends up in a log line by accident.
+     */
+    logger.info("cron.alerts", {
+      ...summary,
+      snapshotSymbols: technical.symbols,
+      snapshotsComputed: technical.computed,
+      snapshotsFailed: technical.failed,
+      snapshotDurationMs: technical.durationMs,
+      retentionConversations: retention?.conversations ?? null,
+      retentionUsage: retention?.usage ?? null,
+    })
     return NextResponse.json({ success: true, data: { ...summary, technical, retention } })
   } catch (error) {
-    console.error("[cron:alerts] failed", error)
+    logger.error("cron.alerts_failed", describeError(error))
     return NextResponse.json(
       { success: false, error: { code: "INTERNAL_ERROR", message: "Alert evaluation failed." } },
       { status: 500 },

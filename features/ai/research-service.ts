@@ -22,6 +22,7 @@ import {
 } from "./schema"
 import { dataBlock, SAFETY_RETRY_NOTE, SCREENER_PROMPT, SYSTEM_PROMPT, TASK_PROMPTS } from "./prompts"
 import { assertWithinDailyQuota, recordUsage } from "./usage"
+import { logger } from "@/lib/log"
 
 /**
  * The orchestrator.
@@ -86,7 +87,7 @@ const WITHHELD_NARRATIVE: Narrative = {
  * A log line that quotes a prompt is a copy of the user's data in a second place.
  */
 function logCall(fields: Record<string, string | number | boolean | null>): void {
-  console.info("[ai]", JSON.stringify(fields))
+  logger.info("ai.request", fields)
 }
 
 export async function runResearch(input: ResearchInput): Promise<AIResearchResult> {
@@ -163,7 +164,7 @@ export async function runResearch(input: ResearchInput): Promise<AIResearchResul
 
     if (violations.length > 0) {
       safetyFiltered = true
-      console.warn("[ai] safety filter", JSON.stringify({ intent, violations }))
+      logger.warn("ai.safety_filter", { intent, violations: violations.join(",") })
     }
 
     await recordUsage(input.supabase, {

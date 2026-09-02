@@ -49,6 +49,7 @@ import { createClient } from "@/lib/supabase/server"
 import { loadFxTable } from "@/services/fx"
 import { getMarketDataProvider, getQuotesFor, type Quote } from "@/services/market-data"
 import type { PortfolioSnapshotRow } from "@/types/database"
+import { describeError, logger } from "@/lib/log"
 
 export type AnalyticsBundle = {
   holdings: Holding[]
@@ -467,7 +468,7 @@ export async function recordSnapshot(
   )
 
   // A failed snapshot loses one day of history; it must not take down the analytics page.
-  if (error) console.error("[analytics] snapshot failed", error)
+  if (error) logger.error("analytics.snapshot_failed", describeError(error))
 }
 
 /** Total dividends received per symbol, for the holdings-level views. */

@@ -235,6 +235,11 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 ## Reliability
 
 - ✅ Timeouts on every external call: market data 8 s, AI 25 s (configurable), function 60 s.
+- ✅ **Fixed in phase 14:** the bounded retry this file and `CLAUDE.md` both described **did not
+  exist** for market data — only the AI layer had one. Two attempts with a 250 ms backoff, retrying
+  a timeout, a dropped connection, a 5xx and (once, never more) a 429; never a rejected key, a 400
+  or a 404. Retryability is carried on `MarketDataError` rather than inferred from its code, and
+  `services/market-data/retry.test.ts` asserts exactly which failures are tried again.
 - ✅ Bounded retries with exponential backoff and jitter, on retryable failures only. Never on a
   bad key or an unusable response.
 - ✅ Graceful degradation: a market-data outage falls back to cost basis and says so; an AI outage
@@ -255,6 +260,14 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   deletable by the user, and inventing a key for a form nobody double-submits is speculative.
 
 ## Observability
+- ✅ **Fixed in phase 14:** 24 bare `console.*` calls in server code, several passing a raw error
+  object — a Postgres error's `details` and `hint` quote the values of the conflicting row. All now
+  go through `logger` with stable dotted event names. Three client-side `console` calls remain
+  deliberately and are commented as such.
+- ✅ **Fixed in phase 14:** `guarded()`'s catch-all logged `[object Object]` for every supabase-js
+  failure, because that library throws a plain object rather than an `Error`. `describeError()` now
+  extracts a name, a code and the library's own message, and refuses `details` and `hint`.
+- ✅ Push failures log the endpoint's **origin**, not 60 characters of a bearer capability.
 
 - ✅ Structured JSON logs with a stable event name, level, request id, route, status and latency.
 - ✅ Request id on every request, echoed in `X-Request-Id` and in the error envelope, so a user's
@@ -361,7 +374,8 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
   [AI.md](AI.md), [AI-ARCHITECTURE.md](AI-ARCHITECTURE.md), [AI-SECURITY.md](AI-SECURITY.md),
   [AI-PROMPTS.md](AI-PROMPTS.md), [MULTI-MARKET.md](MULTI-MARKET.md),
   [INTELLIGENCE.md](INTELLIGENCE.md), [SIMULATION.md](SIMULATION.md), [IMPORT.md](IMPORT.md),
-  [SHARING.md](SHARING.md).
+  [SHARING.md](SHARING.md), [observability.md](observability.md),
+  [production-audit.md](production-audit.md), [security-checklist.md](security-checklist.md).
 - ✅ Legal: `/privacy`, `/terms`, `/disclaimer`, written from the code rather than a template.
 
 ---

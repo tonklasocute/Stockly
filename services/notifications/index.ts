@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database, NotificationCategory } from "@/types/database"
 import { sendPush } from "./push"
 import type { DeliveryResult, NotificationRequest, NotificationService } from "./types"
+import { logger } from "@/lib/log"
 
 /**
  * The only place a notification is created and fanned out to channels.
@@ -97,7 +98,7 @@ export function createNotificationService(
       .single()
 
     if (error) {
-      console.error("[notifications] insert failed", { userId: request.userId, code: error.code })
+      logger.error("notifications.insert_failed", { userId: request.userId, code: error.code })
       return empty
     }
 

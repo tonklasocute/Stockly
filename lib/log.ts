@@ -41,6 +41,40 @@ const SECRET_SHAPED = /\b(?:sk-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z
 
 export type LogFields = Record<string, string | number | boolean | null | undefined>
 
+/**
+ * What can safely be said about a thrown value.
+ *
+ * The reason this exists: `String(error)` on a Supabase error yields `[object Object]`, so the one
+ * place that most needs detail — the catch-all in `guarded()` — was logging nothing useful. And the
+ * obvious fix, spreading the error into the fields, is worse: a Postgres error carries `details`
+ * and `hint`, and on a unique violation those contain **the values of the conflicting row**. That
+ * is a portfolio's data in a log line.
+ *
+ * So this takes the three fields that identify a failure and never the ones that quote the data:
+ * a name, a code, and a message that is the library's own sentence.
+ */
+export function describeError(error: unknown): LogFields {
+  if (error instanceof Error) {
+    const code = (error as { code?: unknown }).code
+    return {
+      name: error.name,
+      message: error.message,
+      code: typeof code === "string" || typeof code === "number" ? code : undefined,
+    }
+  }
+  if (error !== null && typeof error === "object") {
+    // The shape supabase-js throws: a plain object, not an Error.
+    const candidate = error as { code?: unknown; message?: unknown; name?: unknown }
+    return {
+      name: typeof candidate.name === "string" ? candidate.name : "object",
+      code: typeof candidate.code === "string" ? candidate.code : undefined,
+      // Deliberately not `details` or `hint`: those quote the row that failed.
+      message: typeof candidate.message === "string" ? candidate.message : undefined,
+    }
+  }
+  return { name: typeof error, message: String(error).slice(0, 200) }
+}
+
 function sanitize(fields: LogFields): LogFields {
   const out: LogFields = {}
   for (const [key, value] of Object.entries(fields)) {
