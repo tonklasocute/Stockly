@@ -171,6 +171,22 @@ so there is no stored number here to go stale.
 | `GET /api/benchmarks` | The benchmarks this deployment knows, each with `available` — whether the provider's plan can actually serve its series. |
 | `PUT /api/benchmarks` | `{ portfolioId, benchmarkId }`. `null` clears the selection. One benchmark per portfolio, upserted. |
 
+## Simulations (phase 11)
+
+**There is no endpoint that runs a simulation**, and that is the design rather than an omission:
+every calculation in `domain/simulation` is pure, so it runs in the browser as an input changes. A
+round trip per keystroke would add latency to arithmetic and a second place for the formula to live.
+
+| | |
+|---|---|
+| `GET /api/simulations?portfolioId` | Saved scenarios: the portfolio's, plus the standalone ones that belong to no portfolio. |
+| `POST /api/simulations` | `{ portfolioId \| null, name, type, inputs }` → 201. `inputs` is validated against the schema for `type`, so a DCA scenario cannot carry what-if adjustments. `409` on a duplicate name or once 50 scenarios exist. |
+| `PATCH` and `DELETE /api/simulations/:id` | Rename, or replace the inputs. **No `type` field** — the shape of `inputs` depends on it. |
+
+**A saved scenario stores inputs, never results.** Everything it produces is recomputed on open by
+the same pure functions that produced it the first time, so it cannot go stale and is never
+financial history.
+
 ## Alerts and notifications
 
 | | Limit | |

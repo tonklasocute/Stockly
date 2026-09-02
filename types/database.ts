@@ -371,6 +371,30 @@ export type PortfolioBenchmarkRow = {
   created_at: string
 }
 
+// ---------------------------------------------------------------- phase 11: simulation
+
+export type SimulationType = "COMPOUND_GROWTH" | "DCA" | "GOAL" | "DIVIDEND" | "WHAT_IF"
+
+/**
+ * A saved scenario: **inputs only, never results.**
+ *
+ * Everything a simulation produces is recomputed from `inputs` on every read by the same pure
+ * functions that produced it the first time — so a saved scenario cannot go stale, and can never be
+ * mistaken for a record of something that happened.
+ */
+export type SavedSimulationRow = {
+  id: string
+  user_id: string
+  /** Null for a scenario that needs no portfolio, such as a bare compound-growth calculation. */
+  portfolio_id: string | null
+  name: string
+  type: SimulationType
+  /** The assumptions as the user typed them. Validated by Zod at the boundary. */
+  inputs: unknown
+  created_at: string
+  updated_at: string
+}
+
 export type ProfileRow = {
   id: string
   display_name: string | null
@@ -511,6 +535,12 @@ export type Database = {
         Update: Partial<Pick<PortfolioBenchmarkRow, "benchmark_id">>
         Relationships: []
       }
+      saved_simulations: {
+        Row: SavedSimulationRow
+        Insert: Omit<SavedSimulationRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Pick<SavedSimulationRow, "name" | "inputs">>
+        Relationships: []
+      }
       watchlist_items: {
         Row: WatchlistItemRow
         Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
@@ -530,6 +560,7 @@ export type Database = {
       sell_reason: SellReason
       thesis_status: ThesisStatus
       goal_type: GoalType
+      simulation_type: SimulationType
     }
     CompositeTypes: Record<string, never>
   }

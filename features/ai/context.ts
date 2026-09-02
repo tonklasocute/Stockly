@@ -25,7 +25,6 @@ import {
   type ScreenerDefinition,
   type ScreenerMetric,
 } from "@/domain/screener"
-import { loadAnalytics } from "@/features/analytics/portfolio-analytics"
 import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadPortfolioView } from "@/features/portfolios/portfolio-view"
 import { readAllSnapshots, readSnapshots, type StoredSnapshot } from "@/features/technical/snapshots"

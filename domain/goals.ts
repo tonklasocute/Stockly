@@ -200,111 +200,11 @@ function progressOf(current: number, target: number): number | null {
 }
 
 // ---------------------------------------------------------------- projections
-
-export const PROJECTION_SCENARIOS = ["CONSERVATIVE", "BASE", "OPTIMISTIC"] as const
-export type ProjectionScenario = (typeof PROJECTION_SCENARIOS)[number]
-
-/**
- * Default annual growth assumptions, as decimal fractions.
- *
- * **These are planning placeholders, not forecasts, and not derived from anything.** They are not
- * the portfolio's own historical return — Stockly deliberately does not extrapolate a user's past
- * into their future — and they are not a house view. They exist so a scenario has somewhere to
- * start; the user can change every one of them, and the figure they chose is shown beside the
- * result.
- *
- * A scenario is arithmetic on an assumption. If the assumption is wrong the output is wrong, which
- * is why the assumption travels with the output everywhere it is displayed.
- */
-export const SCENARIO_GROWTH: Record<ProjectionScenario, number> = {
-  CONSERVATIVE: 0.03,
-  BASE: 0.06,
-  OPTIMISTIC: 0.09,
-}
-
-export type ProjectionAssumption = {
-  scenario: ProjectionScenario
-  /** Annual growth, as a decimal fraction. 0.06 is 6%. */
-  annualGrowth: number
-  /** Added at the end of every month, in the portfolio's base currency. */
-  monthlyContribution: number
-  horizonYears: number
-}
-
-export type ProjectionPoint = { date: string; value: number; contributed: number }
-
-export type Projection = {
-  assumption: ProjectionAssumption
-  startValue: number
-  currency: Currency
-  points: ProjectionPoint[]
-  /** The first modelled month whose value reaches the target. Null if it does not within the horizon. */
-  reachesTargetOn: string | null
-  /** Total contributions modelled over the horizon, so growth and paying-in are never conflated. */
-  totalContributions: number
-  /** Named so a UI can print it verbatim rather than paraphrasing the maths. */
-  method: string
-}
-
-const PROJECTION_METHOD =
-  "Monthly compounding of the starting value at the stated annual growth rate, with the stated " +
-  "contribution added at the end of each month. No taxes, fees, dividends or exchange-rate " +
-  "movement are modelled."
-
-/**
- * Models a value forward under one explicit set of assumptions.
- *
- * This is arithmetic, not a prediction, and the vocabulary matters: the result says what the model
- * produces under the stated assumption, never what will happen. `reachesTargetOn` is "the month the
- * modelled value crosses the target", not "when you will reach your goal".
- *
- * Null for a non-finite start, a negative horizon, or a horizon longer than 50 years — past which
- * compounding an assumed rate produces a number with no informational content at all.
- */
-export function projectGoal(
-  startValue: number,
-  target: number | null,
-  assumption: ProjectionAssumption,
-  currency: Currency,
-  { from = new Date() }: { from?: Date } = {},
-): Projection | null {
-  if (!Number.isFinite(startValue) || startValue < 0) return null
-  if (!Number.isFinite(assumption.annualGrowth)) return null
-  if (!(assumption.horizonYears > 0) || assumption.horizonYears > 50) return null
-
-  const months = Math.round(assumption.horizonYears * 12)
-  // Geometric, not annual ÷ 12: compounding twelve monthly rates must reproduce the annual one.
-  const monthlyRate = (1 + assumption.annualGrowth) ** (1 / 12) - 1
-  if (!Number.isFinite(monthlyRate)) return null
-
-  const points: ProjectionPoint[] = []
-  let value = startValue
-  let contributed = 0
-  let reachesTargetOn: string | null = target !== null && startValue >= target ? isoMonth(from, 0) : null
-
-  for (let month = 1; month <= months; month += 1) {
-    value = value * (1 + monthlyRate) + assumption.monthlyContribution
-    contributed += assumption.monthlyContribution
-    const date = isoMonth(from, month)
-    points.push({ date, value: quantize(value), contributed: quantize(contributed) })
-    if (reachesTargetOn === null && target !== null && value >= target) reachesTargetOn = date
-  }
-
-  return {
-    assumption,
-    startValue: quantize(startValue),
-    currency,
-    points,
-    reachesTargetOn,
-    totalContributions: quantize(contributed),
-    method: PROJECTION_METHOD,
-  }
-}
-
-function isoMonth(from: Date, monthsAhead: number): string {
-  const at = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + monthsAhead, 1))
-  return at.toISOString().slice(0, 10)
-}
+//
+// Scenario modelling moved to `domain/simulation` in phase 11 — one compounding engine, with the
+// contribution timing, frequency, escalation, inflation and closed-form solver a goal plan needs.
+// What lived here was a subset of it, and keeping both would have been two places for the same
+// formula to be wrong differently. `features/simulations` is what a goal page links to now.
 
 /**
  * The average net monthly contribution over a window, from the user's **own** deposits and

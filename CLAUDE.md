@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 10 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 11 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -23,7 +23,10 @@ first-class: SET alongside US, a portfolio base currency, an FX abstraction whos
 own timezone. Phase 10 turned the tracker into an investment-intelligence platform: an investment
 journal and thesis record, portfolio goals with scenario modelling, cash-flow-aware return
 measurement (TWR and IRR), a risk centre, benchmark comparison, and a deterministic insights engine
-that describes and never advises. See [Development Phases](#development-phases).
+that describes and never advises. Phase 11 added planning and simulation: compound growth and DCA,
+goal projection with a required-contribution solver, dividend projection, and a portfolio what-if —
+all pure, all client-side, and none of it able to touch a transaction.
+See [Development Phases](#development-phases).
 
 ## Commands
 
@@ -120,7 +123,8 @@ domain/      pure business logic. No framework imports. Heavily tested.
              returns.ts (TWR, IRR — capital flows removed) · risk.ts (volatility, drawdown,
              Sharpe, beta, HHI) · goals.ts (progress semantics, projections) ·
              research.ts (journal, thesis, sell-review vocabulary) ·
-             insights.ts (deterministic rules + INSIGHT_THRESHOLDS)
+             insights.ts (deterministic rules + INSIGHT_THRESHOLDS) ·
+             simulation/ (growth + DCA, goal plan, dividend plan, what-if — pure, no I/O at all)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -239,6 +243,40 @@ Full detail in [`docs/INTELLIGENCE.md`](docs/INTELLIGENCE.md).
   Journals and theses are never sent to the model.
 - **A benchmark in another currency reports both returns and a null difference.** Translating one
   needs historical FX, which Stockly does not store.
+
+## Planning & Simulation Rules
+
+Full detail in [`docs/SIMULATION.md`](docs/SIMULATION.md).
+
+- **A simulation is arithmetic on assumptions the user chose, never a prediction.** The vocabulary
+  enforces it: `annualReturn` not `expectedReturn`, `scenarioPrice` not `expectedPrice`, a
+  **projected gap** not "you will miss your goal". No result may say a price, a rate or a market
+  will do anything.
+- **A simulation may never mutate the portfolio.** `domain/simulation/` has no client, no writer, no
+  network and no framework import; `invariants.test.ts` reads its source to keep it that way and
+  asserts holdings, cost basis and P&L are byte-identical after every simulation runs.
+- **One growth engine.** `simulateGrowth` is the only place compounding happens. Phase 10's separate
+  projection was deleted rather than kept beside it.
+- **The closed form and the loop must agree.** `futureValue` is inverted by the solver; the loop
+  draws the chart. A test asserts they match to nine decimal places wherever both apply.
+- **Contributions land at the END of each period**, stated in every assumptions panel. Escalation is
+  annual, not per period. Rates are decimal fractions inside the engine and percentages on the wire,
+  converted in exactly one place.
+- **Every simulation returns a result or a reason code** — never `NaN`, never `Infinity`. −100% is
+  modelled; below −100% is refused, because a fractional power of a negative base is not real.
+- **Scenario growth rates are example assumptions, not forecasts and not the user's history.**
+  Extrapolating somebody's past into their future is not something Stockly does implicitly. Defaults
+  that *are* derived come from the user's own data and are `null` when there is none.
+- **A saved scenario stores inputs, never results.** Everything is recomputed on open, so it cannot
+  go stale and is never financial history. The what-if scratchpad is not saveable at all.
+- **Actual, projected, scenario and assumption are four labels, applied consistently.** Projections
+  are drawn dashed and never styled like the actual performance line; actual dividend income is
+  never added to or charted beside a projected figure.
+- **Every projection screen carries its assumptions and a disclaimer, neither hidden nor
+  collapsible.** A projected figure read without the assumptions that produced it is indistinguishable
+  from a forecast.
+- **Nothing simulates on the server.** The engine is pure, so it runs in the browser as an input
+  changes. The only endpoint is persistence.
 
 ## Analytics Rules
 
@@ -501,7 +539,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 8 ✅ | Production hardening: security headers, ownership constraints, rate limits, observability, health probes, CI, E2E, legal pages, runbook |
 | 9 ✅ | Multi-market foundation: market/instrument registry, portfolio base currency, FX abstraction and caching, provider routing, SET support, market calendars, cross-currency valuation |
 | 10 ✅ | Investment intelligence: journal, theses, sell reviews, goals and projections, TWR/IRR, risk centre, benchmarks, deterministic insights engine |
-| 11 | Advanced: historical FX and currency attribution, FIFO cost basis, tax lots |
+| 11 ✅ | Planning & simulation: compound growth and DCA, goal projection and required contribution, dividend projection, portfolio what-if, saved scenarios |
+| 12 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

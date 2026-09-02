@@ -458,10 +458,37 @@ One `loadIntelligence` pass, `cache()`d over the already-cached `loadAnalytics`,
 dashboard, the review page and the AI context — so the whole layer costs no extra pass over the
 transactions and no extra quote call.
 
-## 20. What is deliberately not here yet
+## 20. Planning and simulation (phase 11)
 
-Historical FX rates and therefore FX attribution, triangulated exchange rates, more than one currency
-per market, FIFO cost basis and tax lots, automatic thesis invalidation, a composite risk score,
+Full detail in [`SIMULATION.md`](SIMULATION.md). The decisions that matter:
+
+1. **A simulation is arithmetic on assumptions the user chose, never a prediction.** The vocabulary
+   carries it — `scenarioPrice`, `projectedGap`, `annualReturn` — and every result travels with the
+   assumptions that produced it.
+2. **The engine cannot reach anything.** `domain/simulation/` has no database client, no network, no
+   model and no framework import; a test reads its source to keep it that way. Because it is pure it
+   runs in the **browser**, so a slider moves and the numbers move with it — there is no simulation
+   endpoint to build, rate-limit or debounce.
+3. **One growth engine.** `simulateGrowth` is the only compounding in the codebase; phase 10's
+   separate projection was deleted rather than kept beside it. The closed form is implemented too,
+   for the required-contribution solver to invert, and a test asserts the two agree to nine decimal
+   places.
+4. **Nothing it produces can be stored as a result.** `saved_simulations` holds inputs; every figure
+   is recomputed on open. There is no projected-value column to go stale.
+5. **Actual and projected are never mixed.** Four labels — ACTUAL, PROJECTED, SCENARIO, ASSUMPTION —
+   applied consistently, projections drawn dashed, and an assumptions panel that is neither hidden
+   nor collapsible on every screen that shows one.
+
+`invariants.test.ts` runs every simulation against a full portfolio and asserts holdings, cost basis,
+realised and unrealised P&L and cash come back byte-identical. Transactions remain the single source
+of truth; a simulation cannot create one.
+
+## 21. What is deliberately not here yet
+
+Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
+automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
+exchange rates, more than one currency per market, FIFO cost basis and tax lots, tax modelling,
+automatic thesis invalidation, a composite risk score,
 multiple benchmarks per portfolio, full-text journal search, a market-wide screener universe, price prediction of any kind, email and LINE notification channels, offline
 mutation queues, CSV import, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is

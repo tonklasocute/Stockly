@@ -95,6 +95,7 @@ single-currency portfolio (the identity conversion consults no provider).
 | AI question | 1–4 reads | 0–2 history calls | shared | Only what the detected intent needs is retrieved. |
 | Cron run | ~5 reads | 12 history + 1 batched quote per market + 1 status per market | ≤1 per pair per distinct base currency | Budgeted to fit the function timeout and the rate limit. |
 | Settings | 1 read | 1 status per market | 1 per pair | The Data health panel; both degrade to "unavailable" rather than failing the page. |
+| Planning | 3 reads | shared with the dashboard | shared | **Zero per interaction**: the simulation engine is pure and runs in the browser, so moving a slider costs no request at all. |
 
 ---
 

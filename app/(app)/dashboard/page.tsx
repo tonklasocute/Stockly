@@ -18,7 +18,9 @@ import { Section } from "@/components/metric"
 import { namesFrom } from "@/features/portfolios/portfolio-view"
 import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
 import { baseCurrencyOf } from "@/domain/market"
-import { formatCurrency, formatCurrencyWithCode } from "@/lib/format"
+import { SCENARIO_RETURNS, planGoal, yearsUntil } from "@/domain/simulation"
+import { DataLabel } from "@/features/simulations/components/assumptions"
+import { formatCurrency, formatCurrencyWithCode, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
 export const metadata: Metadata = { title: "Dashboard" }
@@ -47,6 +49,36 @@ export default async function DashboardPage({
   const transactions = { length: bundle.transactionCount }
   const names = namesFrom(quotes)
   const currency = baseCurrencyOf(active.currency)
+  /**
+   * A single base-case line for the first dated goal, so the dashboard answers "am I on track"
+   * without becoming a planning tool. Null whenever the arithmetic cannot be done honestly — no
+   * goal, no target date, or a scenario the engine refuses.
+   */
+  const outlook = (() => {
+    const goal = intelligence.goals.find(
+      ({ progress }) => progress.targetDate !== null && progress.progressPct !== null,
+    )
+    if (!goal) return null
+    const years = yearsUntil(goal.progress.targetDate, new Date())
+    if (years === null) return null
+
+    const plan = planGoal({
+      currentValue: goal.progress.current,
+      targetValue: goal.progress.target,
+      contribution: 0,
+      frequency: "MONTHLY",
+      timing: "END",
+      annualReturn: SCENARIO_RETURNS.BASE,
+      years,
+      contributionGrowth: 0,
+      inflationRate: null,
+      currency,
+    })
+    return plan.ok
+      ? { projectedValue: plan.value.projectedValue, targetDate: goal.progress.targetDate! }
+      : null
+  })()
+
   const ranked = [...holdings].sort((a, b) => b.returnPct - a.returnPct)
   const best = ranked[0]
   const worst = ranked.length > 1 ? ranked[ranked.length - 1] : undefined
@@ -203,6 +235,30 @@ export default async function DashboardPage({
                       </li>
                     ))}
                   </ul>
+
+                  {/*
+                    One projected line beside the actual progress, labelled so the two cannot be
+                    confused. Everything else about planning lives on its own page — a dashboard
+                    full of scenarios would make assumptions look like facts.
+                  */}
+                  {outlook && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3 text-xs">
+                      <DataLabel kind="PROJECTED" />
+                      <span className="text-muted-foreground">
+                        At {formatPercent(SCENARIO_RETURNS.BASE * 100, { signed: false })} a year:{" "}
+                        <span className="tabular text-foreground font-medium">
+                          {formatCurrency(outlook.projectedValue, currency)}
+                        </span>{" "}
+                        by {formatDate(outlook.targetDate)}
+                      </span>
+                      <Link
+                        href={`/simulations?p=${active.id}`}
+                        className="text-muted-foreground ml-auto underline-offset-4 hover:underline"
+                      >
+                        Plan
+                      </Link>
+                    </div>
+                  )}
                 </Section>
               )}
 

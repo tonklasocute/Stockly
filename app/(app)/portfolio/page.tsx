@@ -1,4 +1,7 @@
 import type { Metadata } from "next"
+import Link from "next/link"
+import { FlaskConical } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
@@ -29,9 +32,26 @@ export default async function PortfolioPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Portfolio</h1>
-        <p className="text-muted-foreground text-sm">{active.name}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Portfolio</h1>
+          <p className="text-muted-foreground text-sm">{active.name}</p>
+        </div>
+        {/*
+          The what-if scratchpad. It restates this portfolio at prices and quantities the user
+          types, creates nothing, and is discarded by a Reset button — which is what makes it worth
+          experimenting in.
+        */}
+        <Button
+          nativeButton={false}
+          render={<Link href={`/simulations?p=${active.id}`} />}
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+        >
+          <FlaskConical className="size-3.5" aria-hidden />
+          What-if
+        </Button>
       </div>
 
       {marketDataError && (

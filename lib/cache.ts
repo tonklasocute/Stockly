@@ -55,6 +55,17 @@ export function invalidateIntelligence(): void {
   revalidatePath("/stocks/[symbol]", "page")
 }
 
+/**
+ * A saved scenario changed.
+ *
+ * Narrower even than `invalidateIntelligence`: a scenario is a set of assumptions about a future
+ * that has not happened, so it cannot move a figure anywhere — not a holding, not a goal's
+ * progress, not an insight. Only the page that lists scenarios needs to re-render.
+ */
+export function invalidateSimulations(): void {
+  revalidatePath("/simulations")
+}
+
 /** The watchlist is independent of portfolio maths, so it invalidates on its own. */
 export function invalidateWatchlist(): void {
   revalidatePath("/watchlist")

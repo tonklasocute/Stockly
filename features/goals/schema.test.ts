@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { goalInputSchema, goalUpdateSchema, projectionSchema } from "./schema"
+import { goalInputSchema, goalUpdateSchema } from "./schema"
 import { journalInputSchema, journalFilterSchema } from "@/features/journal/schema"
 import { thesisInputSchema } from "@/features/theses/schema"
 
@@ -60,19 +60,6 @@ describe("goal validation", () => {
   it("has no type field on update — changing it would reinterpret the target", () => {
     const parsed = goalUpdateSchema.parse({ targetValue: 200_000, type: "DIVIDEND_INCOME" })
     expect(parsed).not.toHaveProperty("type")
-  })
-})
-
-describe("projection validation", () => {
-  it("bounds the assumptions so a scenario stays arithmetic rather than nonsense", () => {
-    expect(projectionSchema.safeParse({ horizonYears: 0 }).success).toBe(false)
-    expect(projectionSchema.safeParse({ horizonYears: 200 }).success).toBe(false)
-    expect(projectionSchema.safeParse({ annualGrowthPct: 900 }).success).toBe(false)
-    expect(projectionSchema.parse({}).scenario).toBe("BASE")
-  })
-
-  it("allows a negative growth assumption — a scenario is allowed to be pessimistic", () => {
-    expect(projectionSchema.parse({ annualGrowthPct: -10 }).annualGrowthPct).toBe(-10)
   })
 })
 

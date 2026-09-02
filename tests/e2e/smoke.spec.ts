@@ -82,7 +82,7 @@ test("private pages redirect a signed-out visitor to sign in", async ({ page, re
 
   // The journal and theses hold the user's own reasoning; a signed-out visitor reaching one would
   // be the most damaging authorisation failure in the application.
-  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener", "/review", "/goals", "/journal"]) {
+  for (const path of ["/dashboard", "/portfolio", "/ai", "/screener", "/review", "/goals", "/journal", "/simulations"]) {
     await page.goto(path)
     await expect(page).toHaveURL(/\/login/)
   }

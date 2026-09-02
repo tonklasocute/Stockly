@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { CURRENCIES } from "@/domain/market"
-import { GOAL_TYPES, PROJECTION_SCENARIOS } from "@/domain/goals"
+import { GOAL_TYPES } from "@/domain/goals"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -64,20 +64,3 @@ export const goalUpdateSchema = z.object({
     .or(z.literal("").transform(() => null)),
   note: z.string().trim().max(500).nullable().optional(),
 })
-
-/**
- * A projection request.
- *
- * Every assumption is an explicit input with no server-side default beyond the named scenario's
- * documented growth rate, so the number that comes back can always be traced to a figure the user
- * saw and could change.
- */
-export const projectionSchema = z.object({
-  scenario: z.enum(PROJECTION_SCENARIOS).default("BASE"),
-  /** Annual growth as a percentage, so the wire format matches what the user typed. */
-  annualGrowthPct: z.coerce.number<number>().min(-50).max(50).optional(),
-  monthlyContribution: z.coerce.number<number>().min(0).max(1e9).default(0),
-  horizonYears: z.coerce.number<number>().min(1).max(50).default(10),
-})
-
-export type ProjectionInput = z.output<typeof projectionSchema>

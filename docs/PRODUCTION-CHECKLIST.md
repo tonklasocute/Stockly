@@ -108,6 +108,8 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 
 - ✅ Per-user, per-minute limits on everything that costs money: AI (6), market data (20–60 by
   endpoint), screener (30), alerts (20), push (10).
+- ✅ Phase 11 adds no simulation endpoint at all: the engine is pure and runs in the browser, so
+  there is no server-side calculation to limit. Only persistence is a request.
 - ✅ Phase 10 endpoints cost a database round trip and no upstream credit, so they carry no limit
   beyond `guarded()`. The one exception is `GET /api/benchmarks`, whose availability probe is
   cached per process after the first call.
@@ -134,6 +136,10 @@ Legend: **✅** done and verified · **⚠️** done with a stated limitation ·
 - ✅ Indexes on every foreign key and on the columns actually filtered and sorted. Two added in
   phase 8, both partial, both matching a real query; phase 9 widened the transactions symbol index
   to `(portfolio_id, market, symbol)`, which is how the engine now groups positions.
+- ✅ **Added in phase 11:** `saved_simulations`, with `user_id` for RLS, four explicit policies, a
+  composite foreign key to `(portfolio_id, user_id)`, a 50-per-user cap the database can answer, and
+  a size check on the inputs document that backs up the 64 KB request limit. It stores **inputs,
+  never results** — there is no computed figure in it to go stale.
 - ✅ **Added in phase 10:** five tables (`investment_journals`, `investment_theses`,
   `portfolio_goals`, `benchmarks`, `portfolio_benchmarks`), every user-owned one with `user_id`, RLS
   enabled, four explicit policies, and a composite foreign key to `(portfolio_id, user_id)`.

@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
   GOAL_TYPES,
-  SCENARIO_GROWTH,
   averageMonthlyContribution,
   goalProgress,
-  projectGoal,
   type DomainGoal,
   type GoalFacts,
 } from "./goals"
@@ -138,73 +136,6 @@ describe("multi-currency goals", () => {
       { now: NOW },
     )
     expect(progress.progressPct).toBe(50)
-  })
-})
-
-describe("projections", () => {
-  const assumption = {
-    scenario: "BASE" as const,
-    annualGrowth: SCENARIO_GROWTH.BASE,
-    monthlyContribution: 0,
-    horizonYears: 1,
-  }
-
-  it("compounds monthly to reproduce the stated annual rate", () => {
-    const projection = projectGoal(1000, null, assumption, "USD", { from: NOW })!
-    expect(projection.points).toHaveLength(12)
-    expect(projection.points[11].value).toBeCloseTo(1060, 2)
-  })
-
-  it("adds contributions and reports them separately from growth", () => {
-    const projection = projectGoal(
-      0,
-      null,
-      { ...assumption, annualGrowth: 0, monthlyContribution: 100 },
-      "USD",
-      { from: NOW },
-    )!
-    expect(projection.totalContributions).toBe(1200)
-    expect(projection.points[11].value).toBeCloseTo(1200, 6)
-  })
-
-  it("names the month the model crosses the target, not a date it will happen", () => {
-    const projection = projectGoal(1000, 1030, assumption, "USD", { from: NOW })!
-    expect(projection.reachesTargetOn).not.toBeNull()
-    // Roughly halfway through the year at 6% annual.
-    expect(projection.reachesTargetOn! > "2026-09-02").toBe(true)
-  })
-
-  it("reports null when the model never reaches the target inside the horizon", () => {
-    expect(projectGoal(1000, 100_000, assumption, "USD", { from: NOW })!.reachesTargetOn).toBeNull()
-  })
-
-  it("reports the target as already reached when it starts above it", () => {
-    expect(projectGoal(2000, 1000, assumption, "USD", { from: NOW })!.reachesTargetOn).not.toBeNull()
-  })
-
-  it("carries every assumption with the result, so the output can never be read without them", () => {
-    const projection = projectGoal(1000, null, assumption, "THB", { from: NOW })!
-    expect(projection.assumption).toEqual(assumption)
-    expect(projection.startValue).toBe(1000)
-    expect(projection.currency).toBe("THB")
-    expect(projection.method).toContain("annual growth rate")
-  })
-
-  it("models a negative growth assumption rather than refusing it", () => {
-    const projection = projectGoal(1000, null, { ...assumption, annualGrowth: -0.1 }, "USD", { from: NOW })!
-    expect(projection.points[11].value).toBeCloseTo(900, 1)
-  })
-
-  it("is null for an unusable horizon or start", () => {
-    expect(projectGoal(1000, null, { ...assumption, horizonYears: 0 }, "USD")).toBeNull()
-    expect(projectGoal(1000, null, { ...assumption, horizonYears: 100 }, "USD")).toBeNull()
-    expect(projectGoal(-1, null, assumption, "USD")).toBeNull()
-    expect(projectGoal(Number.NaN, null, assumption, "USD")).toBeNull()
-  })
-
-  it("offers three scenarios that differ only in the growth assumption", () => {
-    expect(SCENARIO_GROWTH.CONSERVATIVE).toBeLessThan(SCENARIO_GROWTH.BASE)
-    expect(SCENARIO_GROWTH.BASE).toBeLessThan(SCENARIO_GROWTH.OPTIMISTIC)
   })
 })
 

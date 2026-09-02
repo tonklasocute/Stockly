@@ -35,6 +35,7 @@ export default function robots(): MetadataRoute.Robots {
           "/review",
           "/goals",
           "/journal",
+          "/simulations",
           "/offline",
         ],
       },

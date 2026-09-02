@@ -213,6 +213,29 @@ insert into public.portfolio_benchmarks (portfolio_id, user_id, benchmark_id)
 select p.id, p.user_id, b.id from p cross join b
 on conflict (portfolio_id) do update set benchmark_id = excluded.benchmark_id;
 
+-- ---------------------------------------------------------------- simulations (phase 11)
+--
+-- Scenario inputs, never results: opening one recomputes it from these figures. Nothing here is a
+-- financial record, and deleting every row leaves the portfolio identical.
+
+delete from public.saved_simulations where user_id = :'seed_user_id';
+
+with p as (
+  select id, user_id from public.portfolios
+   where user_id = :'seed_user_id' and name = 'My Portfolio'
+)
+insert into public.saved_simulations (user_id, portfolio_id, name, type, inputs)
+select p.user_id, p.id, v.name, v.type::public.simulation_type, v.inputs::jsonb
+  from p
+ cross join (values
+   ('Steady $1k a month', 'DCA',
+    '{"initialValue":25000,"contribution":1000,"frequency":"MONTHLY","annualReturnPct":8,'
+    '"years":20,"contributionGrowthPct":0,"inflationPct":2.5,"currency":"USD"}'),
+   ('Aggressive with raises', 'DCA',
+    '{"initialValue":25000,"contribution":1500,"frequency":"MONTHLY","annualReturnPct":10,'
+    '"years":20,"contributionGrowthPct":5,"inflationPct":2.5,"currency":"USD"}')
+ ) as v(name, type, inputs);
+
 select
   (select count(*) from public.portfolios        where user_id = :'seed_user_id') as portfolios,
   (select count(*) from public.transactions      where user_id = :'seed_user_id') as transactions,
@@ -221,4 +244,5 @@ select
   (select count(*) from public.dividends         where user_id = :'seed_user_id') as dividends,
   (select count(*) from public.portfolio_goals   where user_id = :'seed_user_id') as goals,
   (select count(*) from public.investment_theses where user_id = :'seed_user_id') as theses,
-  (select count(*) from public.investment_journals where user_id = :'seed_user_id') as journal;
+  (select count(*) from public.investment_journals where user_id = :'seed_user_id') as journal,
+  (select count(*) from public.saved_simulations where user_id = :'seed_user_id') as simulations;

@@ -105,6 +105,8 @@ export type AnalyticsBundle = {
   capitalFlows: DatedFlow[]
   /** Age of the oldest quote behind these figures, in minutes. Null when nothing was priced. */
   quoteAgeMinutes: number | null
+  /** When that quote was taken, ISO 8601 — so a page can print it without recomputing a clock. */
+  quoteAsOf: string | null
   quotes: Map<string, Quote>
   marketDataError: string | null
   transactionCount: number
@@ -296,7 +298,8 @@ export const loadAnalytics = cache(
         // An IRR solver reads money paid in as negative and money taken out as positive.
         amount: flow.kind === "deposit" ? -flow.amount : flow.amount,
       })),
-      quoteAgeMinutes: oldestQuoteAgeMinutes(quotes),
+      quoteAgeMinutes: oldestQuote(quotes)?.ageMinutes ?? null,
+      quoteAsOf: oldestQuote(quotes)?.asOf ?? null,
       performance: performanceSeries(
         ownSnapshots.map((s) => ({
           date: s.snapshot_date.slice(0, 10),
@@ -352,13 +355,22 @@ function buildValuations(
   })
 }
 
-/** How old the freshest figures are, taken from the oldest quote that fed them. */
-function oldestQuoteAgeMinutes(quotes: Map<string, Quote>): number | null {
+/**
+ * The oldest quote behind these figures: how old, and when it was taken.
+ *
+ * Both, because a page needs the age to decide whether to warn and the timestamp to print — and
+ * reconstructing one from the other at render time would read the clock twice and get two answers.
+ */
+function oldestQuote(quotes: Map<string, Quote>): { ageMinutes: number; asOf: string } | null {
   const timestamps = [...quotes.values()]
     .map((quote) => Date.parse(quote.asOf))
     .filter((at) => !Number.isNaN(at))
   if (timestamps.length === 0) return null
-  return Math.max(0, (Date.now() - Math.min(...timestamps)) / 60_000)
+  const oldest = Math.min(...timestamps)
+  return {
+    ageMinutes: Math.max(0, (Date.now() - oldest) / 60_000),
+    asOf: new Date(oldest).toISOString(),
+  }
 }
 
 /** The portfolio row itself, for its base currency. RLS scopes it; a missing row falls back to USD. */

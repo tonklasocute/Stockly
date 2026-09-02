@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  Calculator,
   ClipboardCheck,
   Coins,
   Eye,
@@ -32,6 +33,9 @@ export const NAV_ITEMS = [
   // and a review is something you sit down to, not something you tap between screens.
   { href: "/review", label: "Review", icon: ClipboardCheck, mobile: false, badge: null },
   { href: "/goals", label: "Goals", icon: Target, mobile: false, badge: null },
+  // Phase 11. Planning is somewhere you sit down with a set of assumptions, not a screen you tap
+  // between — so it stays off the four-item bottom bar like the rest of the analysis pages.
+  { href: "/simulations", label: "Planning", icon: Calculator, mobile: false, badge: null },
   { href: "/journal", label: "Journal", icon: BookOpen, mobile: false, badge: null },
   { href: "/alerts", label: "Alerts", icon: Bell, mobile: false, badge: null },
   { href: "/screener", label: "Screener", icon: Telescope, mobile: false, badge: null },
