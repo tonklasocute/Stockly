@@ -12,6 +12,7 @@ import type { DataQualitySeverity } from "@/domain/data-quality"
 import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Data quality" }
 export const dynamic = "force-dynamic"
@@ -42,6 +43,7 @@ export default async function DataQualityPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -123,7 +125,7 @@ export default async function DataQualityPage({
             label="Last run"
             value={
               report.lastRefresh
-                ? formatTime(report.lastRefresh.started_at)
+                ? formatTime(report.lastRefresh.started_at, locale)
                 : <span className="text-muted-foreground">Never</span>
             }
             hint={report.lastRefresh ? `Status: ${report.lastRefresh.status}` : "No run recorded yet"}

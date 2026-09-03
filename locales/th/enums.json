@@ -1,0 +1,223 @@
+{
+  "transactionSide": { "buy": "ซื้อ", "sell": "ขาย" },
+  "market": { "US": "สหรัฐอเมริกา", "TH": "ไทย (SET)" },
+  "cashFlow": {
+    "deposit": "ฝากเงิน",
+    "withdrawal": "ถอนเงิน",
+    "fee": "ค่าธรรมเนียม",
+    "tax": "ภาษี",
+    "interest": "ดอกเบี้ย",
+    "transfer_in": "โอนเข้า",
+    "transfer_out": "โอนออก",
+    "adjustment_in": "ปรับปรุง (เพิ่ม)",
+    "adjustment_out": "ปรับปรุง (ลด)"
+  },
+  "newsCategory": {
+    "EARNINGS": "ผลประกอบการ",
+    "DIVIDEND": "เงินปันผล",
+    "CORPORATE": "การดำเนินการของบริษัท",
+    "M_AND_A": "การควบรวมและซื้อกิจการ",
+    "MANAGEMENT": "ผู้บริหาร",
+    "PRODUCT": "ผลิตภัณฑ์",
+    "REGULATION": "กฎระเบียบ",
+    "LEGAL": "คดีความ",
+    "MACRO": "เศรษฐกิจมหภาค",
+    "MARKET": "ภาวะตลาด",
+    "SECTOR": "กลุ่มอุตสาหกรรม",
+    "ANALYST": "บทวิเคราะห์",
+    "OTHER": "อื่น ๆ"
+  },
+  "sentiment": {
+    "POSITIVE": "โทนเชิงบวก",
+    "NEUTRAL": "โทนเป็นกลาง",
+    "NEGATIVE": "โทนเชิงลบ",
+    "MIXED": "โทนผสม",
+    "UNKNOWN": "ไม่ได้จำแนกโทน"
+  },
+  "journalType": {
+    "BUY_THESIS": "เหตุผลในการซื้อ",
+    "SELL_REASON": "เหตุผลในการขาย",
+    "POSITION_REVIEW": "ทบทวนสถานะการลงทุน",
+    "MARKET_NOTE": "บันทึกภาวะตลาด",
+    "DIVIDEND_NOTE": "บันทึกเงินปันผล",
+    "GENERAL": "ทั่วไป"
+  },
+  "sellReason": {
+    "TARGET_REACHED": "ถึงเป้าหมายที่ตั้งไว้",
+    "THESIS_BROKEN": "สมมติฐานการลงทุนเปลี่ยนไป",
+    "RISK_INCREASED": "ความเสี่ยงเพิ่มขึ้น",
+    "VALUATION": "ระดับราคา",
+    "PORTFOLIO_REBALANCE": "ปรับสมดุลพอร์ต",
+    "LIQUIDITY": "ต้องการใช้เงินสด",
+    "TAX": "ภาษี",
+    "OTHER": "อื่น ๆ"
+  },
+  "thesisStatus": {
+    "ACTIVE": "ยังใช้อยู่",
+    "CONFIRMED": "ได้รับการยืนยัน",
+    "QUESTIONED": "มีข้อสงสัย",
+    "BROKEN": "ไม่เป็นไปตามสมมติฐาน",
+    "CLOSED": "ปิดแล้ว"
+  },
+  "goalType": {
+    "PORTFOLIO_VALUE": "มูลค่าพอร์ต",
+    "INVESTED_CAPITAL": "เงินลงทุนสะสม",
+    "DIVIDEND_INCOME": "รายได้จากเงินปันผล",
+    "TOTAL_RETURN": "ผลตอบแทนรวม"
+  },
+  "shareVisibility": {
+    "PRIVATE": "ส่วนตัว",
+    "LINK_ONLY": "ผู้ที่มีลิงก์เท่านั้น",
+    "PUBLIC": "สาธารณะ"
+  },
+  "shareTemplate": {
+    "PRIVATE": "ส่วนตัว",
+    "PERFORMANCE": "ผลการดำเนินงาน",
+    "OVERVIEW": "ภาพรวมพอร์ต",
+    "FULL": "ทุกอย่างที่แชร์ได้"
+  },
+  "alertType": {
+    "PRICE_ABOVE": "ราคาขึ้นเหนือ",
+    "PRICE_BELOW": "ราคาลงต่ำกว่า",
+    "PERCENT_CHANGE_ABOVE": "การเปลี่ยนแปลงรายวันเกิน",
+    "PERCENT_CHANGE_BELOW": "การเปลี่ยนแปลงรายวันต่ำกว่า",
+    "PORTFOLIO_DAILY_CHANGE_ABOVE": "การเปลี่ยนแปลงรายวันของพอร์ตเกิน",
+    "PORTFOLIO_DAILY_CHANGE_BELOW": "การเปลี่ยนแปลงรายวันของพอร์ตต่ำกว่า",
+    "PORTFOLIO_TOTAL_RETURN_ABOVE": "ผลตอบแทนรวมของพอร์ตเกิน",
+    "PORTFOLIO_TOTAL_RETURN_BELOW": "ผลตอบแทนรวมของพอร์ตต่ำกว่า",
+    "POSITION_WEIGHT_ABOVE": "สัดส่วนของหุ้นตัวนี้เกิน",
+    "POSITION_WEIGHT_BELOW": "สัดส่วนของหุ้นตัวนี้ต่ำกว่า",
+    "DIVIDEND_RECEIVED": "มีการบันทึกเงินปันผล",
+    "RSI_ABOVE": "RSI ขึ้นเหนือ",
+    "RSI_BELOW": "RSI ลงต่ำกว่า",
+    "MACD_BULLISH_CROSS": "MACD ตัดขึ้นเหนือเส้นสัญญาณ",
+    "MACD_BEARISH_CROSS": "MACD ตัดลงต่ำกว่าเส้นสัญญาณ",
+    "PRICE_ABOVE_EMA": "ราคาสูงกว่าเส้น EMA เกิน",
+    "PRICE_BELOW_EMA": "ราคาต่ำกว่าเส้น EMA เกิน",
+    "EMA_CROSS_BULLISH": "EMA 50 ตัดขึ้นเหนือ EMA 200",
+    "EMA_CROSS_BEARISH": "EMA 50 ตัดลงต่ำกว่า EMA 200",
+    "RELATIVE_VOLUME_ABOVE": "ปริมาณซื้อขายเทียบค่าเฉลี่ยเกิน",
+    "ADX_ABOVE": "ADX ขึ้นเหนือ"
+  },
+  "corporateEvent": {
+    "EARNINGS": "ประกาศผลประกอบการ",
+    "DIVIDEND": "จ่ายเงินปันผล",
+    "EX_DIVIDEND": "วันขึ้นเครื่องหมาย XD",
+    "SPLIT": "การแตกพาร์",
+    "REVERSE_SPLIT": "การรวมพาร์",
+    "RIGHTS_OFFERING": "การเสนอขายหุ้นเพิ่มทุนแก่ผู้ถือหุ้นเดิม",
+    "TENDER_OFFER": "คำเสนอซื้อหลักทรัพย์",
+    "MERGER": "การควบรวมกิจการ",
+    "ACQUISITION": "การเข้าซื้อกิจการ",
+    "AGM": "การประชุมสามัญผู้ถือหุ้น",
+    "EGM": "การประชุมวิสามัญผู้ถือหุ้น",
+    "OTHER": "การดำเนินการของบริษัท"
+  },
+  "regime": {
+    "GROWING": "อยู่ที่หรือใกล้จุดสูงสุด",
+    "FLAT": "เปลี่ยนแปลงเล็กน้อย",
+    "DRAWDOWN": "ต่ำกว่าจุดสูงสุด",
+    "RECOVERING": "กำลังฟื้นตัว"
+  },
+  "historyPeriod": {
+    "1W": "1 สัปดาห์",
+    "1M": "1 เดือน",
+    "3M": "3 เดือน",
+    "6M": "6 เดือน",
+    "YTD": "ตั้งแต่ต้นปี",
+    "1Y": "1 ปี",
+    "3Y": "3 ปี",
+    "MAX": "ทั้งหมด"
+  },
+  "fundamentalPeriod": {
+    "ANNUAL": "รายปี",
+    "QUARTERLY": "รายไตรมาส",
+    "TTM": "12 เดือนย้อนหลัง"
+  },
+  "reconciliationStatus": {
+    "PROCESSING": "กำลังดำเนินการ",
+    "COMPLETED": "เสร็จสิ้น",
+    "COMPLETED_WITH_WARNINGS": "เสร็จสิ้น พบความแตกต่าง",
+    "FAILED": "ล้มเหลว"
+  },
+  "importStatus": {
+    "PENDING": "รอดำเนินการ",
+    "APPLIED": "นำเข้าแล้ว",
+    "REJECTED": "ถูกปฏิเสธ",
+    "DUPLICATE": "ซ้ำกับรายการเดิม",
+    "CONFLICT": "ขัดแย้งกับรายการเดิม"
+  },
+  "importField": {
+    "tradeDate": "วันที่ซื้อขาย",
+    "symbol": "สัญลักษณ์",
+    "market": "ตลาด",
+    "side": "ประเภทรายการ",
+    "quantity": "จำนวน",
+    "price": "ราคา",
+    "fee": "ค่าธรรมเนียม",
+    "currency": "สกุลเงิน",
+    "notes": "บันทึก",
+    "reference": "เลขอ้างอิงจากโบรกเกอร์"
+  },
+  "dataQuality": {
+    "MISSING_PRICE": "ไม่มีราคาตลาด",
+    "STALE_PRICE": "ราคาตลาดล่าช้า",
+    "MISSING_FX": "ไม่มีอัตราแลกเปลี่ยน",
+    "STALE_FX": "อัตราแลกเปลี่ยนล่าช้า",
+    "MISSING_METADATA": "ไม่มีข้อมูลประกอบของหลักทรัพย์",
+    "IMPORT_UNRESOLVED": "มีแถวนำเข้าที่ยังไม่ได้จัดการ",
+    "IMPORT_CONFLICT": "มีข้อมูลนำเข้าที่ขัดแย้งกัน",
+    "CALENDAR_UNVERIFIED": "ปฏิทินการซื้อขายยังไม่ได้ตรวจสอบ",
+    "RECONCILIATION_UNRESOLVED": "มีผลการกระทบยอดที่ยังไม่ได้จัดการ",
+    "RECONCILIATION_STALE": "ผลการกระทบยอดล้าสมัย",
+    "RECONCILIATION_NEVER_RUN": "ยังไม่เคยกระทบยอด"
+  },
+  "screenerOperator": {
+    "GT": "มากกว่า",
+    "GTE": "มากกว่าหรือเท่ากับ",
+    "LT": "น้อยกว่า",
+    "LTE": "น้อยกว่าหรือเท่ากับ",
+    "EQ": "เท่ากับ",
+    "CROSS_ABOVE": "เพิ่งตัดขึ้นเหนือ",
+    "CROSS_BELOW": "เพิ่งตัดลงต่ำกว่า"
+  },
+  "simulationType": {
+    "COMPOUND_GROWTH": "การเติบโตแบบทบต้น",
+    "DCA": "การลงทุนแบบสม่ำเสมอ",
+    "GOAL": "การวางแผนตามเป้าหมาย",
+    "DIVIDEND": "การคาดการณ์เงินปันผล",
+    "WHAT_IF": "จำลองพอร์ตแบบ What-if"
+  },
+  "contributionFrequency": {
+    "MONTHLY": "รายเดือน",
+    "QUARTERLY": "รายไตรมาส",
+    "YEARLY": "รายปี"
+  },
+  "scenarioName": {
+    "CONSERVATIVE": "ระมัดระวัง",
+    "BASE": "กรณีฐาน",
+    "OPTIMISTIC": "มองในแง่ดี"
+  },
+  "viewColumn": {
+    "symbol": "สัญลักษณ์",
+    "market": "ตลาด",
+    "quantity": "จำนวน",
+    "averageCost": "ต้นทุนเฉลี่ย",
+    "currentPrice": "ราคา",
+    "marketValue": "มูลค่าตลาด",
+    "weight": "สัดส่วน",
+    "unrealizedPnl": "กำไร/ขาดทุนที่ยังไม่รับรู้",
+    "returnPct": "ผลตอบแทน",
+    "todayReturnPct": "วันนี้",
+    "dividendIncome": "รายได้จากเงินปันผล",
+    "tags": "ป้ายกำกับ"
+  },
+  "grouping": {
+    "none": "ไม่จัดกลุ่ม",
+    "tag": "ป้ายกำกับ",
+    "market": "ตลาด",
+    "sector": "กลุ่มอุตสาหกรรม"
+  },
+  "density": { "comfortable": "โปร่ง", "compact": "กระชับ" },
+  "theme": { "system": "ตามอุปกรณ์", "light": "สว่าง", "dark": "มืด" }
+}

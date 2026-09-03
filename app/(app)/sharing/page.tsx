@@ -15,6 +15,7 @@ import { toShareSource } from "@/features/sharing/source"
 import { Section } from "@/components/metric"
 import { SITE_URL } from "@/lib/site"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Sharing" }
 
@@ -38,6 +39,7 @@ export default async function SharingPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -83,7 +85,11 @@ export default async function SharingPage({
         }
       >
         <div className="bg-muted/30 -mx-4 -mb-4 rounded-b-xl border-t sm:-mx-5 sm:-mb-5">
-          <PublicPortfolioView portfolio={preview} asOf={published?.published_at ?? new Date().toISOString()} />
+          <PublicPortfolioView
+            portfolio={preview}
+            asOf={published?.published_at ?? new Date().toISOString()}
+            locale={locale}
+          />
         </div>
       </Section>
     </div>

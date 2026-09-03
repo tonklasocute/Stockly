@@ -4,6 +4,8 @@ import { calendarCovers, marketDate, marketSessionStatus } from "@/domain/calend
 import { fxFreshness, findRate, fxPair, type FxTable } from "@/domain/fx"
 import type { MarketStatus } from "@/services/market-data/types"
 import { formatFxRate, formatTime } from "@/lib/format"
+import type { Locale } from "@/domain/locale"
+import { appLocale } from "@/lib/i18n/server"
 
 /**
  * Where every number on the site comes from, and how old it is.
@@ -47,7 +49,7 @@ function marketRow(market: MarketId, status: MarketStatus, now: Date): Health {
   }
 }
 
-function fxRow(base: Currency, quote: Currency, table: FxTable, now: Date): Health {
+function fxRow(base: Currency, quote: Currency, table: FxTable, now: Date, locale: Locale): Health {
   const rate = findRate(table, quote, base)
   if (!rate) {
     return {
@@ -59,12 +61,12 @@ function fxRow(base: Currency, quote: Currency, table: FxTable, now: Date): Heal
   const freshness = fxFreshness(rate, now)
   return {
     label: fxPair(quote, base),
-    detail: `${formatFxRate(quote, base, rate.rate)} · ${freshness} · ${formatTime(rate.asOf)}`,
+    detail: `${formatFxRate(quote, base, rate.rate)} · ${freshness} · ${formatTime(rate.asOf, locale)}`,
     state: freshness === "fresh" ? "ok" : "warn",
   }
 }
 
-export function DataHealth({
+export async function DataHealth({
   baseCurrency,
   statuses,
   fx,
@@ -75,11 +77,12 @@ export function DataHealth({
   fx: FxTable
   now?: Date
 }) {
+  const locale = await appLocale()
   const rows: Health[] = [
     ...MARKETS.map((market) => marketRow(market, statuses[market], now)),
     ...MARKETS.map((market) => MARKET_REGISTRY[market].currency)
       .filter((currency, index, all) => all.indexOf(currency) === index && currency !== baseCurrency)
-      .map((currency) => fxRow(baseCurrency, currency, fx, now)),
+      .map((currency) => fxRow(baseCurrency, currency, fx, now, locale)),
   ]
 
   return (

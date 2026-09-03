@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { ThemeProvider } from "next-themes"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-
 export function Providers({
   children,
   /** The per-request CSP nonce, so next-themes' pre-paint script is allowed to run. */

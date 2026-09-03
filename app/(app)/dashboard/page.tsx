@@ -34,6 +34,7 @@ import { SCENARIO_RETURNS, planGoal, yearsUntil } from "@/domain/simulation"
 import { DataLabel } from "@/features/simulations/components/assumptions"
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -42,6 +43,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -228,7 +230,7 @@ export default async function DashboardPage({
                         <ul className="space-y-4">
                           {intelligence.goals.slice(0, 2).map(({ row, progress }) => (
                             <li key={row.id}>
-                              <GoalProgressBar progress={progress} baseCurrency={currency} />
+                              <GoalProgressBar progress={progress} baseCurrency={currency} locale={locale} />
                             </li>
                           ))}
                         </ul>
@@ -246,7 +248,7 @@ export default async function DashboardPage({
                               <span className="tabular text-foreground font-medium">
                                 {formatCurrency(outlook.projectedValue, currency)}
                               </span>{" "}
-                              by {formatDate(outlook.targetDate)}
+                              by {formatDate(outlook.targetDate, locale)}
                             </span>
                             <Link
                               href={`/simulations?p=${active.id}`}

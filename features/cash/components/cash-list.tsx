@@ -19,6 +19,7 @@ import { formatCurrency, formatDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { CashTransactionRow } from "@/types/database"
 import { CashDialog } from "./cash-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 export function CashList({
   transactions,
@@ -29,6 +30,7 @@ export function CashList({
   portfolioId: string
   currency: string
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [editing, setEditing] = useState<CashTransactionRow | undefined>()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -86,7 +88,7 @@ export function CashList({
                     {row.kind}
                   </Badge>
                   <span className="text-muted-foreground text-xs">
-                    {formatDate(row.occurred_on)}
+                    {formatDate(row.occurred_on, locale)}
                   </span>
                 </div>
                 {row.notes && (

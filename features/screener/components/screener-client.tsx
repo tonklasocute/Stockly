@@ -51,6 +51,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { SavedScreenRow } from "@/types/database"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 type Row = {
   symbol: string
@@ -105,6 +106,7 @@ export function ScreenerClient({
   savedScreens: SavedScreenRow[]
   aiEnabled?: boolean
 }) {
+  const locale = useAppLocale()
   const [definition, setDefinition] = useState<ScreenerDefinition>(
     SCREENER_PRESETS[0]?.definition ?? EMPTY,
   )
@@ -392,7 +394,7 @@ export function ScreenerClient({
               </p>
               {result.oldestCalculatedAt && (
                 <p className="text-muted-foreground text-xs">
-                  Indicators as of {formatTime(result.oldestCalculatedAt)}
+                  Indicators as of {formatTime(result.oldestCalculatedAt, locale)}
                   {result.anyStale && " · may be delayed"}
                 </p>
               )}

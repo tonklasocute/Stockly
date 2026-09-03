@@ -20,6 +20,7 @@ import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { ThesisRow } from "@/types/database"
 import { ThesisDialog } from "./thesis-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const TONE_CLASS = {
   neutral: "bg-muted text-foreground",
@@ -70,6 +71,7 @@ export function ThesisPanel({
   thesis: ThesisRow | null
   observations: ThesisObservation[]
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -129,7 +131,7 @@ export function ThesisPanel({
             <ThesisBadge status={thesis.status} />
           </div>
           <p className="text-muted-foreground text-xs">
-            Conviction {thesis.conviction}/10 · updated {formatTime(thesis.updated_at)}
+            Conviction {thesis.conviction}/10 · updated {formatTime(thesis.updated_at, locale)}
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDialogOpen(true)}>

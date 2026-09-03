@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTranslations } from "next-intl"
 import { Loader2, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +18,7 @@ import { clearServiceWorkerCaches } from "@/features/pwa/components/service-work
 import { clearInstallDismissal } from "@/features/pwa/use-pwa"
 
 export function UserMenu({ email }: { email: string }) {
+  const t = useTranslations("navigation")
   const router = useRouter()
   const queryClient = useQueryClient()
   const [signingOut, setSigningOut] = useState(false)
@@ -41,12 +43,12 @@ export function UserMenu({ email }: { email: string }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Account menu" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={t("accountMenu")} />}>
         <User className="size-4" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="truncate font-normal">
-          <span className="text-muted-foreground block text-xs">Signed in as</span>
+          <span className="text-muted-foreground block text-xs">{t("signedInAs")}</span>
           <span className="truncate text-sm font-medium">{email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -63,7 +65,7 @@ export function UserMenu({ email }: { email: string }) {
           ) : (
             <LogOut className="size-4" aria-hidden />
           )}
-          Sign out
+          {t("signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

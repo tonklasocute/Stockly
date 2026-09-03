@@ -7,6 +7,7 @@ import { AlertList } from "@/features/alerts/components/alert-list"
 import { listAlerts, listAlertEvents } from "@/features/alerts/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatTime } from "@/lib/format"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Alerts" }
 
@@ -15,6 +16,7 @@ export default async function AlertsPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const [alerts, events, { active }] = await Promise.all([
     listAlerts(),
@@ -56,7 +58,7 @@ export default async function AlertsPage({
                 <History className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{event.message}</p>
-                  <p className="text-muted-foreground text-xs">{formatTime(event.triggered_at)}</p>
+                  <p className="text-muted-foreground text-xs">{formatTime(event.triggered_at, locale)}</p>
                 </div>
               </li>
             ))}

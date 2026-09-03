@@ -109,6 +109,7 @@ production**: they create and delete portfolio records.
 | Logging | `lib/log.ts` — structured JSON on `console` | Vercel captures stdout; a logging library would add a flush problem in a function that can be frozen |
 | E2E | Playwright | money paths only: the critical journey and a post-deploy smoke test |
 | CI | GitHub Actions | lint · typecheck · test · build (AI off *and* on) · dependency audit · secret scan |
+| i18n | `next-intl`, cookie-resolved, no locale routing | Thai + English. `domain/locale.ts` is the registry; `locales/<code>/<namespace>.json` are the messages |
 | Deploy | Vercel | |
 
 **No Go microservice.** Business logic lives in `domain/` with zero framework imports so it can be
@@ -148,6 +149,7 @@ features/    feature slices (portfolio/, transactions/, watchlist/, …).
              Each owns its components/, hooks/, schema.ts, api.ts. Cross-feature
              imports go through the feature's index, or the code belongs in lib/.
 domain/      pure business logic. No framework imports. Heavily tested.
+             locale.ts (supported languages, Intl tags — imports nothing at all) ·
              market.ts (market/currency/instrument registry, symbol identity) · fx.ts (rates,
              freshness, conversion) · calendar.ts (sessions, holidays, timezones) ·
              money.ts (precision) · holdings.ts (cost basis, P&L, base-currency translation) ·
@@ -178,6 +180,7 @@ lib/         cross-cutting infra: supabase clients, env parsing, formatting, con
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
 supabase/    migrations/, seed.sql.
+locales/     th/ and en/ — one JSON per namespace, plus a static barrel per language.
 docs/        architecture and design docs.
 
 Unit tests live next to the source as *.test.ts. Add a tests/ folder when the first E2E spec exists.
@@ -206,6 +209,9 @@ Do not create new folders or abstractions "for later". Add them when the second 
 - A provider field that may be missing is `null`, never `0`, all the way to the UI, where it renders
   as `N/A`. A fabricated zero in a financial figure is worse than an admitted gap.
 - Symbols pass through `normalizeSymbol` before they are used as a key, a query param, or a row value.
+- **No user-facing hardcoded text.** Every string a user reads goes through `t()` into a namespace,
+  in Thai *and* English. That includes toasts, validation messages, empty states, chart labels,
+  `aria-label`, `placeholder` and `title`. See [`docs/i18n.md`](docs/i18n.md).
 
 ## Naming Convention
 
@@ -726,6 +732,49 @@ Full detail in [`docs/personalization.md`](docs/personalization.md).
 - **Preferences are read per request under RLS, never from a module-level cache** — a `Map` on a
   serverless instance is shared between whoever it serves.
 
+## Internationalization Rules
+
+Full detail in [`docs/i18n.md`](docs/i18n.md).
+
+- **A locale decides what a number is called. It can never decide what the number is.** Delete every
+  translation and every figure is byte-identical; `domain/locale-boundary.test.ts` asserts it, runs
+  every locale operation against the engines, and reads `domain/locale.ts` to keep it importing
+  nothing at all.
+- **No user-facing string is written inline.** Every one goes through `t()` into a namespace, in
+  **both** languages. `lib/i18n/completeness.test.ts` fails on a key present in one language and
+  missing in the other — in both directions — on an empty translation, on a placeholder that
+  survives one language and not the other, and on a Thai file that is a copy of the English one.
+- **A namespace is a feature slice**, plus six cross-cutting ones. No decision to make: a string
+  owned by `features/transactions` goes in `transactions.json`.
+- **Money, quantity and percentage formatters take no locale, and must not start.** `Intl` produces
+  byte-identical output for both languages — Thai uses Latin digits, comma grouping and a decimal
+  point — so a locale parameter would change nothing while creating several hundred places a future
+  change could make a figure differ between languages. Dates are the one exception, and take a
+  `Locale` **required**, so the compiler finds every call site.
+- **Thai dates are Gregorian.** `th-TH` alone resolves to the Buddhist era, and one transaction must
+  not read 2569 in Thai and 2026 in English. The era is pinned once, in `LOCALE_META.th.intlTag`.
+- **Language is not currency and is not timezone.** `Language: ไทย, Currency: USD` works, and so
+  does the reverse. Never derive one from another.
+- **An enum is never rendered raw.** ``tEnum(`cashFlow.${kind}`)`` — the domain keeps the value,
+  the `enums` namespace keeps the words.
+- **The server sends a code; the client chooses the words.** `apiFetch` throws `ApiClientError` with
+  the code intact and `useErrorMessage()` translates it. Never render `error.message` to a user —
+  it is written for a developer, it is not translated, and it is how an internal detail leaks onto a
+  screen.
+- **A public page's language comes from `?lang=`, never from the owner's cookie.** The owner is not
+  the one reading it. `PublicPortfolioView` takes `locale` as a prop and cannot resolve it itself.
+- **Nothing a user wrote is translated**, and neither is provider content. A headline attributed to a
+  real publication in words it never wrote is worse than a wrong number. The chrome around it is
+  translated; the article is not.
+- **A locale must never change machine-readable output** — API schemas, CSV export headers, database
+  values, enum codes on the wire.
+- **The locale cookie is validated against the closed enum on every read.** A hand-edited cookie or a
+  crafted `?lang=` can only produce the default language, and neither value is ever echoed into the
+  page. No translation is rendered through `dangerouslySetInnerHTML`.
+- **A hook or a server helper, never both.** `useAppLocale()` inside a client tree, `await
+  appLocale()` in a Server Component, and a `locale` **prop** for a component rendered from both —
+  which the build catches, loudly, rather than the reviewer.
+
 ## Reconciliation & Operations Rules
 
 Full detail in [`docs/reconciliation.md`](docs/reconciliation.md).
@@ -921,9 +970,11 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 17.5 ✅ | Production review: audit report, phase-16 snapshot regression fixed, currency on fundamental figures, two N+1 jobs, one representation of N/A |
 | 18 ✅ | News & market context: provider abstraction, normalization and de-duplication, URL safety, deterministic categories, tone and relevance, corporate-event linking, feeds for portfolio/watchlist/market, opt-in notifications |
 | 19 ✅ | Advanced portfolio operations: position and cash reconciliation with run history, the full cash ledger, split adjustments applied in front of the engine, a trigger-written audit trail, corrections that carry a reason, and portfolio transfer by re-parenting |
-| 20 ✅ | **Final.** Advanced risk & stress testing over the existing what-if engine, coverage and exclusions, component decomposition, recovery arithmetic, historical scenario, cross-system financial regression suite, scale suite, full production audit and final report |
+| 20 ✅ | Advanced risk & stress testing over the existing what-if engine, coverage and exclusions, component decomposition, recovery arithmetic, historical scenario, cross-system financial regression suite, scale suite, full production audit and final report |
 
-Stockly is complete. Anything beyond this — Monte Carlo, per-instrument price history and full FX
+| 21 🚧 | **Bilingual.** Thai + English throughout: locale registry, cookie-resolved locale with a stored per-user preference, language switcher, namespaced translations, enum/error/validation vocabulary, Gregorian-pinned Thai dates, localized metadata and PWA manifest, `?lang=` on public pages, completeness and financial-invariant test suites |
+
+Anything beyond this — Monte Carlo, per-instrument price history and full FX
 attribution, FIFO cost basis, tax lots — is a new project against a finished one, not a phase 21.
 
 Do not start the next phase without being asked.

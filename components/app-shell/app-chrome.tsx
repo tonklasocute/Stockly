@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -11,6 +12,7 @@ import { PortfolioDialog } from "@/features/portfolios/components/portfolio-dial
 import { NetworkStatus } from "@/features/pwa/components/network-status"
 import { StockSearch } from "@/features/stocks/components/stock-search"
 import { CommandPalette } from "@/features/personalization/components/command-palette"
+import { LanguageSwitcher } from "@/features/i18n/components/language-switcher"
 import type { PortfolioRow } from "@/types/database"
 import { MobileTabBar, SidebarNav } from "./sidebar-nav"
 import { PortfolioSwitcher } from "./portfolio-switcher"
@@ -44,6 +46,8 @@ export function AppChrome({
   unread?: number
   children: React.ReactNode
 }) {
+  const t = useTranslations("navigation")
+  const ts = useTranslations("settings")
   const [creating, setCreating] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const requestedId = useSearchParams().get("p")
@@ -68,20 +72,31 @@ export function AppChrome({
         <header className="bg-background/95 safe-top sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
-              render={<Button variant="ghost" size="icon" aria-label="Open menu" />}
+              render={<Button variant="ghost" size="icon" aria-label={t("openMenu")} />}
               className="lg:hidden"
             >
               <Menu className="size-5" aria-hidden />
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-4">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              <SheetTitle className="sr-only">{t("menu")}</SheetTitle>
               <div className="mb-6 px-2">
                 <Wordmark />
               </div>
               <SidebarNav onNavigate={() => setMenuOpen(false)} unread={unread} />
-              <div className="mt-4 flex items-center justify-between border-t px-3 pt-4 sm:hidden">
-                <span className="text-muted-foreground text-sm">Appearance</span>
-                <ThemeToggle />
+              {/*
+                On a narrow screen the header has no room for either control, so both live here.
+                Language sits beside appearance because they are the same kind of decision — how
+                the application looks and reads, never what it calculates.
+              */}
+              <div className="mt-4 space-y-1 border-t px-3 pt-4 sm:hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">{ts("appearance.title")}</span>
+                  <ThemeToggle />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">{ts("language.label")}</span>
+                  <LanguageSwitcher signedIn label={ts("language.label")} />
+                </div>
               </div>
             </SheetContent>
           </Sheet>
@@ -97,6 +112,9 @@ export function AppChrome({
               activeId={activeId}
               onCreate={() => setCreating(true)}
             />
+            <span className="max-sm:hidden">
+              <LanguageSwitcher signedIn label={ts("language.label")} />
+            </span>
             <span className="max-sm:hidden">
               <ThemeToggle />
             </span>

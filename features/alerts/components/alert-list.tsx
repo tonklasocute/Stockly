@@ -30,6 +30,7 @@ import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { AlertRow } from "@/types/database"
 import { AlertDialog } from "./alert-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 type Filter = "all" | "enabled" | "disabled"
 
@@ -46,6 +47,7 @@ export function AlertList({
   alerts: AlertRow[]
   portfolioId?: string
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("all")
@@ -182,7 +184,7 @@ export function AlertList({
                   </p>
                   <p className="text-muted-foreground mt-0.5 text-xs">
                     {alert.last_triggered_at
-                      ? `Last fired ${formatTime(alert.last_triggered_at)}`
+                      ? `Last fired ${formatTime(alert.last_triggered_at, locale)}`
                       : "Not fired yet"}
                     {alert.cooldown_minutes > 0 && ` · ${alert.cooldown_minutes} min quiet period`}
                   </p>

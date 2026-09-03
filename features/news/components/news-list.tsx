@@ -11,6 +11,7 @@ import {
 } from "@/domain/news"
 import type { NewsBundle } from "@/features/news/loader"
 import { formatTime } from "@/lib/format"
+import { appLocale } from "@/lib/i18n/server"
 
 /**
  * A news feed.
@@ -28,7 +29,7 @@ import { formatTime } from "@/lib/format"
  *    Stockly never proxies or redirects through its own origin, so there is no open-redirect
  *    surface.
  */
-export function NewsList({
+export async function NewsList({
   data,
   title = "News",
   description,
@@ -37,6 +38,7 @@ export function NewsList({
   title?: string
   description?: string
 }) {
+  const locale = await appLocale()
   if (!data.covered) {
     return (
       <Section title={title}>
@@ -95,7 +97,7 @@ export function NewsList({
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                 {/* Source and time, always. */}
                 <span className="font-medium">{article.source}</span>
-                <time dateTime={article.publishedAt}>{formatTime(article.publishedAt)}</time>
+                <time dateTime={article.publishedAt}>{formatTime(article.publishedAt, locale)}</time>
                 {article.age === "BREAKING" && <Badge variant="outline">Just published</Badge>}
                 <span>{CATEGORY_LABELS[article.category]}</span>
                 {article.relation !== "MARKET" && (

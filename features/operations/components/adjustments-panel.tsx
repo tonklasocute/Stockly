@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import type { Holding } from "@/domain/types"
 import type { ShareAdjustmentRow } from "@/types/database"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
  * Recording a split, and undoing one.
@@ -35,6 +36,7 @@ export function AdjustmentsPanel({
   holdings: Holding[]
   adjustments: ShareAdjustmentRow[]
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [symbol, setSymbol] = useState("")
   const [market, setMarket] = useState<MarketId>("US")
@@ -215,7 +217,7 @@ export function AdjustmentsPanel({
               <span className="font-medium">{adjustment.symbol}</span>
               <span className="text-muted-foreground text-xs">
                 {toMarket(adjustment.market)} · {adjustment.numerator}:{adjustment.denominator} ·
-                from {formatDate(adjustment.effective_date)}
+                from {formatDate(adjustment.effective_date, locale)}
               </span>
               <Button
                 type="button"

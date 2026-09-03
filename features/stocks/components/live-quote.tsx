@@ -8,6 +8,7 @@ import { formatCurrency, formatTime } from "@/lib/format"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import type { Quote } from "@/services/market-data/types"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const STATUS_LABEL: Record<Quote["status"], string> = {
   open: "Market open",
@@ -34,6 +35,7 @@ export function LiveQuote({
   initialQuote: Quote | null
   currency?: string
 }) {
+  const locale = useAppLocale()
   const { data, isFetching, refetch, isError } = useQuery({
     queryKey: ["quote", market, symbol],
     queryFn: () =>
@@ -89,7 +91,7 @@ export function LiveQuote({
           {STATUS_LABEL[quote.status]}
         </span>
         <span aria-hidden>·</span>
-        <span>{isError ? "Price may be out of date" : `As of ${formatTime(quote.asOf)}`}</span>
+        <span>{isError ? "Price may be out of date" : `As of ${formatTime(quote.asOf, locale)}`}</span>
         <Button
           variant="ghost"
           size="icon-xs"

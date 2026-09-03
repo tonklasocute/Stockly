@@ -9,6 +9,12 @@
  *
  * The digest is Next's own hash of the server-side error. It is safe to show — it contains no stack
  * and no message — and it is the string that lets a maintainer find the real error in the logs.
+ *
+ * **The one screen in the application that is deliberately bilingual.** It has no translation
+ * provider — the provider lives in the root layout, and this file exists precisely because the root
+ * layout did not render. Reading the locale cookie here would have to happen after hydration, on a
+ * page whose whole premise is that rendering has already failed. Showing both languages is three
+ * extra lines and always correct; guessing one is sometimes wrong at the worst possible moment.
  */
 export default function GlobalError({
   error,
@@ -18,7 +24,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
-    <html lang="en">
+    <html lang="th">
       <body
         style={{
           margin: 0,
@@ -35,8 +41,17 @@ export default function GlobalError({
           fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif",
         }}
       >
-        <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>Stockly could not load</h1>
-        <p style={{ margin: 0, maxWidth: "28rem", color: "#52525b", fontSize: "0.875rem" }}>
+        <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }} lang="th">
+          Stockly ไม่สามารถโหลดได้
+        </h1>
+        <p style={{ margin: 0, maxWidth: "28rem", color: "#52525b", fontSize: "0.875rem" }} lang="th">
+          เกิดข้อผิดพลาดก่อนที่หน้าจะแสดงผลได้ ข้อมูลของคุณไม่ได้รับผลกระทบ
+          และไม่มีข้อมูลใดถูกเก็บไว้ในเบราว์เซอร์
+        </p>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0.5rem 0 0" }} lang="en">
+          Stockly could not load
+        </h2>
+        <p style={{ margin: 0, maxWidth: "28rem", color: "#52525b", fontSize: "0.875rem" }} lang="en">
           Something went wrong before the page could render. Your data is unaffected — nothing is
           stored in the browser.
         </p>
@@ -55,11 +70,11 @@ export default function GlobalError({
             cursor: "pointer",
           }}
         >
-          Try again
+          ลองอีกครั้ง / Try again
         </button>
         {error.digest && (
           <p style={{ margin: 0, color: "#a1a1aa", fontSize: "0.75rem" }}>
-            Reference: {error.digest}
+            รหัสอ้างอิง / Reference: {error.digest}
           </p>
         )}
       </body>

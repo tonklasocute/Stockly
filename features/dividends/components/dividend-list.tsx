@@ -27,6 +27,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import type { DividendRow } from "@/types/database"
 import { DividendDialog } from "./dividend-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const amountsOf = (row: DividendRow) =>
   dividendAmounts({
@@ -45,6 +46,7 @@ export function DividendList({
   portfolioId: string
   currency: string
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [editing, setEditing] = useState<DividendRow | undefined>()
@@ -156,7 +158,7 @@ export function DividendList({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold">{row.symbol}</p>
-                      <p className="text-muted-foreground text-xs">{formatDate(row.payment_date)}</p>
+                      <p className="text-muted-foreground text-xs">{formatDate(row.payment_date, locale)}</p>
                     </div>
                     <div className="flex items-start gap-1">
                       <span className="tabular font-semibold">
@@ -209,7 +211,7 @@ export function DividendList({
                   return (
                     <TableRow key={row.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {formatDate(row.payment_date)}
+                        {formatDate(row.payment_date, locale)}
                       </TableCell>
                       <TableCell className="font-medium">{row.symbol}</TableCell>
                       <TableCell className="tabular text-right">

@@ -1,0 +1,223 @@
+{
+  "transactionSide": { "buy": "Buy", "sell": "Sell" },
+  "market": { "US": "United States", "TH": "Thailand (SET)" },
+  "cashFlow": {
+    "deposit": "Deposit",
+    "withdrawal": "Withdrawal",
+    "fee": "Fee",
+    "tax": "Tax",
+    "interest": "Interest",
+    "transfer_in": "Transfer in",
+    "transfer_out": "Transfer out",
+    "adjustment_in": "Adjustment (increase)",
+    "adjustment_out": "Adjustment (decrease)"
+  },
+  "newsCategory": {
+    "EARNINGS": "Earnings",
+    "DIVIDEND": "Dividend",
+    "CORPORATE": "Corporate action",
+    "M_AND_A": "Mergers & acquisitions",
+    "MANAGEMENT": "Management",
+    "PRODUCT": "Product",
+    "REGULATION": "Regulation",
+    "LEGAL": "Legal",
+    "MACRO": "Macro",
+    "MARKET": "Market",
+    "SECTOR": "Sector",
+    "ANALYST": "Analyst commentary",
+    "OTHER": "Other"
+  },
+  "sentiment": {
+    "POSITIVE": "Positive tone",
+    "NEUTRAL": "Neutral tone",
+    "NEGATIVE": "Negative tone",
+    "MIXED": "Mixed tone",
+    "UNKNOWN": "Tone not classified"
+  },
+  "journalType": {
+    "BUY_THESIS": "Buy thesis",
+    "SELL_REASON": "Sell reason",
+    "POSITION_REVIEW": "Position review",
+    "MARKET_NOTE": "Market note",
+    "DIVIDEND_NOTE": "Dividend note",
+    "GENERAL": "General"
+  },
+  "sellReason": {
+    "TARGET_REACHED": "Target reached",
+    "THESIS_BROKEN": "Thesis broken",
+    "RISK_INCREASED": "Risk increased",
+    "VALUATION": "Valuation",
+    "PORTFOLIO_REBALANCE": "Rebalancing",
+    "LIQUIDITY": "Needed the cash",
+    "TAX": "Tax",
+    "OTHER": "Other"
+  },
+  "thesisStatus": {
+    "ACTIVE": "Active",
+    "CONFIRMED": "Confirmed",
+    "QUESTIONED": "Questioned",
+    "BROKEN": "Broken",
+    "CLOSED": "Closed"
+  },
+  "goalType": {
+    "PORTFOLIO_VALUE": "Portfolio value",
+    "INVESTED_CAPITAL": "Invested capital",
+    "DIVIDEND_INCOME": "Dividend income",
+    "TOTAL_RETURN": "Total return"
+  },
+  "shareVisibility": {
+    "PRIVATE": "Private",
+    "LINK_ONLY": "Anyone with the link",
+    "PUBLIC": "Public"
+  },
+  "shareTemplate": {
+    "PRIVATE": "Private",
+    "PERFORMANCE": "Performance",
+    "OVERVIEW": "Portfolio overview",
+    "FULL": "Everything shareable"
+  },
+  "alertType": {
+    "PRICE_ABOVE": "Price rises above",
+    "PRICE_BELOW": "Price falls below",
+    "PERCENT_CHANGE_ABOVE": "Daily change rises above",
+    "PERCENT_CHANGE_BELOW": "Daily change falls below",
+    "PORTFOLIO_DAILY_CHANGE_ABOVE": "Portfolio daily change rises above",
+    "PORTFOLIO_DAILY_CHANGE_BELOW": "Portfolio daily change falls below",
+    "PORTFOLIO_TOTAL_RETURN_ABOVE": "Portfolio total return rises above",
+    "PORTFOLIO_TOTAL_RETURN_BELOW": "Portfolio total return falls below",
+    "POSITION_WEIGHT_ABOVE": "Position weight rises above",
+    "POSITION_WEIGHT_BELOW": "Position weight falls below",
+    "DIVIDEND_RECEIVED": "A dividend is recorded",
+    "RSI_ABOVE": "RSI rises above",
+    "RSI_BELOW": "RSI falls below",
+    "MACD_BULLISH_CROSS": "MACD crosses above its signal",
+    "MACD_BEARISH_CROSS": "MACD crosses below its signal",
+    "PRICE_ABOVE_EMA": "Price rises above its EMA by",
+    "PRICE_BELOW_EMA": "Price falls below its EMA by",
+    "EMA_CROSS_BULLISH": "50 EMA crosses above the 200 EMA",
+    "EMA_CROSS_BEARISH": "50 EMA crosses below the 200 EMA",
+    "RELATIVE_VOLUME_ABOVE": "Relative volume rises above",
+    "ADX_ABOVE": "ADX rises above"
+  },
+  "corporateEvent": {
+    "EARNINGS": "Earnings",
+    "DIVIDEND": "Dividend payment",
+    "EX_DIVIDEND": "Ex-dividend",
+    "SPLIT": "Share split",
+    "REVERSE_SPLIT": "Reverse split",
+    "RIGHTS_OFFERING": "Rights offering",
+    "TENDER_OFFER": "Tender offer",
+    "MERGER": "Merger",
+    "ACQUISITION": "Acquisition",
+    "AGM": "Annual general meeting",
+    "EGM": "Extraordinary general meeting",
+    "OTHER": "Corporate action"
+  },
+  "regime": {
+    "GROWING": "At or near its high",
+    "FLAT": "Little changed",
+    "DRAWDOWN": "Below its high",
+    "RECOVERING": "Recovering"
+  },
+  "historyPeriod": {
+    "1W": "1 week",
+    "1M": "1 month",
+    "3M": "3 months",
+    "6M": "6 months",
+    "YTD": "Year to date",
+    "1Y": "1 year",
+    "3Y": "3 years",
+    "MAX": "All time"
+  },
+  "fundamentalPeriod": {
+    "ANNUAL": "Annual",
+    "QUARTERLY": "Quarterly",
+    "TTM": "Trailing twelve months"
+  },
+  "reconciliationStatus": {
+    "PROCESSING": "In progress",
+    "COMPLETED": "Completed",
+    "COMPLETED_WITH_WARNINGS": "Completed with differences",
+    "FAILED": "Failed"
+  },
+  "importStatus": {
+    "PENDING": "Pending",
+    "APPLIED": "Applied",
+    "REJECTED": "Rejected",
+    "DUPLICATE": "Duplicate",
+    "CONFLICT": "Conflict"
+  },
+  "importField": {
+    "tradeDate": "Trade date",
+    "symbol": "Symbol",
+    "market": "Market",
+    "side": "Side",
+    "quantity": "Quantity",
+    "price": "Price",
+    "fee": "Fee",
+    "currency": "Currency",
+    "notes": "Notes",
+    "reference": "Broker reference"
+  },
+  "dataQuality": {
+    "MISSING_PRICE": "Missing market price",
+    "STALE_PRICE": "Delayed market price",
+    "MISSING_FX": "Missing exchange rate",
+    "STALE_FX": "Delayed exchange rate",
+    "MISSING_METADATA": "Missing instrument metadata",
+    "IMPORT_UNRESOLVED": "Unresolved import rows",
+    "IMPORT_CONFLICT": "Import conflicts",
+    "CALENDAR_UNVERIFIED": "Unverified trading calendar",
+    "RECONCILIATION_UNRESOLVED": "Unresolved reconciliation findings",
+    "RECONCILIATION_STALE": "Reconciliation is out of date",
+    "RECONCILIATION_NEVER_RUN": "Never reconciled"
+  },
+  "screenerOperator": {
+    "GT": "is above",
+    "GTE": "is at or above",
+    "LT": "is below",
+    "LTE": "is at or below",
+    "EQ": "is",
+    "CROSS_ABOVE": "just crossed above",
+    "CROSS_BELOW": "just crossed below"
+  },
+  "simulationType": {
+    "COMPOUND_GROWTH": "Compound growth",
+    "DCA": "Regular investing",
+    "GOAL": "Goal planning",
+    "DIVIDEND": "Dividend projection",
+    "WHAT_IF": "Portfolio what-if"
+  },
+  "contributionFrequency": {
+    "MONTHLY": "Monthly",
+    "QUARTERLY": "Quarterly",
+    "YEARLY": "Yearly"
+  },
+  "scenarioName": {
+    "CONSERVATIVE": "Conservative",
+    "BASE": "Base",
+    "OPTIMISTIC": "Optimistic"
+  },
+  "viewColumn": {
+    "symbol": "Symbol",
+    "market": "Market",
+    "quantity": "Quantity",
+    "averageCost": "Average cost",
+    "currentPrice": "Price",
+    "marketValue": "Market value",
+    "weight": "Weight",
+    "unrealizedPnl": "Unrealized P&L",
+    "returnPct": "Return",
+    "todayReturnPct": "Today",
+    "dividendIncome": "Dividend income",
+    "tags": "Tags"
+  },
+  "grouping": {
+    "none": "No grouping",
+    "tag": "Tag",
+    "market": "Market",
+    "sector": "Sector"
+  },
+  "density": { "comfortable": "Comfortable", "compact": "Compact" },
+  "theme": { "system": "Follow the device", "light": "Light", "dark": "Dark" }
+}

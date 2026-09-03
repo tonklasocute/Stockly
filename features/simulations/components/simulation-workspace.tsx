@@ -20,6 +20,7 @@ import { GoalSimulator, type PlannableGoal } from "./goal-simulator"
 import { DividendSimulator } from "./dividend-simulator"
 import { WhatIfSimulator } from "./what-if-simulator"
 import type { ScenarioState } from "./use-scenario"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const TABS = [
   { value: "growth", label: "Growth & DCA" },
@@ -77,6 +78,7 @@ export function SimulationWorkspace({
   /** The portfolio's own return history, or null when there is too little of it. */
   drawdown: DrawdownHistory | null
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("growth")
   const [growthState, setGrowthState] = useState<ScenarioState | null>(null)
@@ -210,7 +212,7 @@ export function SimulationWorkspace({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{row.name}</p>
                       <p className="text-muted-foreground text-xs">
-                        Updated {formatTime(row.updated_at)}
+                        Updated {formatTime(row.updated_at, locale)}
                       </p>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => load(row)}>

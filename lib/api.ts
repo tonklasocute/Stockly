@@ -8,30 +8,15 @@ import { describeError, logger, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveReque
 import { rateLimit } from "@/lib/rate-limit"
 import { isAIError } from "@/services/ai/errors"
 import { isMarketDataError } from "@/services/market-data/errors"
+import { ERROR_CODES, type ErrorCode } from "./api-codes"
 import { getUser } from "@/lib/supabase/server"
 
-export const ERROR_CODES = {
-  VALIDATION_ERROR: 400,
-  UNAUTHENTICATED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  INTERNAL_ERROR: 500,
-  MARKET_DATA_UNAVAILABLE: 503,
-  MARKET_DATA_RATE_LIMITED: 429,
-  MARKET_DATA_TIMEOUT: 504,
-  MARKET_DATA_NOT_CONFIGURED: 500,
-  MARKET_DATA_INVALID_RESPONSE: 502,
-  RATE_LIMITED: 429,
-  AI_DISABLED: 503,
-  AI_NOT_CONFIGURED: 500,
-  AI_UNAVAILABLE: 503,
-  AI_RATE_LIMITED: 429,
-  AI_TIMEOUT: 504,
-  AI_INVALID_RESPONSE: 502,
-  AI_QUOTA_EXCEEDED: 429,
-  PAYLOAD_TOO_LARGE: 413,
-} as const
+/*
+ * The error vocabulary now lives in `lib/api-codes.ts`, which has no server imports, so the
+ * browser can translate a code without pulling `next/headers` into the bundle. Re-exported here so
+ * every existing `from "@/lib/api"` keeps working.
+ */
+export { ERROR_CODES, type ErrorCode } from "./api-codes"
 
 /**
  * The largest request body any endpoint accepts.
@@ -52,7 +37,6 @@ export const MAX_REQUEST_BYTES = 64 * 1024
  */
 export const MAX_IMPORT_REQUEST_BYTES = 2 * 1024 * 1024
 
-export type ErrorCode = keyof typeof ERROR_CODES
 
 export type ApiSuccess<T> = { success: true; data: T }
 export type ApiFailure = {

@@ -11,6 +11,7 @@ import { findImportSession, listImportRows } from "@/features/imports/queries"
 import { formatDate, formatTime } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Import detail" }
 export const dynamic = "force-dynamic"
@@ -24,6 +25,7 @@ type Ctx = { params: Promise<{ id: string }> }
  * the reads — an id belonging to another user simply is not found, which is also the right answer.
  */
 export default async function ImportDetailPage({ params }: Ctx) {
+  const locale = await appLocale()
   const { id } = await params
   const session = await findImportSession(id)
   if (!session) notFound()
@@ -57,7 +59,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
         </Button>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{session.filename}</h1>
         <p className="text-muted-foreground text-sm">
-          {session.format} · imported {formatTime(session.applied_at)}
+          {session.format} · imported {formatTime(session.applied_at, locale)}
         </p>
       </div>
 
@@ -144,7 +146,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
                   {Number(transaction.quantity)} @ {Number(transaction.price)}
                 </span>
                 <span className="text-muted-foreground ml-auto text-xs">
-                  {formatDate(transaction.trade_date)}
+                  {formatDate(transaction.trade_date, locale)}
                 </span>
               </li>
             ))}

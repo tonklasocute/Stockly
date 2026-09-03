@@ -1,10 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { CloudOff, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function OfflineScreen() {
+  const t = useTranslations("errors.offline")
   const router = useRouter()
 
   return (
@@ -13,10 +15,9 @@ export function OfflineScreen() {
         <CloudOff className="size-6" aria-hidden />
       </div>
       <div className="space-y-1.5">
-        <h1 className="text-xl font-semibold tracking-tight">You&apos;re offline</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground mx-auto max-w-sm text-sm text-balance">
-          Stockly is installed and ready, but your portfolio and live market data need an internet
-          connection.
+{t("body")}
         </p>
       </div>
       <Button
@@ -29,7 +30,7 @@ export function OfflineScreen() {
         }}
       >
         <RefreshCw className="size-4" aria-hidden />
-        Retry
+        {t("retry")}
       </Button>
     </main>
   )

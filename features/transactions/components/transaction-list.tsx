@@ -50,6 +50,7 @@ import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { TransactionRow } from "@/types/database"
 import { TransactionDialog } from "./transaction-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 type SortKey = "date-desc" | "date-asc" | "total-desc"
 
@@ -74,6 +75,7 @@ export function TransactionList({
   /** Existing sell reviews keyed by transaction id, so the menu offers "edit" rather than "add". */
   sellReviews?: Record<string, JournalRow>
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   // A trade's amounts are in the currency of the venue it happened on, never the portfolio's: a
   // ฿32 price rendered as $32 is the single most damaging mistake this page could make.
@@ -302,7 +304,7 @@ export function TransactionList({
                       {sideBadge(transaction)}
                     </div>
                     <p className="text-muted-foreground text-xs">
-                      {formatDate(transaction.trade_date)}
+                      {formatDate(transaction.trade_date, locale)}
                     </p>
                   </div>
                   <div className="flex items-start gap-1">
@@ -354,7 +356,7 @@ export function TransactionList({
                 {visible.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
-                      {formatDate(transaction.trade_date)}
+                      {formatDate(transaction.trade_date, locale)}
                     </TableCell>
                     <TableCell>{sideBadge(transaction)}</TableCell>
                     <TableCell className="font-medium">

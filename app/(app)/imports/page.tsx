@@ -9,6 +9,7 @@ import { formatTime } from "@/lib/format"
 import { toPage } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Import" }
 
@@ -29,6 +30,7 @@ export default async function ImportsPage({
 }: {
   searchParams: Promise<{ p?: string; page?: string }>
 }) {
+  const locale = await appLocale()
   const query = await searchParams
   const { active } = await resolveActivePortfolio(query.p)
   if (!active) return <NoPortfolio />
@@ -79,7 +81,7 @@ export default async function ImportsPage({
                   {session.reject_count > 0 ? ` · ${session.reject_count} rejected` : ""}
                 </span>
                 <time className="text-muted-foreground shrink-0 text-xs" dateTime={session.created_at}>
-                  {formatTime(session.created_at)}
+                  {formatTime(session.created_at, locale)}
                 </time>
               </li>
             ))}

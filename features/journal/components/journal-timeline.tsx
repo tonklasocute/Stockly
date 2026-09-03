@@ -23,6 +23,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatDate } from "@/lib/format"
 import type { JournalRow } from "@/types/database"
 import { JournalDialog } from "./journal-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
  * The journal timeline: filters in the URL, entries newest first.
@@ -42,6 +43,7 @@ export function JournalTimeline({
   instruments: Array<{ symbol: string; market: string }>
   total: number
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const params = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -195,7 +197,7 @@ export function JournalTimeline({
                   <p className="font-medium">{entry.title}</p>
                 </div>
                 <time className="text-muted-foreground shrink-0 text-xs" dateTime={entry.entry_date}>
-                  {formatDate(entry.entry_date)}
+                  {formatDate(entry.entry_date, locale)}
                 </time>
               </div>
 

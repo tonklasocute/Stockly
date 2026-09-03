@@ -1,0 +1,34 @@
+{
+  "title": "Settings",
+  "appearance": {
+    "title": "Appearance",
+    "description": "How Stockly looks and reads on this device."
+  },
+  "theme": {
+    "label": "Theme",
+    "toggle": "Toggle dark mode",
+    "description": "Follow the device, or pick one."
+  },
+  "density": {
+    "label": "Density",
+    "description": "How tightly tables pack their rows."
+  },
+  "language": {
+    "title": "Language",
+    "label": "Language",
+    "description": "The language Stockly uses for its own wording and dates. It never changes a figure, a currency or a timezone — those are separate settings.",
+    "current": "Current language: {language}",
+    "saved": "Language changed to {language}",
+    "note": "Your choice is remembered on this device, and on any device you sign in to."
+  },
+  "currencyNote": "Currency is a property of each portfolio, not of the language you read it in.",
+  "timezoneNote": "Times are shown in your device's timezone, whichever language you choose.",
+  "defaultPortfolio": {
+    "label": "Default portfolio",
+    "description": "The portfolio Stockly opens on."
+  },
+  "account": {
+    "title": "Account",
+    "email": "Email address"
+  }
+}

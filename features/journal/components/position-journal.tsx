@@ -9,6 +9,7 @@ import { JOURNAL_LABELS, SELL_REASON_LABELS } from "@/domain/research"
 import { formatDate } from "@/lib/format"
 import type { JournalRow } from "@/types/database"
 import { JournalDialog } from "./journal-dialog"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
  * The last few journal entries for one instrument, with a way to add another.
@@ -27,6 +28,7 @@ export function PositionJournal({
   market: MarketId
   entries: JournalRow[]
 }) {
+  const locale = useAppLocale()
   const [open, setOpen] = useState(false)
 
   return (
@@ -42,7 +44,7 @@ export function PositionJournal({
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-sm font-medium">{entry.title}</span>
                 <time className="text-muted-foreground text-xs" dateTime={entry.entry_date}>
-                  {formatDate(entry.entry_date)}
+                  {formatDate(entry.entry_date, locale)}
                 </time>
               </div>
               <p className="text-muted-foreground text-xs">

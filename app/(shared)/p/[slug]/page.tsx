@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { PublicPortfolioView } from "@/features/sharing/components/public-portfolio-view"
 import { Unavailable } from "@/features/sharing/components/unavailable"
 import { readPublicShare } from "@/features/sharing/public"
+import { resolvePublicLocale } from "@/lib/i18n/resolve"
 import { SITE_URL } from "@/lib/site"
 
 /**
@@ -11,7 +12,10 @@ import { SITE_URL } from "@/lib/site"
  * so a LINK_ONLY or PRIVATE portfolio at a guessed slug returns nothing here — the restriction is
  * the database's, not this file's.
  */
-type Params = { params: Promise<{ slug: string }> }
+type Params = {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
 /**
  * Indexing is opt-in twice over: the portfolio must be PUBLIC *and* the owner must have allowed
@@ -48,10 +52,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-export default async function PublicPortfolioPage({ params }: Params) {
+export default async function PublicPortfolioPage({ params, searchParams }: Params) {
   const { slug } = await params
-  const view = await readPublicShare(slug)
+  const [view, locale] = await Promise.all([
+    readPublicShare(slug),
+    resolvePublicLocale(await searchParams),
+  ])
   if (!view) return <Unavailable reason="PRIVATE" />
 
-  return <PublicPortfolioView portfolio={view.portfolio} asOf={view.publishedAt} />
+  return <PublicPortfolioView portfolio={view.portfolio} asOf={view.publishedAt} locale={locale} />
 }

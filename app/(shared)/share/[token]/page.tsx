@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { PublicPortfolioView } from "@/features/sharing/components/public-portfolio-view"
 import { Unavailable } from "@/features/sharing/components/unavailable"
 import { readSharedByToken } from "@/features/sharing/public"
+import { resolvePublicLocale } from "@/lib/i18n/resolve"
 
 /**
  * A private share link.
@@ -23,10 +24,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false, nocache: true },
 }
 
-export default async function SharedLinkPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SharedLinkPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { token } = await params
-  const view = await readSharedByToken(token)
+  const [view, locale] = await Promise.all([
+    readSharedByToken(token),
+    resolvePublicLocale(await searchParams),
+  ])
   if (!view) return <Unavailable reason="LINK" />
 
-  return <PublicPortfolioView portfolio={view.portfolio} asOf={view.publishedAt} />
+  return <PublicPortfolioView portfolio={view.portfolio} asOf={view.publishedAt} locale={locale} />
 }

@@ -19,6 +19,7 @@ import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { listCashTransactions } from "@/features/cash/queries"
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Goals" }
 
@@ -27,6 +28,7 @@ export default async function GoalsPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -128,7 +130,7 @@ export default async function GoalsPage({
                   <DataLabel kind="PROJECTED" />
                   <span className="text-muted-foreground text-xs">
                     over {years.toFixed(1)} years
-                    {progress.targetDate ? ` · target ${formatDate(progress.targetDate)}` : ""}
+                    {progress.targetDate ? ` · target ${formatDate(progress.targetDate, locale)}` : ""}
                   </span>
                 </div>
 

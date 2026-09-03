@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { ArrowDown, ArrowUp, Eye, EyeOff, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,6 @@ import { Label } from "@/components/ui/label"
 import { Section } from "@/components/metric"
 import {
   DENSITIES,
-  DENSITY_LABELS,
   METRICS,
   METRIC_REGISTRY,
   MAX_FAVORITE_METRICS,
@@ -24,7 +24,11 @@ import {
   type Theme,
   type WidgetPlacement,
 } from "@/domain/personalization"
+import { LOCALE_META, SUPPORTED_LOCALES, type Locale } from "@/domain/locale"
 import { apiFetch } from "@/lib/api-client"
+import { useErrorMessage } from "@/lib/i18n/errors"
+import { useAppLocale } from "@/lib/i18n/locale"
+import { rememberLocale } from "@/features/i18n/set-locale"
 import type { PortfolioRow } from "@/types/database"
 
 /**
@@ -53,6 +57,10 @@ export function PreferencesForm({
     dismissedInsights: string[]
   }
 }) {
+  const t = useTranslations("settings")
+  const tEnum = useTranslations("enums")
+  const describeError = useErrorMessage()
+  const locale = useAppLocale()
   const router = useRouter()
   const { setTheme } = useTheme()
   const [state, setState] = useState(initial)
@@ -70,7 +78,7 @@ export function PreferencesForm({
       // Put the control back where it was: a switch that stayed flipped after a failed save is a
       // switch that lies about the state of the account.
       setState(previous)
-      toast.error(error instanceof Error ? error.message : "Could not save that.")
+      toast.error(describeError(error))
     } finally {
       setSaving(false)
     }
@@ -78,11 +86,11 @@ export function PreferencesForm({
 
   return (
     <div className="space-y-4">
-      <Section title="Appearance">
+      <Section title={t("appearance.title")}>
         <div className="grid gap-5 sm:grid-cols-2">
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium">Theme</legend>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Theme">
+            <legend className="text-sm font-medium">{t("theme.label")}</legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("theme.label")}>
               {THEMES.map((theme) => (
                 <Button
                   key={theme}
@@ -98,17 +106,51 @@ export function PreferencesForm({
                     setTheme(theme)
                     void save({ theme }, { ...state, theme })
                   }}
-                  className="capitalize"
                 >
-                  {theme}
+                  {tEnum(`theme.${theme}`)}
                 </Button>
               ))}
             </div>
           </fieldset>
 
+          {/*
+            Language sits beside theme and density because it is the same kind of preference: it
+            decides how Stockly reads, never what it calculates. The note under it says so, because
+            "changing the language will not change my numbers" is the first thing a user of a
+            financial application wants to be sure of.
+          */}
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium">Density</legend>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Density">
+            <legend className="text-sm font-medium">{t("language.label")}</legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("language.label")}>
+              {SUPPORTED_LOCALES.map((option) => (
+                <Button
+                  key={option}
+                  type="button"
+                  variant={locale === option ? "default" : "outline"}
+                  size="sm"
+                  role="radio"
+                  aria-checked={locale === option}
+                  disabled={saving}
+                  lang={option}
+                  onClick={() => {
+                    if (option === locale) return
+                    // The cookie takes effect on this device immediately; the PATCH is what makes
+                    // the choice survive a new one. `router.refresh()` re-renders the route with
+                    // the new language without losing the rest of this screen's state.
+                    rememberLocale(option, { signedIn: true })
+                    startTransition(() => router.refresh())
+                  }}
+                >
+                  {LOCALE_META[option].label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-muted-foreground text-xs">{t("language.description")}</p>
+          </fieldset>
+
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-medium">{t("density.label")}</legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("density.label")}>
               {DENSITIES.map((density) => (
                 <Button
                   key={density}
@@ -120,7 +162,7 @@ export function PreferencesForm({
                   disabled={saving}
                   onClick={() => void save({ density }, { ...state, density })}
                 >
-                  {DENSITY_LABELS[density]}
+                  {tEnum(`density.${density}`)}
                 </Button>
               ))}
             </div>

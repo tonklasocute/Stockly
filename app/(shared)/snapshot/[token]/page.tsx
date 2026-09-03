@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { PublicPortfolioView } from "@/features/sharing/components/public-portfolio-view"
 import { Unavailable } from "@/features/sharing/components/unavailable"
 import { readSnapshotByToken } from "@/features/sharing/public"
+import { resolvePublicLocale } from "@/lib/i18n/resolve"
 
 /**
  * A snapshot: one projection, frozen.
@@ -18,9 +19,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false, nocache: true },
 }
 
-export default async function SnapshotPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SnapshotPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { token } = await params
-  const snapshot = await readSnapshotByToken(token)
+  const [snapshot, locale] = await Promise.all([
+    readSnapshotByToken(token),
+    resolvePublicLocale(await searchParams),
+  ])
   if (!snapshot) return <Unavailable reason="SNAPSHOT" />
 
   return (
@@ -28,6 +38,7 @@ export default async function SnapshotPage({ params }: { params: Promise<{ token
       portfolio={snapshot.portfolio}
       asOf={snapshot.createdAt}
       frozen={{ label: snapshot.label, takenAt: snapshot.calculatedAt }}
+      locale={locale}
     />
   )
 }

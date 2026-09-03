@@ -13,6 +13,7 @@ import { listCashTransactions } from "@/features/cash/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatTime } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Planning" }
 
@@ -27,6 +28,7 @@ export default async function SimulationsPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -115,7 +117,7 @@ export default async function SimulationsPage({
         costBasis={analytics.summary.investedValue > 0 ? analytics.summary.investedValue : null}
         saved={saved}
         // Simulations start from the portfolio as it stands, so the page says when that was.
-        pricesAsOf={analytics.quoteAsOf === null ? null : formatTime(analytics.quoteAsOf)}
+        pricesAsOf={analytics.quoteAsOf === null ? null : formatTime(analytics.quoteAsOf, locale)}
         staleCount={analytics.summary.staleCount}
       />
 

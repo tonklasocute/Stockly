@@ -3,6 +3,7 @@ import { Metric } from "@/components/metric"
 import { SIGNAL_LABELS, type TechnicalSnapshot } from "@/domain/technical"
 import { formatCompact, formatCurrency, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const TREND_LABEL: Record<string, string> = {
   bullish: "Bullish",
@@ -44,6 +45,14 @@ export function TechnicalOverview({
   stale: boolean
   currency?: string
 }) {
+  /*
+   * A hook, not `appLocale()`.
+   *
+   * This component carries no `"use client"` of its own but is rendered inside `TechnicalPanel`,
+   * which does — so it is a Client Component by inheritance, and reaching for a server-only helper
+   * here is a build error rather than a runtime surprise. That is the boundary working.
+   */
+  const locale = useAppLocale()
   if (snapshot.candleCount === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -61,7 +70,7 @@ export function TechnicalOverview({
       {stale && (
         <p className="text-muted-foreground flex items-start gap-2 rounded-lg border border-dashed px-3 py-2 text-xs">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          Technical data may be delayed — last calculated {formatTime(calculatedAt)}. The price above
+          Technical data may be delayed — last calculated {formatTime(calculatedAt, locale)}. The price above
           is live; these indicators are not.
         </p>
       )}

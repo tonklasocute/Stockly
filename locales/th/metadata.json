@@ -1,0 +1,11 @@
+{
+  "title": "Stockly — ระบบติดตามพอร์ตการลงทุน",
+  "description": "ติดตามพอร์ตหุ้น ต้นทุน และกำไรขาดทุนของคุณ",
+  "shared": {
+    "notAvailable": "ไม่พร้อมใช้งาน",
+    "sharedPortfolio": "พอร์ตที่แชร์",
+    "snapshot": "ภาพนิ่งของพอร์ต",
+    "defaultDescription": "พอร์ตการลงทุนที่แชร์ผ่าน Stockly",
+    "describedBy": "พอร์ตการลงทุนที่แชร์ผ่าน Stockly โดย {name}"
+  }
+}

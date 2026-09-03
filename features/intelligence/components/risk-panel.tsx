@@ -2,6 +2,7 @@ import { Metric } from "@/components/metric"
 import { MIN_RETURN_OBSERVATIONS, TRADING_DAYS_PER_YEAR } from "@/domain/risk"
 import { formatDate, formatOptionalPercent } from "@/lib/format"
 import type { RiskBundle } from "../loader"
+import { appLocale } from "@/lib/i18n/server"
 
 /**
  * Every advanced metric carries a one-line explanation, and every unavailable one says what is
@@ -34,7 +35,8 @@ function Unavailable({ reason }: { reason: string }) {
   )
 }
 
-export function RiskPanel({ risk }: { risk: RiskBundle }) {
+export async function RiskPanel({ risk }: { risk: RiskBundle }) {
+  const locale = await appLocale()
   const tooFewObservations = `needs ${MIN_RETURN_OBSERVATIONS} valuations, has ${risk.observations}`
 
   return (
@@ -77,9 +79,9 @@ export function RiskPanel({ risk }: { risk: RiskBundle }) {
           }
           hint={
             risk.drawdown
-              ? `${formatDate(risk.drawdown.peakDate)} to ${formatDate(risk.drawdown.troughDate)}, ${risk.drawdown.declineDays} days. ` +
+              ? `${formatDate(risk.drawdown.peakDate, locale)} to ${formatDate(risk.drawdown.troughDate, locale)}, ${risk.drawdown.declineDays} days. ` +
                 (risk.drawdown.recoveredOn
-                  ? `Recovered ${formatDate(risk.drawdown.recoveredOn)}.`
+                  ? `Recovered ${formatDate(risk.drawdown.recoveredOn, locale)}.`
                   : "Not yet recovered.")
               : EXPLANATIONS.drawdown
           }

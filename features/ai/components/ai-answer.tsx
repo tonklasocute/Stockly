@@ -15,6 +15,7 @@ import type {
 import type { Narrative } from "@/features/ai/schema"
 import { formatCurrency, formatPercent, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
  * How an answer is shown.
@@ -71,6 +72,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function StockCard({ stock }: { stock: StockFacts }) {
+  const locale = useAppLocale()
   return (
     <div className="space-y-3 rounded-xl border p-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -142,7 +144,7 @@ function StockCard({ stock }: { stock: StockFacts }) {
         <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <Clock className="size-3.5" aria-hidden />
           Indicators may be delayed
-          {stock.indicatorsAsOf ? ` — calculated ${formatTime(stock.indicatorsAsOf)}` : ""}.
+          {stock.indicatorsAsOf ? ` — calculated ${formatTime(stock.indicatorsAsOf, locale)}` : ""}.
         </p>
       )}
     </div>
@@ -263,6 +265,7 @@ function ScreenCard({ screen }: { screen: ScreenExplanation }) {
 }
 
 export function AIAnswerView({ answer }: { answer: AIAnswer }) {
+  const locale = useAppLocale()
   const { grounded, narrative, completeness } = answer
   const hasData =
     grounded.stocks.length > 0 ||
@@ -372,7 +375,7 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
 
       <footer className="text-muted-foreground space-y-1 border-t pt-3 text-xs">
         <p>
-          Based on Stockly market and technical data · updated {formatTime(answer.dataAsOf)}
+          Based on Stockly market and technical data · updated {formatTime(answer.dataAsOf, locale)}
           {completeness.missing.length > 0 &&
             ` · unavailable: ${completeness.missing.slice(0, 4).join(", ")}`}
         </p>

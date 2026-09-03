@@ -35,6 +35,7 @@ export async function PATCH(request: Request) {
     const patch: Record<string, unknown> = {}
     if (body.theme !== undefined) patch.theme = body.theme
     if (body.density !== undefined) patch.density = body.density
+    if (body.locale !== undefined) patch.locale = body.locale
     if (body.defaultPortfolioId !== undefined) patch.default_portfolio_id = body.defaultPortfolioId
     if (body.favoriteMetrics !== undefined) patch.favorite_metrics = body.favoriteMetrics
     if (body.dismissedInsights !== undefined) patch.dismissed_insights = body.dismissedInsights

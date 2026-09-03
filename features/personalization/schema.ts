@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { SUPPORTED_LOCALES } from "@/domain/locale"
 import {
   DENSITIES,
   GROUPINGS,
@@ -33,6 +34,7 @@ export const widgetPlacementSchema = z.object({
 export const preferencesSchema = z.object({
   theme: z.enum(THEMES).optional(),
   density: z.enum(DENSITIES).optional(),
+  locale: z.enum(SUPPORTED_LOCALES).optional(),
   defaultPortfolioId: z.uuid().nullable().optional(),
   favoriteMetrics: z.array(z.enum(METRICS)).max(MAX_FAVORITE_METRICS).optional(),
   // Bounded by the number of widgets that exist: a longer array is either a duplicate or an

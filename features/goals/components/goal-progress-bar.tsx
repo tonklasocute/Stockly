@@ -6,6 +6,7 @@ import {
   formatPercent,
 } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import type { Locale } from "@/domain/locale"
 
 /** A goal's target and current value, in whichever unit that goal is measured in. */
 function stated(value: number, progress: GoalProgress, baseCurrency: string): string {
@@ -25,10 +26,18 @@ export function GoalProgressBar({
   progress,
   baseCurrency,
   className,
+  locale,
 }: {
   progress: GoalProgress
   baseCurrency: string
   className?: string
+  /*
+   * Passed in, because this component is rendered from both sides of the boundary: two Server
+   * Components render it directly and `GoalManager` renders it inside a client tree. A hook would
+   * break the first two and a server helper would break the third, so the caller — which always
+   * knows which world it is in — supplies it.
+   */
+  locale: Locale
 }) {
   const definition = GOAL_DEFINITIONS[progress.type]
   const filled = progress.progressPct === null ? 0 : Math.max(0, Math.min(progress.progressPct, 100))
@@ -71,7 +80,7 @@ export function GoalProgressBar({
         </span>
         {progress.targetDate && (
           <span className="text-muted-foreground">
-            by {formatDate(progress.targetDate)}
+            by {formatDate(progress.targetDate, locale)}
             {progress.daysRemaining !== null &&
               (progress.daysRemaining >= 0
                 ? ` · ${progress.daysRemaining} days left`

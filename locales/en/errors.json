@@ -1,0 +1,43 @@
+{
+  "title": "Something went wrong",
+  "generic": "Something went wrong. Please try again.",
+  "requestId": "Reference {id}",
+  "requestIdHelp": "Quote this reference if you report the problem.",
+  "code": {
+    "VALIDATION_ERROR": "Some of what you entered could not be accepted.",
+    "UNAUTHENTICATED": "Please sign in again.",
+    "FORBIDDEN": "You do not have access to that.",
+    "NOT_FOUND": "That could not be found.",
+    "CONFLICT": "That conflicts with something already recorded.",
+    "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
+    "PAYLOAD_TOO_LARGE": "That request was too large.",
+    "RATE_LIMITED": "Too many requests. Please wait a moment and try again.",
+    "MARKET_DATA_UNAVAILABLE": "Market data is unavailable right now. Figures fall back to cost.",
+    "MARKET_DATA_RATE_LIMITED": "The market data limit has been reached. Prices will refresh shortly.",
+    "MARKET_DATA_TIMEOUT": "The market data provider did not respond in time.",
+    "MARKET_DATA_NOT_CONFIGURED": "No market data provider is configured.",
+    "MARKET_DATA_INVALID_RESPONSE": "The market data provider returned something Stockly could not read.",
+    "AI_DISABLED": "Stockly AI is switched off.",
+    "AI_NOT_CONFIGURED": "Stockly AI is not configured.",
+    "AI_UNAVAILABLE": "Stockly AI is unavailable right now.",
+    "AI_RATE_LIMITED": "Too many questions in a short time. Please wait a moment.",
+    "AI_TIMEOUT": "Stockly AI did not respond in time.",
+    "AI_INVALID_RESPONSE": "Stockly AI returned something that could not be shown.",
+    "AI_QUOTA_EXCEEDED": "You have reached today's limit for Stockly AI."
+  },
+  "network": "Stockly could not reach the server. Check your connection and try again.",
+  "offline": {
+    "title": "You are offline",
+    "body": "Stockly needs a connection to show your portfolio. Your data is safe — this page will work again once you are back online.",
+    "retry": "Try again"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "That page does not exist, or it has moved.",
+    "home": "Go to the dashboard"
+  },
+  "boundary": {
+    "title": "This section could not be displayed",
+    "body": "The rest of the page is unaffected. Reloading usually fixes it."
+  }
+}

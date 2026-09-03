@@ -10,6 +10,7 @@ import { VALUATION_DISCLAIMER } from "@/domain/valuation"
 import { EVENT_LABELS, describeEvent } from "@/domain/corporate-events"
 import type { FundamentalBundle } from "@/features/fundamentals/loader"
 import { formatCompact, formatDate } from "@/lib/format"
+import { appLocale } from "@/lib/i18n/server"
 
 /**
  * The fundamentals section of an instrument page.
@@ -24,7 +25,8 @@ import { formatCompact, formatDate } from "@/lib/format"
  * 3. **Every metric can be checked.** The formula and required inputs are on the tile, so a figure
  *    is never something to take on faith.
  */
-export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
+export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
+  const locale = await appLocale()
   /*
    * The currency the COMPANY reports in — not the market's and not the portfolio's.
    *
@@ -170,7 +172,7 @@ export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
       <p className="text-muted-foreground text-xs">
         {FUNDAMENTALS_DISCLAIMER}
         {reportingCurrency && ` Figures are as reported by the company, in ${reportingCurrency}.`}
-        {data.fetchedAt && ` Source: ${data.providerName}. Fetched ${formatDate(data.fetchedAt)}.`}
+        {data.fetchedAt && ` Source: ${data.providerName}. Fetched ${formatDate(data.fetchedAt, locale)}.`}
       </p>
     </div>
   )

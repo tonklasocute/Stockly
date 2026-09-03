@@ -1,17 +1,56 @@
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { readFileSync } from "node:fs"
-import manifest from "@/app/manifest"
+import en from "@/locales/en"
+import th from "@/locales/th"
+import type { Locale } from "@/domain/locale"
 import { APP_VERSION } from "@/lib/version"
 
 const SW = readFileSync(new URL("../../public/sw.js", import.meta.url), "utf8")
 
-describe("web app manifest", () => {
-  const m = manifest()
+/*
+ * The manifest became per-request in phase 21 so an installed app carries the name in the language
+ * it was installed from. It now needs a locale and a translator, neither of which exists outside a
+ * request — so both are stubbed here, and the suite asserts the localization rather than working
+ * around it. The `pwa` namespace itself is proved complete by `lib/i18n/completeness.test.ts`.
+ */
+let locale: Locale = "en"
+const MESSAGES = { en, th }
 
-  it("uses the production name, never a development one", () => {
+vi.mock("@/lib/i18n/server", () => ({ appLocale: async () => locale }))
+vi.mock("next-intl/server", () => ({
+  getTranslations: async (namespace: "pwa") => (key: string) =>
+    (MESSAGES[locale][namespace] as unknown as Record<string, string>)[key],
+}))
+
+const { default: manifest } = await import("@/app/manifest")
+
+describe("web app manifest", () => {
+  let m: Awaited<ReturnType<typeof manifest>>
+
+  beforeEach(async () => {
+    locale = "en"
+    m = await manifest()
+  })
+
+  it("uses the production name, never a development one", async () => {
     expect(m.name).toBe("Stockly — Portfolio Tracker")
     expect(m.short_name).toBe("Stockly")
     expect(`${m.name} ${m.short_name}`).not.toMatch(/dev|test|mvp|staging/i)
+  })
+
+  it("carries the name and description in the language of the request", async () => {
+    locale = "th"
+    const thai = await manifest()
+
+    expect(thai.lang).toBe("th")
+    expect(thai.name).toBe(th.pwa.name)
+    expect(thai.description).toBe(th.pwa.description)
+    // A home-screen icon has room for one short word; it stays the brand in both languages.
+    expect(thai.short_name).toBe("Stockly")
+    // Everything that is not language is decided once and must not move with it.
+    expect(thai.start_url).toBe(m.start_url)
+    expect(thai.scope).toBe(m.scope)
+    expect(thai.theme_color).toBe(m.theme_color)
   })
 
   it("launches standalone from the dashboard, scoped to the whole origin", () => {

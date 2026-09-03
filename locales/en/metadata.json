@@ -1,0 +1,11 @@
+{
+  "title": "Stockly — Portfolio Tracker",
+  "description": "Track your stock portfolio, cost basis and profit and loss.",
+  "shared": {
+    "notAvailable": "Not available",
+    "sharedPortfolio": "Shared portfolio",
+    "snapshot": "Portfolio snapshot",
+    "defaultDescription": "A portfolio shared on Stockly.",
+    "describedBy": "A portfolio shared on Stockly by {name}."
+  }
+}

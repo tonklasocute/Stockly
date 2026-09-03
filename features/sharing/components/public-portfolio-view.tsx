@@ -11,6 +11,7 @@ import {
   formatQuantity,
   formatTime,
 } from "@/lib/format"
+import type { Locale } from "@/domain/locale"
 
 /**
  * The shared page.
@@ -28,12 +29,21 @@ export function PublicPortfolioView({
   portfolio,
   asOf,
   frozen,
+  locale,
 }: {
   portfolio: PublicPortfolio
   /** When the document was published, or when the snapshot was taken. */
   asOf: string
   /** A snapshot: a fixed point in time rather than the current publication. */
   frozen?: { label: string | null; takenAt: string }
+  /*
+   * The *visitor's* language, passed in rather than resolved here.
+   *
+   * A shared page is read by somebody who has no preference row and may have no session at all, so
+   * its language comes from `?lang=` on the URL with the default underneath. Resolving it inside
+   * this component would quietly make a stranger's page depend on the owner's cookie.
+   */
+  locale: Locale
 }) {
   const { sections, baseCurrency } = portfolio
   const money = (value: number) => formatCurrency(value, baseCurrency)
@@ -50,9 +60,9 @@ export function PublicPortfolioView({
             like a current one would be the single most misleading thing this feature could do.
           */}
           {frozen ? (
-            <Badge variant="secondary">Snapshot · {formatTime(frozen.takenAt)}</Badge>
+            <Badge variant="secondary">Snapshot · {formatTime(frozen.takenAt, locale)}</Badge>
           ) : (
-            <Badge variant="outline">Published {formatTime(asOf)}</Badge>
+            <Badge variant="outline">Published {formatTime(asOf, locale)}</Badge>
           )}
         </div>
         {portfolio.description ? (
@@ -322,7 +332,7 @@ export function PublicPortfolioView({
       <footer className="text-muted-foreground space-y-2 border-t pt-5 text-xs">
         <p>{SHARE_DISCLAIMER}</p>
         <p>
-          Figures calculated {formatTime(portfolio.calculatedAt)}.{" "}
+          Figures calculated {formatTime(portfolio.calculatedAt, locale)}.{" "}
           {frozen ? "This page is a snapshot and does not update." : "Updates when the owner republishes."}
         </p>
         <p>

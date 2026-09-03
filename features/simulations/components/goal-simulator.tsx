@@ -36,6 +36,7 @@ import { AssumptionPanel, DataLabel } from "./assumptions"
 import { GrowthAreaChart } from "./lazy-charts"
 import { FrequencyField, NumberField, ScenarioPicker } from "./inputs"
 import { REASON_TEXT, toScenario, useScenarioState } from "./use-scenario"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /** A goal the user has already set, with the figures it is measured against. */
 export type PlannableGoal = {
@@ -66,6 +67,7 @@ export function GoalSimulator({
   suggestedContribution: number | null
   portfolioId: string
 }) {
+  const locale = useAppLocale()
   const [selectedId, setSelectedId] = useState(goals[0]?.id ?? "")
   const goal = goals.find((g) => g.id === selectedId) ?? goals[0] ?? null
 
@@ -200,7 +202,7 @@ export function GoalSimulator({
             min={1}
             max={50}
             hint={
-              goal.targetDate ? `Target date ${formatDate(goal.targetDate)}` : "No target date set"
+              goal.targetDate ? `Target date ${formatDate(goal.targetDate, locale)}` : "No target date set"
             }
           />
           <NumberField
@@ -252,7 +254,7 @@ export function GoalSimulator({
               hint={
                 <span className="text-muted-foreground">
                   {plan.value.reachesTargetOn
-                    ? `Model crosses it ${formatDate(plan.value.reachesTargetOn)}`
+                    ? `Model crosses it ${formatDate(plan.value.reachesTargetOn, locale)}`
                     : plan.value.alreadyReached
                       ? "Already at the target"
                       : "Not within this horizon"}

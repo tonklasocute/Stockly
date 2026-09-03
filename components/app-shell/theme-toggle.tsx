@@ -1,11 +1,13 @@
 "use client"
 
 import { useTheme } from "next-themes"
+import { useTranslations } from "next-intl"
 import { Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
+  const t = useTranslations("settings")
 
   return (
     <Button
@@ -13,7 +15,7 @@ export function ThemeToggle() {
       size="icon"
       /* A static label: the resolved theme is unknown on the server, and a label that changes
          after hydration is worse for a screen reader than one that always describes the action. */
-      aria-label="Toggle dark mode"
+      aria-label={t("theme.toggle")}
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
     >
       {/* Both icons are always rendered; CSS picks one, so server and client markup match. */}

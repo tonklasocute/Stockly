@@ -13,6 +13,7 @@ import { apiFetch } from "@/lib/api-client"
 import type { PortfolioGoalRow } from "@/types/database"
 import { GoalDialog } from "./goal-dialog"
 import { GoalProgressBar } from "./goal-progress-bar"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 export type GoalCard = { row: PortfolioGoalRow; progress: GoalProgress }
 
@@ -25,6 +26,7 @@ export function GoalManager({
   baseCurrency: Currency
   goals: GoalCard[]
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<PortfolioGoalRow | undefined>()
@@ -78,7 +80,7 @@ export function GoalManager({
         <ul className="grid gap-3 sm:grid-cols-2">
           {goals.map(({ row, progress }) => (
             <li key={row.id} className="bg-card space-y-3 rounded-xl border p-4">
-              <GoalProgressBar progress={progress} baseCurrency={baseCurrency} />
+              <GoalProgressBar progress={progress} baseCurrency={baseCurrency} locale={locale} />
               {row.note && <p className="text-muted-foreground text-xs italic">{row.note}</p>}
               <div className="flex justify-end gap-1 border-t pt-2">
                 <Button

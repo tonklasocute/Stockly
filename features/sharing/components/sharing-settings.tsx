@@ -26,6 +26,7 @@ import {
 import { apiFetch } from "@/lib/api-client"
 import { formatDate } from "@/lib/format"
 import type { PortfolioShareLinkRow, ShareSnapshotRow } from "@/types/database"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 type Snapshot = Omit<ShareSnapshotRow, "payload">
 
@@ -59,6 +60,7 @@ export function SharingSettings({
   publishedAt: string | null
   origin: string
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [config, setConfig] = useState(initialConfig)
   const [pending, startTransition] = useTransition()
@@ -272,7 +274,7 @@ export function SharingSettings({
           </Button>
           {publishedAt ? (
             <span className="text-muted-foreground text-xs">
-              Visitors currently see figures published {formatDate(publishedAt)}.
+              Visitors currently see figures published {formatDate(publishedAt, locale)}.
             </span>
           ) : (
             <span className="text-muted-foreground text-xs">Nothing is published yet.</span>
@@ -352,11 +354,11 @@ export function SharingSettings({
                   <div className="min-w-0 text-sm">
                     <span className="font-medium">{link.label ?? "Share link"}</span>
                     <span className="text-muted-foreground ml-2 text-xs">
-                      Created {formatDate(link.created_at)}
-                      {link.expires_at ? ` · expires ${formatDate(link.expires_at)}` : " · no expiry"}
+                      Created {formatDate(link.created_at, locale)}
+                      {link.expires_at ? ` · expires ${formatDate(link.expires_at, locale)}` : " · no expiry"}
                       {" · "}
                       {link.access_count} view{link.access_count === 1 ? "" : "s"}
-                      {link.last_accessed_at ? ` · last ${formatDate(link.last_accessed_at)}` : ""}
+                      {link.last_accessed_at ? ` · last ${formatDate(link.last_accessed_at, locale)}` : ""}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -421,7 +423,7 @@ export function SharingSettings({
                 <span>
                   {snapshot.label ?? "Snapshot"}
                   <span className="text-muted-foreground ml-2 text-xs">
-                    {formatDate(snapshot.calculated_at)} · {snapshot.base_currency} · v{snapshot.version}
+                    {formatDate(snapshot.calculated_at, locale)} · {snapshot.base_currency} · v{snapshot.version}
                   </span>
                 </span>
                 <Button

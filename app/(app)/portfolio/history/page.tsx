@@ -12,6 +12,7 @@ import { HISTORY_PERIODS, PERIOD_LABELS, type HistoryPeriod } from "@/domain/his
 import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
 import { formatCurrency, formatDate, formatOptionalPercent } from "@/lib/format"
 import { NoPortfolio } from "../../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "History" }
 
@@ -30,6 +31,7 @@ export default async function HistoryPage({
 }: {
   searchParams: Promise<{ p?: string; period?: string }>
 }) {
+  const locale = await appLocale()
   const { p, period: requested } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -232,7 +234,7 @@ export default async function HistoryPage({
             transactions each time this page is opened. Past performance is not a guide to future
             performance.
             {history.points.length > 0 &&
-              ` Readings from ${formatDate(history.points[0].date)} to ${formatDate(history.points[history.points.length - 1].date)}.`}
+              ` Readings from ${formatDate(history.points[0].date, locale)} to ${formatDate(history.points[history.points.length - 1].date, locale)}.`}
           </p>
         </>
       )}

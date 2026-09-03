@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next"
 import { headers } from "next/headers"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google"
+import { NextIntlClientProvider } from "next-intl"
+import { getTranslations } from "next-intl/server"
 import { Toaster } from "@/components/ui/sonner"
 import { InstallPrompt } from "@/features/pwa/components/install-prompt"
 import { ServiceWorkerManager } from "@/features/pwa/components/service-worker"
+import { resolveLocale } from "@/lib/i18n/resolve"
+import { appLocale } from "@/lib/i18n/server"
 import { NONCE_HEADER } from "@/lib/log"
 import { SITE, SITE_URL } from "@/lib/site"
 import { cn } from "@/lib/utils"
@@ -13,24 +17,45 @@ import "./globals.css"
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" })
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
-export const metadata: Metadata = {
+/*
+ * Geist ships no Thai glyphs, so a Thai page would fall back to whatever the device happens to
+ * have — Thonburi on iOS, Leelawadee on Windows — at a different weight and x-height from every
+ * Latin character beside it. Noto Sans Thai is loaded as a *second* family in the same stack, so
+ * Latin still renders in Geist and only Thai characters change font. `display: "swap"` keeps it off
+ * the critical path: a first paint in the fallback face costs a reflow, a blocked paint costs the
+ * page.
+ */
+const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai", display: "swap" })
+
+/**
+ * Localized, so a link shared in a Thai conversation previews in Thai.
+ *
+ * `generateMetadata` replaces the static export because a title has to be resolved per request
+ * once it depends on a cookie. Everything that is not language — the icons, the manifest link, the
+ * Apple tags, `metadataBase` — is unchanged and still decided once.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const [locale, t] = await Promise.all([appLocale(), getTranslations("metadata")])
+
+  return {
   // Absolute URLs for Open Graph and the canonical link are resolved against this.
   metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s · ${SITE.name}` },
-  description: SITE.description,
+  title: { default: t("title"), template: `%s · ${SITE.name}` },
+  description: t("description"),
   applicationName: SITE.name,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: SITE.name,
-    title: `${SITE.name} — ${SITE.tagline}`,
-    description: SITE.description,
+    locale,
+    title: t("title"),
+    description: t("description"),
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE.name} — ${SITE.tagline}`,
-    description: SITE.description,
+    title: t("title"),
+    description: t("description"),
   },
   // iOS ignores the manifest: these tags are what make a home-screen launch open standalone with
   // the right title and status bar.
@@ -45,6 +70,7 @@ export const metadata: Metadata = {
     // Safari on iPadOS still reads the legacy name.
     "mobile-web-app-capable": "yes",
   },
+  }
 }
 
 export const viewport: Viewport = {
@@ -66,17 +92,36 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // nonce-based CSP that script is blocked unless it carries the nonce, and the page would flash
   // the wrong theme on every load. Next nonces its own scripts from the CSP header; this one has
   // to be handed the value.
-  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined
+  const [requestHeaders, locale] = await Promise.all([headers(), resolveLocale()])
+  const nonce = requestHeaders.get(NONCE_HEADER) ?? undefined
 
+  /*
+   * `lang` carries the plain code, not the Gregorian-pinned `Intl` tag.
+   *
+   * It is read by screen readers to choose a voice and by the browser to choose hyphenation; a
+   * calendar extension means nothing to either, and `lang="th-TH-u-ca-gregory"` is a string no
+   * assistive technology should have to parse. The tag that pins the calendar is the one handed to
+   * `Intl`, in `domain/locale.ts`.
+   */
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={cn("font-sans antialiased", sans.variable, mono.variable)}>
-        <Providers nonce={nonce}>
-          {children}
-          <ServiceWorkerManager />
-          <InstallPrompt />
-        </Providers>
-        <Toaster position="top-center" />
+    <html lang={locale} suppressHydrationWarning>
+      <body className={cn("font-sans antialiased", sans.variable, mono.variable, thai.variable)}>
+        {/*
+          * One provider carries the language to the client, and it is next-intl's.
+          *
+          * It is rendered here, in a Server Component, so it picks up the locale and messages that
+          * `lib/i18n/request.ts` already resolved — no second resolution, nothing to disagree with
+          * the server render, and therefore no hydration mismatch over a label. It also means only
+          * the active locale's messages are serialised into the page.
+          */}
+        <NextIntlClientProvider>
+          <Providers nonce={nonce}>
+            {children}
+            <ServiceWorkerManager />
+            <InstallPrompt />
+          </Providers>
+          <Toaster position="top-center" />
+        </NextIntlClientProvider>
       </body>
     </html>
   )

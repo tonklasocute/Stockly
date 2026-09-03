@@ -12,6 +12,7 @@ import { summariseItems } from "@/features/operations/reconcile"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatCurrency, formatTime } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Reconciliation" }
 
@@ -42,6 +43,7 @@ export default async function OperationsPage({
 }: {
   searchParams: Promise<{ p?: string; run?: string }>
 }) {
+  const locale = await appLocale()
   const query = await searchParams
   const { active, portfolios } = await resolveActivePortfolio(query.p)
   if (!active) return <NoPortfolio />
@@ -101,7 +103,7 @@ export default async function OperationsPage({
           <Section
             title={selected.source_label}
             description={`${RUN_STATUS_LABELS[selected.status] ?? selected.status} · ${
-              selected.completed_at ? formatTime(selected.completed_at) : "in progress"
+              selected.completed_at ? formatTime(selected.completed_at, locale) : "in progress"
             }`}
           >
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">

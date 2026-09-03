@@ -21,6 +21,7 @@ import { toMarket, type MarketId } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import { formatTime } from "@/lib/format"
 import type { FinancialAuditRow, TransactionRow } from "@/types/database"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
  * Correcting a transaction, with the reason kept.
@@ -56,6 +57,7 @@ export function CorrectionDialog({
   onOpenChange: (open: boolean) => void
   transaction: TransactionRow
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [symbol, setSymbol] = useState(transaction.symbol)
   const [market, setMarket] = useState<MarketId>(toMarket(transaction.market))
@@ -232,7 +234,7 @@ export function CorrectionDialog({
                       <span className="text-foreground font-medium">
                         {OPERATION_LABELS[event.operation] ?? event.operation}
                       </span>
-                      <span>{formatTime(event.occurred_at)}</span>
+                      <span>{formatTime(event.occurred_at, locale)}</span>
                       {changedFields(event).length > 0 ? (
                         <span>· {changedFields(event).join(", ")}</span>
                       ) : null}

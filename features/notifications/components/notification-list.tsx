@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { NotificationCategory, NotificationRow } from "@/types/database"
+import { useAppLocale } from "@/lib/i18n/locale"
 
 const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   price: BellRing,
@@ -28,6 +29,7 @@ export function NotificationList({
   notifications: NotificationRow[]
   unread: number
 }) {
+  const locale = useAppLocale()
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -119,7 +121,7 @@ export function NotificationList({
                 )}
                 <p className="text-muted-foreground mt-0.5 text-sm">{notification.body}</p>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  {formatTime(notification.created_at)}
+                  {formatTime(notification.created_at, locale)}
                   {isUnread && <span className="ml-2 font-medium">· Unread</span>}
                 </p>
               </div>

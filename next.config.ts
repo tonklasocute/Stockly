@@ -1,4 +1,13 @@
 import type { NextConfig } from "next"
+import createNextIntlPlugin from "next-intl/plugin"
+
+/*
+ * next-intl, pointed at `lib/i18n/request.ts` rather than its default `./i18n/request.ts`.
+ *
+ * `CLAUDE.md` says cross-cutting infrastructure lives in `lib/`, and a top-level `i18n/` folder
+ * would be a fourth place to look for wiring. The plugin takes the path, so the convention wins.
+ */
+const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts")
 
 const nextConfig: NextConfig = {
   // "X-Powered-By: Next.js" tells an attacker which CVE list to read. It buys nothing.
@@ -17,8 +26,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        /*
+         * `private`, and varying on the cookie, since phase 21.
+         *
+         * The manifest carries the app name and description, and those are now in the language the
+         * request asked for. Under the previous `public, max-age=3600` a shared cache would have
+         * served whichever language it saw first to everybody behind it — a Thai reader installing
+         * an app named in English, and no way to tell why. `private` keeps it in the browser that
+         * asked, and `Vary: Cookie` is correct for any cache that ignores that.
+         */
         source: "/manifest.webmanifest",
-        headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+        headers: [
+          { key: "Cache-Control", value: "private, max-age=3600" },
+          { key: "Vary", value: "Cookie" },
+        ],
       },
       {
         source: "/icons/:path*",
@@ -51,4 +72,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withNextIntl(nextConfig)

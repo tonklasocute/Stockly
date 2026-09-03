@@ -1,6 +1,7 @@
 import "server-only"
 
 import { cache } from "react"
+import { DEFAULT_LOCALE, type Locale } from "@/domain/locale"
 import {
   resolveLayout,
   resolveMetrics,
@@ -24,6 +25,7 @@ import type { HoldingTagRow, SavedViewRow, TagRow, UserPreferencesRow } from "@/
 export type Preferences = {
   theme: Theme
   density: Density
+  locale: Locale
   defaultPortfolioId: string | null
   favoriteMetrics: MetricId[]
   dashboardLayout: WidgetPlacement[]
@@ -41,6 +43,7 @@ export type Preferences = {
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: "system",
   density: "comfortable",
+  locale: DEFAULT_LOCALE,
   defaultPortfolioId: null,
   favoriteMetrics: resolveMetrics(null),
   dashboardLayout: resolveLayout(null),
@@ -78,6 +81,7 @@ export function toPreferences(row: UserPreferencesRow | null): Preferences {
   return {
     theme: row.theme,
     density: row.density,
+    locale: row.locale ?? DEFAULT_LOCALE,
     defaultPortfolioId: row.default_portfolio_id,
     // Both resolve rather than validate: a stored layout is reconciled against the current widget
     // registry, so a release that adds or removes a widget cannot leave anyone with a broken page.

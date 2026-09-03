@@ -488,6 +488,8 @@ export type UserPreferencesRow = {
   user_id: string
   theme: "system" | "light" | "dark"
   density: "comfortable" | "compact"
+  /** UI language. Presentation only; never derived from, and never deriving, currency or timezone. */
+  locale: "th" | "en"
   default_portfolio_id: string | null
   /** Five documents rather than five tables — see the migration's header for why. */
   favorite_metrics: unknown

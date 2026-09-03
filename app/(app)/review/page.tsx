@@ -18,6 +18,7 @@ import { listBenchmarks } from "@/services/benchmark"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatCurrencyWithCode, formatOptionalPercent, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { appLocale } from "@/lib/i18n/server"
 
 export const metadata: Metadata = { title: "Review" }
 
@@ -32,6 +33,7 @@ export default async function ReviewPage({
 }: {
   searchParams: Promise<{ p?: string; range?: string }>
 }) {
+  const locale = await appLocale()
   const query = await searchParams
   const { active } = await resolveActivePortfolio(query.p)
   if (!active) return <NoPortfolio />
@@ -226,7 +228,7 @@ export default async function ReviewPage({
             <ul className="space-y-4">
               {goals.map(({ row, progress }) => (
                 <li key={row.id}>
-                  <GoalProgressBar progress={progress} baseCurrency={baseCurrency} />
+                  <GoalProgressBar progress={progress} baseCurrency={baseCurrency} locale={locale} />
                 </li>
               ))}
             </ul>
