@@ -591,7 +591,28 @@ matter:
 asserts the transaction set and every financial figure come back byte-identical, plus the structural
 rule that the three new engines import only from `domain/`.
 
-## 25. What is deliberately not here yet
+## 25. Fundamentals and corporate events (phase 17)
+
+Full detail in [`FUNDAMENTALS.md`](FUNDAMENTALS.md). The decisions that matter:
+
+1. **The phase ships with no vendor behind it, deliberately.** Twelve Data's free tier supplies no
+   financial statements, so `FUNDAMENTALS_PROVIDER` defaults to `none` and the default provider
+   declares zero capabilities. A "Twelve Data" adapter returning empty arrays would make a coverage
+   gap indistinguishable from a company that reports nothing; a mock in production would render
+   synthetic revenue as real accounts.
+2. **`capabilities` is part of the provider contract**, which is the one difference from
+   `MarketDataProvider`. Fundamental coverage is wildly uneven, and a UI that asks and receives
+   nothing cannot otherwise tell "no data" from "not covered".
+3. **Reference data about a company, never a fact about a user.** No `user_id` on either table, no
+   reference to `transactions`, and no portfolio id in any engine signature. An event is a notice
+   and never becomes a transaction.
+4. **The engines refuse more than they compute.** No P/E for a loss, no growth from a negative base,
+   no quarter compared against a year, no TTM from three quarters, no multiple across a currency
+   mismatch, and no forward estimate — which has no field rather than a null one.
+5. **Fundamental filters live in the existing screener's enum**, and an unknown value excludes a
+   stock from both sides of a comparison.
+
+## 26. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
@@ -604,6 +625,7 @@ comments, followers and every other social feature, shared transactions, journal
 dynamic Open Graph image generation, live (rather than published) public pages, portfolio-to-portfolio
 comparison, a portfolio event timeline, a user-level display-currency override, drag-and-drop widget
 reordering, per-instrument daily price history and therefore full FX and Brinson attribution,
-market-history backfill, an event bus, any Go service, streamed AI responses, an AI answer cache,
+market-history backfill, a fundamental quality score, forward estimates, Brinson attribution, a
+stock comparison screen, fundamental alerts, earnings-quality signals, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

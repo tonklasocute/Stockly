@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 16 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 17 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -85,6 +85,7 @@ production**: they create and delete portfolio records.
 | Sharing | Published jsonb projection + `security definer` token functions | no service-role key on any request path; the anonymous role's whole grant is one table where `visibility = 'PUBLIC'` |
 | Import | Same file's parser + `lib/xlsx.ts` | no dependency: npm `xlsx` carries open advisories `audit:ci` would fail, ExcelJS is a tree to read four XML files |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
+| Fundamentals | `FundamentalDataProvider` — mock, unavailable | **`FUNDAMENTALS_PROVIDER=none` by default**: Twelve Data's free tier supplies no statements, so the architecture ships with no vendor and says so |
 | Benchmarks | `BenchmarkProvider` — market-data adapter, mock | index series are not on Twelve Data's free tier; the adapter says so and the UI renders N/A |
 | AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
 | Scheduling | Vercel Cron → `/api/cron/alerts` | secret-guarded; any external scheduler works too |
@@ -149,7 +150,9 @@ domain/      pure business logic. No framework imports. Heavily tested.
              personalization.ts (widgets, layout, metrics, saved views, tags, pins — display only) ·
              history.ts (reconstruct any past date, capital flows, periods, turnover, fee impact) ·
              attribution.ts (money-weighted contribution, price/dividend split, active return) ·
-             drawdown-history.ts (peak/trough/recovery events, regime)
+             drawdown-history.ts (peak/trough/recovery events, regime) ·
+             fundamentals.ts (statements, periods, margins, growth, TTM) · valuation.ts (multiples,
+             yields, historical context) · corporate-events.ts (events, coverage, dividend facts)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -560,6 +563,39 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## Fundamental & Corporate Event Rules
+
+Full detail in [`docs/FUNDAMENTALS.md`](docs/FUNDAMENTALS.md).
+
+- **Fundamental data is reference data about a company; a portfolio is a fact about a user.** Neither
+  table has a `user_id`, neither references `transactions`, and the domain engines have no way to
+  receive a portfolio — the separation is in the signature.
+- **An event is a notice and never becomes a transaction.** A dividend event says the company
+  declared a payment; the dividend the user received is a row they recorded, and only that row
+  reaches the cash engine. A test ingests a hundred events and asserts cash does not move.
+- **A provider declares its own capabilities**, so "not configured" and "this company reports
+  nothing" are different sentences. `FUNDAMENTALS_PROVIDER` defaults to `none`, never `mock` —
+  synthetic revenue rendered as a company's accounts is the worst thing this codebase could do.
+- **Every ratio goes through one function**, and a zero denominator returns `null`, never `Infinity`.
+  A company with no revenue has no margin, not an infinite one.
+- **Negative figures are legitimate.** A loss, negative free cash flow and negative equity are real;
+  no check constraint rejects them. Plausibility is flagged by the data-quality scan, never refused.
+- **Growth from a non-positive base is `null`.** A percentage change from a loss is not defined in
+  any way a reader interprets correctly.
+- **A period is part of a figure.** A quarter is never compared against a year, and every multiple
+  carries its period — "P/E (TTM)", never a bare "P/E".
+- **TTM is all four quarters or nothing**, derived on read and never stored. Flows are summed; the
+  balance sheet and share count are taken from the latest quarter, because they are levels.
+- **A loss-making company has no P/E**, not a negative one — otherwise "P/E < 10" matches every
+  loss-making company in the market. The earnings *yield* is still reported.
+- **Forward multiples have no field at all.** Not null — nowhere to put one.
+- **An unknown fundamental excludes a stock from both sides of a screener comparison.** Including it
+  would put unscreened companies in a screened list.
+- **Fundamentals never reach a shared page.** `ShareSource` declares no field for them, and the
+  events response carries a relation, never a position size.
+- **Valuation describes and never judges.** "Below its median" is a fact about two numbers;
+  "undervalued" is a conclusion Stockly cannot support.
+
 ## Historical & Attribution Rules
 
 Full detail in [`docs/performance-attribution.md`](docs/performance-attribution.md),
@@ -741,7 +777,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 14 ✅ | Production hardening & observability: production audit, provider retry, structured logging everywhere, centralised freshness policy, cache headers, security checklist, incident severity, cross-phase invariants |
 | 15 ✅ | Personalization: user preferences, customizable dashboard widgets, chosen summary metrics, tags and holding groups, saved views, pins and recently viewed, insight dismissal, density, command palette and shortcuts |
 | 16 ✅ | Data intelligence & attribution: historical reconstruction, money-weighted attribution with residual, drawdown history, monthly performance, turnover and fee impact, snapshot quality and versioning, EOD snapshot job, FX rate table |
-| 17 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
+| 17 ✅ | Fundamental intelligence: provider abstraction with declared capabilities, normalized statements, metrics and valuation engines, corporate events, fundamental screener filters, portfolio event awareness |
+| 18 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

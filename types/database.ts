@@ -532,6 +532,63 @@ export type FxRateDailyRow = {
   created_at: string
 }
 
+/**
+ * Company-reported figures. **No `user_id`**: reference data about a company, never an input to a
+ * portfolio calculation. Every figure is nullable — a partial statement is the normal case.
+ */
+export type FinancialStatementRow = {
+  symbol: string
+  market: string
+  period_type: "ANNUAL" | "QUARTERLY"
+  fiscal_year: number
+  fiscal_quarter: number | null
+  period_end: string
+  report_date: string | null
+  /** What the company reports in — not the market's currency and not the portfolio's. */
+  currency: string
+  revenue: number | null
+  gross_profit: number | null
+  operating_income: number | null
+  ebitda: number | null
+  net_income: number | null
+  eps: number | null
+  eps_diluted: number | null
+  shares_diluted: number | null
+  total_assets: number | null
+  total_liabilities: number | null
+  total_equity: number | null
+  cash_and_equivalents: number | null
+  total_debt: number | null
+  current_assets: number | null
+  current_liabilities: number | null
+  operating_cash_flow: number | null
+  capital_expenditure: number | null
+  investing_cash_flow: number | null
+  financing_cash_flow: number | null
+  dividends_paid: number | null
+  source: string
+  fetched_at: string
+  calculation_version: number
+}
+
+/** A notice about what a company is doing. An event never becomes a transaction. */
+export type CorporateEventRow = {
+  id: string
+  symbol: string
+  market: string
+  event_type: string
+  event_date: string | null
+  /** Whether the provider's date is an estimate. Surfaced on every occurrence in the UI. */
+  estimated: boolean
+  title: string
+  detail: string | null
+  amount_per_share: number | null
+  currency: string | null
+  ratio: string | null
+  source: string
+  fetched_at: string
+}
+
 export type SnapshotQuality = "COMPLETE" | "PARTIAL" | "STALE"
 export type SnapshotSource = "PAGE_VIEW" | "SCHEDULED" | "BACKFILL"
 
@@ -883,6 +940,25 @@ export type Database = {
         Row: SavedViewRow
         Insert: Omit<SavedViewRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Pick<SavedViewRow, "name" | "config" | "portfolio_id">>
+        Relationships: []
+      }
+      financial_statements: {
+        Row: FinancialStatementRow
+        Insert: Omit<FinancialStatementRow, "fetched_at" | "calculation_version"> & {
+          fetched_at?: string
+          calculation_version?: number
+        }
+        Update: Partial<Omit<FinancialStatementRow, "symbol" | "market" | "period_type" | "fiscal_year" | "fiscal_quarter">>
+        Relationships: []
+      }
+      corporate_events: {
+        Row: CorporateEventRow
+        Insert: Omit<CorporateEventRow, "id" | "fetched_at" | "estimated"> & {
+          id?: string
+          fetched_at?: string
+          estimated?: boolean
+        }
+        Update: Partial<Omit<CorporateEventRow, "id" | "symbol" | "market" | "event_type">>
         Relationships: []
       }
       fx_rates_daily: {

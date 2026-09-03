@@ -68,6 +68,7 @@ export const WIDGETS = [
   "dataQuality",
   "attribution",
   "drawdowns",
+  "events",
 ] as const
 export type WidgetId = (typeof WIDGETS)[number]
 
@@ -114,6 +115,12 @@ export const WIDGET_REGISTRY: Record<WidgetId, WidgetDefinition> = {
     description: "Which holdings added most to the portfolio's return, and which removed most.",
     wide: true,
   },
+  events: {
+    id: "events",
+    label: "Upcoming events",
+    description: "Earnings and dividend dates for the instruments you hold or watch.",
+    wide: true,
+  },
   drawdowns: {
     id: "drawdowns",
     label: "Drawdowns",
@@ -151,6 +158,7 @@ export const DEFAULT_LAYOUT: readonly WidgetPlacement[] = [
   // Phase 16: available, off by default. A new widget must never rearrange an existing dashboard.
   { id: "attribution", visible: false },
   { id: "drawdowns", visible: false },
+  { id: "events", visible: false },
 ]
 
 /**

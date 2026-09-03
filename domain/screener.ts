@@ -26,6 +26,30 @@ export const SCREENER_METRICS = [
   "PRICE_VS_SMA200",
   "EMA50_VS_EMA200",
   "TREND",
+  /*
+   * Phase 17 — fundamentals, in the **same** enum rather than a second screener.
+   *
+   * A user filtering "RSI < 30 and P/E < 20" is asking one question, and two screeners would make
+   * them ask it twice and combine the answers themselves. Every one of these reads from a cached
+   * fundamental snapshot, so a screen costs no provider request — the same rule the technical
+   * metrics follow.
+   */
+  "REVENUE_GROWTH",
+  "EPS_GROWTH",
+  "GROSS_MARGIN",
+  "OPERATING_MARGIN",
+  "NET_MARGIN",
+  "ROE",
+  "ROA",
+  "FCF_MARGIN",
+  "DEBT_TO_EQUITY",
+  "CURRENT_RATIO",
+  "PE_RATIO",
+  "PS_RATIO",
+  "PB_RATIO",
+  "EV_EBITDA",
+  "DIVIDEND_YIELD",
+  "PAYOUT_RATIO",
 ] as const
 
 export type ScreenerMetric = (typeof SCREENER_METRICS)[number]
@@ -63,6 +87,53 @@ export const METRIC_LABELS: Record<ScreenerMetric, string> = {
   PRICE_VS_SMA200: "Price vs 200 SMA (%)",
   EMA50_VS_EMA200: "50 EMA vs 200 EMA (%)",
   TREND: "Trend",
+  // Every label names its period where one is implied, so "P/E" is never shown bare.
+  REVENUE_GROWTH: "Revenue growth (YoY)",
+  EPS_GROWTH: "EPS growth (YoY)",
+  GROSS_MARGIN: "Gross margin",
+  OPERATING_MARGIN: "Operating margin",
+  NET_MARGIN: "Net margin",
+  ROE: "Return on equity",
+  ROA: "Return on assets",
+  FCF_MARGIN: "Free cash flow margin",
+  DEBT_TO_EQUITY: "Debt to equity",
+  CURRENT_RATIO: "Current ratio",
+  PE_RATIO: "P/E (TTM)",
+  PS_RATIO: "P/S (TTM)",
+  PB_RATIO: "P/B",
+  EV_EBITDA: "EV / EBITDA",
+  DIVIDEND_YIELD: "Dividend yield",
+  PAYOUT_RATIO: "Payout ratio",
+}
+
+/**
+ * Metrics that come from fundamentals rather than from candles.
+ *
+ * Named so the UI can group them and, more importantly, so it can **disable them when this
+ * deployment has no fundamentals provider** rather than offering a filter that silently matches
+ * nothing.
+ */
+export const FUNDAMENTAL_METRICS: readonly ScreenerMetric[] = [
+  "REVENUE_GROWTH",
+  "EPS_GROWTH",
+  "GROSS_MARGIN",
+  "OPERATING_MARGIN",
+  "NET_MARGIN",
+  "ROE",
+  "ROA",
+  "FCF_MARGIN",
+  "DEBT_TO_EQUITY",
+  "CURRENT_RATIO",
+  "PE_RATIO",
+  "PS_RATIO",
+  "PB_RATIO",
+  "EV_EBITDA",
+  "DIVIDEND_YIELD",
+  "PAYOUT_RATIO",
+]
+
+export function isFundamentalMetric(metric: ScreenerMetric): boolean {
+  return FUNDAMENTAL_METRICS.includes(metric)
 }
 
 export const OPERATOR_LABELS: Record<ScreenerOperator, string> = {
@@ -90,6 +161,32 @@ export const CROSSABLE_METRICS: readonly ScreenerMetric[] = ["MACD_HISTOGRAM", "
 export type ScreenerContext = {
   marketCap: number | null
   volume: number | null
+  /**
+   * Fundamentals for this instrument, when the deployment has a provider and the company reports.
+   *
+   * Optional and nullable throughout: a screen mixing technical and fundamental filters must still
+   * run when fundamentals are unavailable, and the fundamental filters then match nothing rather
+   * than matching everything. Excluding a stock Stockly knows nothing about is the conservative
+   * answer; including it would put unscreened companies in a screened list.
+   */
+  fundamentals?: {
+    revenueGrowth: number | null
+    epsGrowth: number | null
+    grossMargin: number | null
+    operatingMargin: number | null
+    netMargin: number | null
+    returnOnEquity: number | null
+    returnOnAssets: number | null
+    fcfMargin: number | null
+    debtToEquity: number | null
+    currentRatio: number | null
+    priceToEarnings: number | null
+    priceToSales: number | null
+    priceToBook: number | null
+    evToEbitda: number | null
+    dividendYield: number | null
+    payoutRatio: number | null
+  } | null
 }
 
 const relative = (a: number | null, b: number | null): number | null =>
@@ -106,6 +203,40 @@ export function readMetric(
   metric: ScreenerMetric,
 ): number | Trend | null {
   switch (metric) {
+    // Fundamentals first: `?? null` throughout, so an absent provider excludes rather than matches.
+    case "REVENUE_GROWTH":
+      return context.fundamentals?.revenueGrowth ?? null
+    case "EPS_GROWTH":
+      return context.fundamentals?.epsGrowth ?? null
+    case "GROSS_MARGIN":
+      return context.fundamentals?.grossMargin ?? null
+    case "OPERATING_MARGIN":
+      return context.fundamentals?.operatingMargin ?? null
+    case "NET_MARGIN":
+      return context.fundamentals?.netMargin ?? null
+    case "ROE":
+      return context.fundamentals?.returnOnEquity ?? null
+    case "ROA":
+      return context.fundamentals?.returnOnAssets ?? null
+    case "FCF_MARGIN":
+      return context.fundamentals?.fcfMargin ?? null
+    case "DEBT_TO_EQUITY":
+      return context.fundamentals?.debtToEquity ?? null
+    case "CURRENT_RATIO":
+      return context.fundamentals?.currentRatio ?? null
+    case "PE_RATIO":
+      return context.fundamentals?.priceToEarnings ?? null
+    case "PS_RATIO":
+      return context.fundamentals?.priceToSales ?? null
+    case "PB_RATIO":
+      return context.fundamentals?.priceToBook ?? null
+    case "EV_EBITDA":
+      return context.fundamentals?.evToEbitda ?? null
+    case "DIVIDEND_YIELD":
+      return context.fundamentals?.dividendYield ?? null
+    case "PAYOUT_RATIO":
+      return context.fundamentals?.payoutRatio ?? null
+
     case "PRICE":
       return snapshot.price
     case "MARKET_CAP":

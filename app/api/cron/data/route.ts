@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { isAuthorizedCronRequest } from "@/features/alerts/cron-auth"
 import { recordJob, refreshMarketData } from "@/features/automation/refresh"
+import { refreshFundamentals } from "@/features/automation/fundamentals-refresh"
 import { serverEnv } from "@/lib/env.server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { logger } from "@/lib/log"
+import { describeError, logger } from "@/lib/log"
 
 /**
  * Scheduled data refresh: quotes and exchange rates, warmed so a user's first page load of the day
@@ -45,12 +46,35 @@ export async function GET(request: Request) {
       }
     })
 
+    /*
+     * Fundamentals ride on this job rather than getting a fourth endpoint and a fourth schedule.
+     *
+     * They change quarterly, so a daily refresh is already generous, and folding them in keeps one
+     * secret, one schedule and one history row. It runs after the quotes and cannot fail them: a
+     * fundamentals provider outage costs fundamentals alone.
+     */
+    const fundamentals = await recordJob(supabase, "fundamentals-refresh", async () => {
+      const result = await refreshFundamentals(supabase)
+      return {
+        ...result,
+        processed: result.instruments,
+        succeeded: result.statementsWritten + result.eventsWritten,
+        failed: result.failed,
+      }
+    }).catch((error: unknown) => {
+      logger.warn("cron.fundamentals_failed", describeError(error))
+      return null
+    })
+
     // Counters only, and free of anything identifying.
     logger.info("cron.data", {
       symbols: summary.symbols,
       quotes: summary.quotesFetched,
       fxPairs: summary.fxPairs,
       errors: summary.errors.length,
+      fundamentalInstruments: fundamentals?.instruments ?? 0,
+      fundamentalStatements: fundamentals?.statementsWritten ?? 0,
+      fundamentalEvents: fundamentals?.eventsWritten ?? 0,
     })
     return NextResponse.json({ success: true, data: summary })
   } catch (error) {

@@ -187,6 +187,21 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## Fundamentals and events (phase 17)
+
+Both are authenticated and rate-limited. The **data** is public reference information; the ability
+to make Stockly *fetch* it is not, and an unauthenticated endpoint that spends provider credits is
+one somebody will spend for us.
+
+| | Limit | |
+|---|---|---|
+| `GET /api/fundamentals?symbol&market&price` | 30 | Statements, derived metrics, growth, valuation and events for one instrument. Accepts **no portfolio id** — it answers questions about a company and cannot be asked about a user. Price is passed in so the caller's existing quote is reused rather than paying for a second one. |
+| `GET /api/events?portfolioId` | 20 | Upcoming events for the instruments the caller holds or watches, joined on the server under their own session. Carries a `relation` of HELD or WATCHED and **no quantity, value or cost** — enough to say why a row is there, nothing about the size behind it. |
+
+Both degrade rather than fail: a provider outage yields empty sections with a reason, and a
+deployment with no fundamentals vendor reports `covered: false` so the UI can say "not configured"
+rather than "no data".
+
 ## History and attribution (phase 16)
 
 **One endpoint, not six.** `/history`, `/attribution`, `/contributors`, `/drawdowns`,

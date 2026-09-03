@@ -14,6 +14,8 @@ import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadDataQuality } from "@/features/data-quality/loader"
 import { loadPreferences } from "@/features/personalization/queries"
 import { loadHistory } from "@/features/history/loader"
+import { loadPortfolioEvents } from "@/features/fundamentals/events-loader"
+import { EventsWidget } from "@/features/fundamentals/components/events-widget"
 import { AttributionPanel } from "@/features/history/components/attribution-panel"
 import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
 import { resolveMetrics, visibleWidgets, withoutDismissed, type WidgetId } from "@/domain/personalization"
@@ -74,10 +76,20 @@ export default async function DashboardPage({
    * It costs no upstream call — everything historical is rows already in the database — but it is
    * still a read, and a dashboard that shows neither widget should not pay for it.
    */
-  const wantsHistory = visibleWidgets(preferences.dashboardLayout).some(
-    (id) => id === "attribution" || id === "drawdowns",
-  )
-  const history = wantsHistory ? await loadHistory(active.id, "1Y").catch(() => null) : null
+  const shown = visibleWidgets(preferences.dashboardLayout)
+  const wantsHistory = shown.some((id) => id === "attribution" || id === "drawdowns")
+  /*
+   * Both loaded only when their widget is actually on screen.
+   *
+   * The events loader is the one on this page that can spend provider credits, so it must never
+   * run for a dashboard that does not display it.
+   */
+  const [history, events] = await Promise.all([
+    wantsHistory ? loadHistory(active.id, "1Y").catch(() => null) : Promise.resolve(null),
+    shown.includes("events")
+      ? loadPortfolioEvents(active.id).catch(() => null)
+      : Promise.resolve(null),
+  ])
   // Dismissal is a display filter applied to a list the rules already produced. The engine runs
   // identically for a user who has dismissed everything.
   const insights = withoutDismissed(intelligence.insights, preferences.dismissedInsights)
@@ -389,6 +401,8 @@ export default async function DashboardPage({
         currency={currency}
       />
     ) : null,
+
+    events: events ? <EventsWidget data={events} /> : null,
 
     drawdowns: history?.drawdowns ? (
       <Section title="Drawdowns" description={history.regime ? REGIME_LABELS[history.regime] : undefined}>

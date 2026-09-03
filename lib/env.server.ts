@@ -28,6 +28,18 @@ export const serverEnv = {
     return process.env.MARKET_DATA_PROVIDER_SET ?? process.env.MARKET_DATA_PROVIDER ?? "mock"
   },
   /**
+   * Where company fundamentals come from.
+   *
+   * Defaults to **"none"**, not "mock" — and deliberately does not follow `MARKET_DATA_PROVIDER`
+   * the way FX does. Twelve Data's free tier supplies no financial statements, so a deployment
+   * pricing with it still has no fundamentals vendor, and inheriting the name would produce an
+   * adapter that returns empty arrays indistinguishable from "this company reports nothing".
+   * Synthetic financials reaching production is the one failure this default exists to prevent.
+   */
+  get fundamentalsProvider() {
+    return process.env.FUNDAMENTALS_PROVIDER ?? "none"
+  },
+  /**
    * Where exchange rates come from. Defaults to the market-data provider: they are the same account
    * on the same rate limit, and running live prices against mock rates is never what anyone meant.
    * An unrecognised value yields no rates at all rather than fabricated ones — see services/fx.

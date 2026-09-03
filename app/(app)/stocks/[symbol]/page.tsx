@@ -33,6 +33,8 @@ import { isAIEnabled } from "@/services/ai"
 import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
 import type { CompanyProfile, Quote } from "@/services/market-data/types"
 import { TrackRecent } from "@/features/personalization/components/track-recent"
+import { FundamentalsPanel } from "@/features/fundamentals/components/fundamentals-panel"
+import { loadFundamentals } from "@/features/fundamentals/loader"
 
 type Props = {
   params: Promise<{ symbol: string }>
@@ -85,6 +87,15 @@ export default async function StockPage({ params, searchParams }: Props) {
 
   // A symbol with neither a quote nor a profile does not exist as far as this app is concerned.
   if (!quote && !profile && !marketDataError) notFound()
+
+  /*
+   * Company fundamentals.
+   *
+   * The price is passed in rather than re-fetched: the quote call above already paid for it, and a
+   * second one would spend a provider credit to learn something this function is holding. It
+   * degrades on its own — a provider with no fundamentals costs this section and nothing else.
+   */
+  const fundamentals = await loadFundamentals(symbol, market, quote?.price ?? null).catch(() => null)
 
   const position = active
     ? (await loadPortfolioView(active.id)).holdings.find(
@@ -153,6 +164,12 @@ export default async function StockPage({ params, searchParams }: Props) {
       <section className="bg-card rounded-xl border p-4 sm:p-5">
         <h2 className="mb-4 text-sm font-semibold">Technical overview</h2>
         <TechnicalPanel symbol={symbol} market={market} currency={currency} />
+
+        {/*
+          Fundamentals below the technicals: one describes what the price has been doing, the other
+          what the business reported. Neither is an input to the position above it.
+        */}
+        {fundamentals && <FundamentalsPanel data={fundamentals} />}
       </section>
 
       {active && (
