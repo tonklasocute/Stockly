@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 14 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 15 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -37,7 +37,10 @@ portfolio; they read a projection the owner's own session produced. Phase 14 was
 observability pass rather than a feature: a full production audit, a bounded provider retry that
 the documentation had claimed but the code never had, every server log routed through the
 structured logger, a centralised freshness policy, `private, no-store` on every API response, and
-the cross-phase invariant suite that proves only a transaction can move a number.
+the cross-phase invariant suite that proves only a transaction can move a number. Phase 15 made
+Stockly personal: a dashboard whose widgets the user orders and hides, summary metrics they choose,
+their own tags and saved views over holdings, pins, recently viewed, insight dismissal, a density
+setting, a default portfolio and a command palette — none of which can move a figure.
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -142,7 +145,8 @@ domain/      pure business logic. No framework imports. Heavily tested.
              import/ (mapping, value parsing, fingerprint, validation, reconciliation) ·
              data-quality.ts (freshness + completeness rules, no score) ·
              sharing.ts (visibility, presets, slugs, link state, the public projection) ·
-             freshness.ts (one policy for how old a reading may be before it stops being current)
+             freshness.ts (one policy for how old a reading may be before it stops being current) ·
+             personalization.ts (widgets, layout, metrics, saved views, tags, pins — display only)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -553,6 +557,42 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## Personalization Rules
+
+Full detail in [`docs/personalization.md`](docs/personalization.md).
+
+- **A preference decides what is displayed. It can never decide what is calculated.** Delete every
+  preference, tag and saved view and every figure is byte-identical;
+  `domain/personalization-boundary.test.ts` asserts it and reads the module's source to keep it
+  free of anything that could reach a database or a network.
+- **`domain/personalization.ts` imports nothing at all.** A preference is an id, a position and a
+  boolean. The day it needs an import is the day to ask whether a figure is creeping in.
+- **Four tables, not eight.** Five per-user documents that are read together, written together and
+  never queried by their contents are columns on one row, each capped by a check constraint. Only
+  what is genuinely queried and joined — tags and saved views — gets a table.
+- **A tag is keyed by `(portfolio, market, symbol)`, never by a holding id.** A holding is derived
+  from transactions, not stored; giving one an id in order to label it is the first step to a
+  second source of truth.
+- **An empty stored layout means the default, never an empty dashboard.** Reset writes `[]` rather
+  than a copy of the default, which would freeze the user at whatever that default was that day.
+- **A stored layout is reconciled against the registry on read *and* on write.** A widget added
+  since it was saved is appended in its default visibility, never switched on at the top.
+- **Reordering is buttons.** "Move up" works with a keyboard, a screen reader and a thumb; drag is
+  an enhancement that would have to be duplicated for all three anyway, so it is not built.
+- **A metric points at a figure the engine already produced.** Adding one means finding the field,
+  never writing a formula — and its name says which number it is. No "Profit", no bare "Return",
+  no bare "Yield".
+- **A saved view is a closed triple, never an expression**, and it stores no figure, so it cannot
+  go stale. A null excludes a row from every numeric comparison in both directions, and sorts last
+  in both directions.
+- **`Ungrouped` always exists and comes last.** A sector is never inferred from a symbol.
+- **Dismissal stores a rule code, never a rendered sentence**, and the insights that explain why a
+  figure is wrong cannot be dismissed at all.
+- **Nothing personal reaches a shared page.** `ShareSource` declares no personalization field, and
+  `features/personalization/privacy.test.ts` proves it by projection and by reading the source.
+- **Preferences are read per request under RLS, never from a module-level cache** — a `Map` on a
+  serverless instance is shared between whoever it serves.
+
 ## Observability Rules
 
 Full detail in [`docs/observability.md`](docs/observability.md). Audit findings in
@@ -658,7 +698,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 12 ✅ | Data & automation: CSV/Excel import, mapping, duplicate detection, reconciliation, data-quality centre, scheduled refresh and job history |
 | 13 ✅ | Sharing & ecosystem: visibility model, per-section privacy controls, public pages, expiring and revocable share links, immutable snapshots, share presets, preview |
 | 14 ✅ | Production hardening & observability: production audit, provider retry, structured logging everywhere, centralised freshness policy, cache headers, security checklist, incident severity, cross-phase invariants |
-| 15 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
+| 15 ✅ | Personalization: user preferences, customizable dashboard widgets, chosen summary metrics, tags and holding groups, saved views, pins and recently viewed, insight dismissal, density, command palette and shortcuts |
+| 16 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

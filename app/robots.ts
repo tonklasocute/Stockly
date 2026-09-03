@@ -39,6 +39,7 @@ export default function robots(): MetadataRoute.Robots {
           "/imports",
           "/data-quality",
           "/sharing",
+          "/settings/preferences",
           /*
            * Phase 13. A share link and a snapshot token are capabilities: a crawler that follows
            * one, indexes it and serves it in a result page has turned "anyone with the link" into

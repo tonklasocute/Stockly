@@ -542,7 +542,28 @@ basis, P&L and cash are byte-identical after every sharing operation and that no
 imports the sharing layer. `supabase/sharing-policies.test.ts` reads the migration and fails if a
 policy, a pinned `search_path` or the missing snapshot update policy ever changes.
 
-## 23. What is deliberately not here yet
+## 23. Personalization (phase 15)
+
+Full detail in [`personalization.md`](personalization.md). The decisions that matter:
+
+1. **A preference decides what is displayed, never what is calculated.** The fourth one-way boundary
+   in this codebase, after intelligence, simulation and sharing, and proved the same way: every
+   personalization operation runs against a real portfolio and the financial state comes back
+   byte-identical.
+2. **`domain/personalization.ts` imports nothing at all.** A widget is an id and a position; a
+   metric is a pointer to a figure the engine already produced. There is no arithmetic in the file
+   and a test asserts there is none.
+3. **Four tables, not eight.** Five per-user documents that are read and written together and never
+   queried by their contents are columns on one row, size-capped by check constraints. Only tags and
+   saved views — the things actually queried and joined — get tables of their own.
+4. **Ten widgets do not cost ten requests.** Every widget renders from the same single
+   `loadIntelligence` pass the dashboard always made; the layout decides order and visibility, never
+   how many times the engine runs.
+5. **A stored layout is reconciled against the registry on read and on write**, so a release that
+   adds or removes a widget can never leave anyone with a broken or rearranged dashboard.
+6. **Nothing personal can reach a shared page**, because `ShareSource` declares no field for it.
+
+## 24. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
@@ -552,6 +573,8 @@ multiple benchmarks per portfolio, full-text journal search, a market-wide scree
 mutation queues, broker API connections, scheduled unattended imports, stored original upload files,
 broker-specific import presets, a public portfolio directory, public profiles or search, likes,
 comments, followers and every other social feature, shared transactions, journals or simulations,
-dynamic Open Graph image generation, live (rather than published) public pages, an event bus, any Go service, streamed AI responses, an AI answer cache,
+dynamic Open Graph image generation, live (rather than published) public pages, portfolio-to-portfolio
+comparison, a portfolio event timeline, a user-level display-currency override, drag-and-drop widget
+reordering, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

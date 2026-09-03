@@ -93,6 +93,21 @@ export function invalidateSharing(previousSlug: string | null, slug: string | nu
   }
 }
 
+/**
+ * A preference, a tag, a saved view or a pin changed.
+ *
+ * Narrower than it looks, and the narrowness is the point: **none of this can move a figure**, so
+ * there is no analytics page to re-derive. What has to re-render is the layout — the shell reads
+ * density and the default portfolio, and the dashboard reads the widget order — which is why the
+ * root layout is revalidated rather than the portfolio routes.
+ */
+export function invalidatePersonalization(): void {
+  revalidatePath("/", "layout")
+  revalidatePath("/dashboard")
+  revalidatePath("/portfolio")
+  revalidatePath("/settings/preferences")
+}
+
 /** The watchlist is independent of portfolio maths, so it invalidates on its own. */
 export function invalidateWatchlist(): void {
   revalidatePath("/watchlist")

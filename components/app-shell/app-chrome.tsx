@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { PortfolioDialog } from "@/features/portfolios/components/portfolio-dialog"
 import { NetworkStatus } from "@/features/pwa/components/network-status"
 import { StockSearch } from "@/features/stocks/components/stock-search"
+import { CommandPalette } from "@/features/personalization/components/command-palette"
 import type { PortfolioRow } from "@/types/database"
 import { MobileTabBar, SidebarNav } from "./sidebar-nav"
 import { PortfolioSwitcher } from "./portfolio-switcher"
@@ -50,6 +51,12 @@ export function AppChrome({
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_1fr]">
+      {/*
+        Mounted once for the whole app. It only ever navigates, so it needs no portfolio data
+        beyond the names it offers to jump to — and no shortcut it registers fires while a text
+        field has focus.
+      */}
+      <CommandPalette portfolios={portfolios} />
       <aside className="bg-sidebar hidden border-r lg:flex lg:flex-col lg:gap-6 lg:p-4">
         <div className="px-2 pt-2">
           <Wordmark />

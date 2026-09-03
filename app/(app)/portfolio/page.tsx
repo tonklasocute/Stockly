@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
 import { HoldingsTable } from "@/features/portfolios/components/holdings-table"
+import { TagAssigner } from "@/features/personalization/components/tag-assigner"
+import { listTags, loadHoldingTags, loadPreferences } from "@/features/personalization/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { loadPortfolioView, namesFrom } from "@/features/portfolios/portfolio-view"
 import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/currency-exposure"
@@ -24,9 +26,18 @@ export default async function PortfolioPage({
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
 
-  const { holdings, summary, quotes, marketDataError, missingFxPairs } = await loadPortfolioView(
-    active.id,
-  )
+  /*
+   * Three reads in parallel, and only the first touches the calculation engine. Preferences and
+   * tags are two small row reads that decide presentation — they add no analytics pass, no quote
+   * call and no figure.
+   */
+  const [view, preferences, tags, holdingTags] = await Promise.all([
+    loadPortfolioView(active.id),
+    loadPreferences(),
+    listTags(),
+    loadHoldingTags(active.id),
+  ])
+  const { holdings, summary, quotes, marketDataError, missingFxPairs } = view
   const currency = baseCurrencyOf(active.currency)
   const names = namesFrom(quotes)
 
@@ -92,7 +103,27 @@ export default async function PortfolioPage({
 
       <CurrencyExposure summary={summary} />
 
-      <HoldingsTable holdings={holdings} currency={currency} names={names} />
+      {/*
+        Density and tags are display concerns: the table receives the same holdings it always did,
+        computed by the same engine, and decides only how tightly to pack them and what labels to
+        show beside them.
+      */}
+      <HoldingsTable
+        holdings={holdings}
+        currency={currency}
+        names={names}
+        density={preferences.density}
+        tags={Object.fromEntries(holdingTags)}
+      />
+
+      {holdings.length > 0 && (
+        <TagAssigner
+          portfolioId={active.id}
+          tags={tags}
+          holdings={holdings.map((h) => ({ symbol: h.symbol, market: h.market }))}
+          assigned={Object.fromEntries([...holdingTags].map(([key, list]) => [key, list.map((t) => t.id)]))}
+        />
+      )}
 
       <TranslationNote summary={summary} />
     </div>

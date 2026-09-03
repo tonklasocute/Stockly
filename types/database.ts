@@ -49,6 +49,9 @@ export type WatchlistItemRow = {
   exchange: string | null
   target_price: number | null
   notes: string | null
+  /** Manual position. Null means "unordered", which is how every row read before phase 15. */
+  sort_order: number | null
+  pinned: boolean
   created_at: string
   updated_at: string
 }
@@ -457,6 +460,57 @@ export type JobExecutionRow = {
   error_summary: string | null
 }
 
+export type UserPreferencesRow = {
+  user_id: string
+  theme: "system" | "light" | "dark"
+  density: "comfortable" | "compact"
+  default_portfolio_id: string | null
+  /** Five documents rather than five tables — see the migration's header for why. */
+  favorite_metrics: unknown
+  dashboard_layout: unknown
+  dismissed_insights: unknown
+  pinned_items: unknown
+  recent_items: unknown
+  created_at: string
+  updated_at: string
+}
+
+export type TagRow = {
+  id: string
+  user_id: string
+  name: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * A tag applied to an instrument inside one portfolio.
+ *
+ * Keyed by `(portfolio_id, market, symbol)` and never by a holding id: a holding is derived from
+ * transactions, not stored, and giving one an id is the first step towards a second source of truth.
+ */
+export type HoldingTagRow = {
+  id: string
+  user_id: string
+  portfolio_id: string
+  tag_id: string
+  market: string
+  symbol: string
+  created_at: string
+}
+
+/** A filter, a sort, columns and a grouping. Holds no figure, so it cannot go stale. */
+export type SavedViewRow = {
+  id: string
+  user_id: string
+  portfolio_id: string | null
+  name: string
+  config: unknown
+  created_at: string
+  updated_at: string
+}
+
 export type ShareVisibility = "PRIVATE" | "LINK_ONLY" | "PUBLIC"
 
 export type PortfolioShareRow = {
@@ -769,9 +823,42 @@ export type Database = {
         Update: never
         Relationships: []
       }
+      user_preferences: {
+        Row: UserPreferencesRow
+        // Every column has a default, so a row can be created from the user id alone.
+        Insert: Pick<UserPreferencesRow, "user_id"> &
+          Partial<Omit<UserPreferencesRow, "user_id" | Timestamps>>
+        Update: Partial<Omit<UserPreferencesRow, "user_id" | Timestamps>>
+        Relationships: []
+      }
+      tags: {
+        Row: TagRow
+        Insert: Omit<TagRow, "id" | Timestamps | "color"> & { id?: string; color?: string }
+        Update: Partial<Pick<TagRow, "name" | "color">>
+        Relationships: []
+      }
+      holding_tags: {
+        Row: HoldingTagRow
+        Insert: Omit<HoldingTagRow, "id" | "created_at"> & { id?: string }
+        /** An assignment is created or removed, never edited. */
+        Update: never
+        Relationships: []
+      }
+      saved_views: {
+        Row: SavedViewRow
+        Insert: Omit<SavedViewRow, "id" | Timestamps> & { id?: string }
+        Update: Partial<Pick<SavedViewRow, "name" | "config" | "portfolio_id">>
+        Relationships: []
+      }
       watchlist_items: {
         Row: WatchlistItemRow
-        Insert: Omit<WatchlistItemRow, "id" | Timestamps> & { id?: string }
+        // `sort_order` and `pinned` are optional: both default in the database, so a row added the
+        // way it always was still compiles and still behaves the way it always did.
+        Insert: Omit<WatchlistItemRow, "id" | Timestamps | "sort_order" | "pinned"> & {
+          id?: string
+          sort_order?: number | null
+          pinned?: boolean
+        }
         Update: Partial<Omit<WatchlistItemRow, "id" | "user_id" | Timestamps>>
         Relationships: []
       }

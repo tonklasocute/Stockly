@@ -187,6 +187,23 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## Personalization (phase 15)
+
+Every route here is user-scoped by RLS, accepts no `userId`, and cannot move a figure — a
+preference decides what is displayed, never what is calculated.
+
+| | |
+|---|---|
+| `GET /api/preferences` | Theme, density, default portfolio, chosen metrics, dashboard layout, dismissed insights, pins and recents. |
+| `PATCH /api/preferences` | A **partial** update — the theme toggle and the dashboard editor each send one field, so neither can revert the other. The layout is reconciled against the widget registry *before* it is stored, so a later read never has to repair it. |
+| `DELETE /api/preferences` | Resets the dashboard by storing `[]`, which *means* the default rather than copying it. |
+| `POST /api/preferences` | Pins, recently-viewed and insight dismissal — three read-modify-writes of one column, folded into one route because the domain function is the whole of the logic. A pin past the limit is reported, never granted by evicting something the user chose. |
+| `GET\|POST /api/tags` · `PATCH\|DELETE /api/tags/:id` | A user's own labels. Names are unique per user case-insensitively, so "Growth" and "growth" cannot split a group in two. Max 40. |
+| `POST\|DELETE /api/tags/assign` | Applies a tag to `(portfolio, market, symbol)` — never to a holding id, because a holding is derived from transactions rather than stored. Applying twice is not an error. |
+| `GET\|POST /api/views` · `PATCH\|DELETE /api/views/:id` | Saved views: filters, sort, columns, grouping — every field a closed enum, never an expression. Stores no figure. Max 30. |
+
+A resource that is not the caller's returns **404, not 403**.
+
 ## Sharing (phase 13)
 
 **There is no public JSON API**, and that is the design. A shared portfolio is a page; adding a

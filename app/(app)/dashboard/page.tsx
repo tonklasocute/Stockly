@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
@@ -13,6 +12,11 @@ import { describeAlert } from "@/domain/alerts"
 import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadDataQuality } from "@/features/data-quality/loader"
+import { loadPreferences } from "@/features/personalization/queries"
+import { resolveMetrics, visibleWidgets, withoutDismissed, type WidgetId } from "@/domain/personalization"
+import { MetricTiles } from "@/features/personalization/components/metric-tiles"
+import { QuickActions } from "@/features/personalization/components/quick-actions"
+import { PinnedStrip, RecentStrip } from "@/features/personalization/components/pinned-strip"
 import { InsightList } from "@/features/intelligence/components/insight-list"
 import { GoalProgressBar } from "@/features/goals/components/goal-progress-bar"
 import { Section } from "@/components/metric"
@@ -21,7 +25,7 @@ import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/
 import { baseCurrencyOf } from "@/domain/market"
 import { SCENARIO_RETURNS, planGoal, yearsUntil } from "@/domain/simulation"
 import { DataLabel } from "@/features/simulations/components/assumptions"
-import { formatCurrency, formatCurrencyWithCode, formatDate, formatPercent } from "@/lib/format"
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 
 export const metadata: Metadata = { title: "Dashboard" }
@@ -39,11 +43,19 @@ export default async function DashboardPage({
   // and a single batched quote call, so the dashboard cannot disagree with analytics.
   // `loadIntelligence` calls the same cached `loadAnalytics`, so goals, insights and risk cost no
   // extra pass over the transactions and no extra quote call.
-  const [intelligence, alerts, dataQuality] = await Promise.all([
+  const [intelligence, alerts, dataQuality, preferences] = await Promise.all([
     loadIntelligence(active.id),
     listAlerts().catch(() => []),
     // Shares the same cached pass, so this costs one import count and one job-history read.
     loadDataQuality(active.id).catch(() => ({ issues: [], worst: null }) as const),
+    /*
+     * The layout, not the data.
+     *
+     * One extra row read, in parallel with everything else — **not** one request per widget. Which
+     * widgets are on screen changes what is rendered from the single analytics pass above; it never
+     * changes how many passes there are, and it can never change what any of them computed.
+     */
+    loadPreferences(),
   ])
   const bundle = intelligence.analytics
   const activeAlerts = alerts.filter((a) => a.enabled)
@@ -52,6 +64,10 @@ export default async function DashboardPage({
   const transactions = { length: bundle.transactionCount }
   const names = namesFrom(quotes)
   const currency = baseCurrencyOf(active.currency)
+  const metrics = resolveMetrics(preferences.favoriteMetrics)
+  // Dismissal is a display filter applied to a list the rules already produced. The engine runs
+  // identically for a user who has dismissed everything.
+  const insights = withoutDismissed(intelligence.insights, preferences.dismissedInsights)
   /**
    * A single base-case line for the first dated goal, so the dashboard answers "am I on track"
    * without becoming a planning tool. Null whenever the arithmetic cannot be done honestly — no
@@ -85,6 +101,278 @@ export default async function DashboardPage({
   const ranked = [...holdings].sort((a, b) => b.returnPct - a.returnPct)
   const best = ranked[0]
   const worst = ranked.length > 1 ? ranked[ranked.length - 1] : undefined
+
+  /**
+   * The widget map.
+   *
+   * Keyed by the registry's ids so `visibleWidgets` can order them. Nothing in here fetches
+   * anything: each entry is JSX over data already loaded, which is what makes an arbitrary
+   * arrangement free and what stops one widget's failure from being a page's failure.
+   */
+  const widgets: Partial<Record<WidgetId, React.ReactNode>> = {
+    summary: (
+      <div className="space-y-4">
+        <MetricTiles
+          metrics={metrics}
+          source={{
+            currency,
+            totalValue,
+            investedValue: summary.investedValue,
+            marketValue: summary.marketValue,
+            cashBalance: cash.balance,
+            unrealizedPnl: summary.unrealizedPnl,
+            realizedPnl: summary.realizedPnl,
+            returnPct: summary.returnPct,
+            todayPnl: summary.todayPnl,
+            todayReturnPct: summary.todayReturnPct,
+            holdingsCount: summary.holdingsCount,
+            dividendIncome: dividends.summary.trailingTwelveMonths,
+            yieldOnCost: dividends.yieldOnCost,
+            yieldOnValue: dividends.yieldOnValue,
+            // Null for an empty portfolio: no positions is not a largest position of 0%.
+            largestWeightPct: bundle.concentration.largest?.weight ?? null,
+          }}
+        />
+              {/* The figures that are not P&L, kept out of the headline row so it stays readable. */}
+              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
+                {[
+                  { label: "Invested capital", value: formatCurrency(summary.investedValue, currency) },
+                  { label: "Net contributed", value: formatCurrency(cash.netContributed, currency) },
+                  { label: "Dividends received", value: formatCurrency(dividends.summary.totalNet, currency) },
+                  { label: "Total fees", value: formatCurrency(fees.total, currency) },
+                ].map((item) => (
+                  <div key={item.label} className="bg-card space-y-0.5 p-4">
+                    <dt className="text-muted-foreground text-xs">{item.label}</dt>
+                    <dd className="tabular font-semibold">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <CurrencyExposure summary={summary} />
+              <TranslationNote summary={summary} />
+      </div>
+    ),
+
+    quickActions: <QuickActions portfolioId={active.id} />,
+
+    dataQuality: dataQuality.worst !== null ? (
+      <>
+                {dataQuality.worst !== null && (
+                  <Alert>
+                    <AlertDescription className="flex flex-wrap items-center gap-x-2">
+                      <span>
+                        {dataQuality.issues.length} data issue
+                        {dataQuality.issues.length === 1 ? "" : "s"} — {dataQuality.issues[0].title}.
+                      </span>
+                      <Link
+                        href={`/data-quality?p=${active.id}`}
+                        className="underline underline-offset-4"
+                      >
+                        Review
+                      </Link>
+                    </AlertDescription>
+                  </Alert>
+                )}
+      </>
+    ) : null,
+
+    goals: intelligence.goals.length > 0 || insights.length > 0 ? (
+      <>
+                {(intelligence.goals.length > 0 || intelligence.insights.length > 0) && (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {intelligence.goals.length > 0 && (
+                      <Section
+                        title="Goals"
+                        description="Measured from the same figures as everything above."
+                        action={
+                          <Button
+                            nativeButton={false}
+                            render={<Link href={`/goals?p=${active.id}`} />}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Manage
+                          </Button>
+                        }
+                      >
+                        <ul className="space-y-4">
+                          {intelligence.goals.slice(0, 2).map(({ row, progress }) => (
+                            <li key={row.id}>
+                              <GoalProgressBar progress={progress} baseCurrency={currency} />
+                            </li>
+                          ))}
+                        </ul>
+
+                        {/*
+                          One projected line beside the actual progress, labelled so the two cannot be
+                          confused. Everything else about planning lives on its own page — a dashboard
+                          full of scenarios would make assumptions look like facts.
+                        */}
+                        {outlook && (
+                          <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3 text-xs">
+                            <DataLabel kind="PROJECTED" />
+                            <span className="text-muted-foreground">
+                              At {formatPercent(SCENARIO_RETURNS.BASE * 100, { signed: false })} a year:{" "}
+                              <span className="tabular text-foreground font-medium">
+                                {formatCurrency(outlook.projectedValue, currency)}
+                              </span>{" "}
+                              by {formatDate(outlook.targetDate)}
+                            </span>
+                            <Link
+                              href={`/simulations?p=${active.id}`}
+                              className="text-muted-foreground ml-auto underline-offset-4 hover:underline"
+                            >
+                              Plan
+                            </Link>
+                          </div>
+                        )}
+                      </Section>
+                    )}
+
+                    <Section
+                      title="Worth a look"
+                      description="Facts about this portfolio, never advice."
+                      action={
+                        <Button
+                          nativeButton={false}
+                          render={<Link href={`/review?p=${active.id}`} />}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Full review
+                        </Button>
+                      }
+                      className={intelligence.goals.length === 0 ? "lg:col-span-2" : undefined}
+                    >
+                      <InsightList insights={insights} limit={3} />
+                    </Section>
+                  </div>
+                )}
+      </>
+    ) : null,
+
+    allocation: (
+      <>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <section className="bg-card rounded-xl border p-4 sm:p-5">
+                    <h2 className="mb-4 text-sm font-semibold">Allocation</h2>
+                    {holdings.length ? (
+                      <AllocationChart holdings={holdings} currency={currency} />
+                    ) : (
+                      <p className="text-muted-foreground py-8 text-center text-sm">
+                        No open positions to allocate.
+                      </p>
+                    )}
+                  </section>
+
+                  <section className="bg-card rounded-xl border p-4 sm:p-5">
+                    <h2 className="mb-4 text-sm font-semibold">Performance</h2>
+                    {best ? (
+                      <div className="grid gap-3">
+                        {[
+                          { label: "Best performer", holding: best, icon: TrendingUp },
+                          ...(worst ? [{ label: "Worst performer", holding: worst, icon: TrendingDown }] : []),
+                        ].map(({ label, holding, icon: Icon }) => (
+                          <div
+                            key={label}
+                            className="bg-muted/40 flex items-center gap-3 rounded-lg px-3 py-2.5"
+                          >
+                            <Icon
+                              className={label === "Best performer" ? "text-gain size-4" : "text-loss size-4"}
+                              aria-hidden
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-muted-foreground text-xs">{label}</p>
+                              <p className="font-medium">{holding.symbol}</p>
+                            </div>
+                            <div className="text-right">
+                              <Percent value={holding.returnPct} />
+                              <p className="text-muted-foreground tabular text-xs">
+                                {formatCurrency(holding.marketValue, currency)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground py-8 text-center text-sm">
+                        No open positions yet.
+                      </p>
+                    )}
+                  </section>
+                </div>
+      </>
+    ),
+
+    alerts: activeAlerts.length > 0 ? (
+      <>
+                {activeAlerts.length > 0 && (
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold">
+                        {activeAlerts.length} active alert{activeAlerts.length === 1 ? "" : "s"}
+                      </h2>
+                      <Link
+                        href="/alerts"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
+                      >
+                        Manage
+                      </Link>
+                    </div>
+                    <ul className="divide-y overflow-hidden rounded-xl border">
+                      {activeAlerts.slice(0, 4).map((alert) => (
+                        <li key={alert.id} className="bg-card px-4 py-2.5 text-sm">
+                          {describeAlert(toRuleFromRow(alert))}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+      </>
+    ) : null,
+
+    transactions: (
+      <>
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Top holdings</h2>
+                    <Link
+                      href={`/portfolio?p=${active.id}`}
+                      className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
+                    >
+                      View all
+                    </Link>
+                  </div>
+                  <ul className="divide-y overflow-hidden rounded-xl border">
+                    {holdings.slice(0, 5).map((h) => (
+                      <li key={h.symbol} className="bg-card flex items-center gap-3 px-4 py-3">
+                        <Link href={`/stocks/${h.symbol}`} className="tap min-w-0 flex-1 flex-col !items-start">
+                          <p className="font-medium underline-offset-4 hover:underline">{h.symbol}</p>
+                          <p className="text-muted-foreground truncate text-xs">
+                            {names[h.symbol] ?? `${h.quantity} @ ${formatCurrency(h.averageCost, currency)}`}
+                          </p>
+                        </Link>
+                        <div className="text-right">
+                          <p className="tabular font-medium">{formatCurrency(h.marketValue, currency)}</p>
+                          <Delta value={h.unrealizedPnl} currency={currency} percent={h.returnPct} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+      </>
+    ),
+
+    pinned: (
+      <Section title="Pinned">
+        <PinnedStrip items={preferences.pinnedItems} />
+      </Section>
+    ),
+    recent: (
+      <Section title="Recently viewed">
+        <RecentStrip items={preferences.recentItems} />
+      </Section>
+    ),
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -140,271 +428,21 @@ export default async function DashboardPage({
           />
         </div>
       ) : (
+        /*
+         * The dashboard, arranged by the user.
+         *
+         * Every widget below renders from the **same single analytics pass** loaded above — the
+         * layout decides what appears and in what order, never how many times the engine runs.
+         * That is why ten widgets do not cost ten requests, and why hiding one saves rendering
+         * rather than saving a query.
+         *
+         * A widget whose data is absent contributes `null` and is skipped: an alerts card with no
+         * alerts is noise, not information.
+         */
         <>
-          <StatGrid>
-            <StatCard
-              label="Portfolio value"
-              // With the code, not just the symbol: this is the number a user quotes, and "825,420"
-              // or even "฿825,420" is ambiguous on a screen that also shows dollars.
-              value={formatCurrencyWithCode(totalValue, currency)}
-              emphasis
-              hint={
-                <span className="text-muted-foreground">
-                  {formatCurrency(summary.marketValue, currency)} stocks ·{" "}
-                  {formatCurrency(cash.balance, currency)} cash
-                </span>
-              }
-            />
-            <StatCard
-              label="Today"
-              value={
-                summary.todayPnl === null ? (
-                  <span className="text-muted-foreground text-lg">N/A</span>
-                ) : (
-                  <Delta value={summary.todayPnl} currency={currency} />
-                )
-              }
-              emphasis
-              hint={
-                summary.todayReturnPct === null ? (
-                  <span className="text-muted-foreground">No previous close</span>
-                ) : (
-                  <Percent value={summary.todayReturnPct} />
-                )
-              }
-            />
-            <StatCard
-              label="Unrealized P&L"
-              value={<Delta value={summary.unrealizedPnl} currency={currency} />}
-              emphasis
-              hint={<Percent value={summary.returnPct} />}
-            />
-            <StatCard
-              label="Realized P&L"
-              value={<Delta value={summary.realizedPnl} currency={currency} />}
-              emphasis
-              hint={
-                <span className="text-muted-foreground">
-                  {summary.holdingsCount} holding{summary.holdingsCount === 1 ? "" : "s"}
-                </span>
-              }
-            />
-          </StatGrid>
-
-          {/* The figures that are not P&L, kept out of the headline row so it stays readable. */}
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
-            {[
-              { label: "Invested capital", value: formatCurrency(summary.investedValue, currency) },
-              { label: "Net contributed", value: formatCurrency(cash.netContributed, currency) },
-              { label: "Dividends received", value: formatCurrency(dividends.summary.totalNet, currency) },
-              { label: "Total fees", value: formatCurrency(fees.total, currency) },
-            ].map((item) => (
-              <div key={item.label} className="bg-card space-y-0.5 p-4">
-                <dt className="text-muted-foreground text-xs">{item.label}</dt>
-                <dd className="tabular font-semibold">{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <CurrencyExposure summary={summary} />
-          <TranslationNote summary={summary} />
-
-          {/*
-            One line when something needs looking at, and nothing at all when it does not. The
-            dashboard is not an administration console: the detail lives on its own page.
-          */}
-          {dataQuality.worst !== null && (
-            <Alert>
-              <AlertDescription className="flex flex-wrap items-center gap-x-2">
-                <span>
-                  {dataQuality.issues.length} data issue
-                  {dataQuality.issues.length === 1 ? "" : "s"} — {dataQuality.issues[0].title}.
-                </span>
-                <Link
-                  href={`/data-quality?p=${active.id}`}
-                  className="underline underline-offset-4"
-                >
-                  Review
-                </Link>
-              </AlertDescription>
-            </Alert>
+          {visibleWidgets(preferences.dashboardLayout).map((id) =>
+            widgets[id] ? <div key={id}>{widgets[id]}</div> : null,
           )}
-
-          {/*
-            Investment intelligence, kept to what is worth seeing without scrolling: the goals that
-            are being tracked, and the three things most worth looking at. Everything deeper lives
-            on the review page rather than turning the dashboard into a wall of cards.
-          */}
-          {(intelligence.goals.length > 0 || intelligence.insights.length > 0) && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {intelligence.goals.length > 0 && (
-                <Section
-                  title="Goals"
-                  description="Measured from the same figures as everything above."
-                  action={
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={`/goals?p=${active.id}`} />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Manage
-                    </Button>
-                  }
-                >
-                  <ul className="space-y-4">
-                    {intelligence.goals.slice(0, 2).map(({ row, progress }) => (
-                      <li key={row.id}>
-                        <GoalProgressBar progress={progress} baseCurrency={currency} />
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/*
-                    One projected line beside the actual progress, labelled so the two cannot be
-                    confused. Everything else about planning lives on its own page — a dashboard
-                    full of scenarios would make assumptions look like facts.
-                  */}
-                  {outlook && (
-                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3 text-xs">
-                      <DataLabel kind="PROJECTED" />
-                      <span className="text-muted-foreground">
-                        At {formatPercent(SCENARIO_RETURNS.BASE * 100, { signed: false })} a year:{" "}
-                        <span className="tabular text-foreground font-medium">
-                          {formatCurrency(outlook.projectedValue, currency)}
-                        </span>{" "}
-                        by {formatDate(outlook.targetDate)}
-                      </span>
-                      <Link
-                        href={`/simulations?p=${active.id}`}
-                        className="text-muted-foreground ml-auto underline-offset-4 hover:underline"
-                      >
-                        Plan
-                      </Link>
-                    </div>
-                  )}
-                </Section>
-              )}
-
-              <Section
-                title="Worth a look"
-                description="Facts about this portfolio, never advice."
-                action={
-                  <Button
-                    nativeButton={false}
-                    render={<Link href={`/review?p=${active.id}`} />}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Full review
-                  </Button>
-                }
-                className={intelligence.goals.length === 0 ? "lg:col-span-2" : undefined}
-              >
-                <InsightList insights={intelligence.insights} limit={3} />
-              </Section>
-            </div>
-          )}
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <section className="bg-card rounded-xl border p-4 sm:p-5">
-              <h2 className="mb-4 text-sm font-semibold">Allocation</h2>
-              {holdings.length ? (
-                <AllocationChart holdings={holdings} currency={currency} />
-              ) : (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  No open positions to allocate.
-                </p>
-              )}
-            </section>
-
-            <section className="bg-card rounded-xl border p-4 sm:p-5">
-              <h2 className="mb-4 text-sm font-semibold">Performance</h2>
-              {best ? (
-                <div className="grid gap-3">
-                  {[
-                    { label: "Best performer", holding: best, icon: TrendingUp },
-                    ...(worst ? [{ label: "Worst performer", holding: worst, icon: TrendingDown }] : []),
-                  ].map(({ label, holding, icon: Icon }) => (
-                    <div
-                      key={label}
-                      className="bg-muted/40 flex items-center gap-3 rounded-lg px-3 py-2.5"
-                    >
-                      <Icon
-                        className={label === "Best performer" ? "text-gain size-4" : "text-loss size-4"}
-                        aria-hidden
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-muted-foreground text-xs">{label}</p>
-                        <p className="font-medium">{holding.symbol}</p>
-                      </div>
-                      <div className="text-right">
-                        <Percent value={holding.returnPct} />
-                        <p className="text-muted-foreground tabular text-xs">
-                          {formatCurrency(holding.marketValue, currency)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  No open positions yet.
-                </p>
-              )}
-            </section>
-          </div>
-
-          {activeAlerts.length > 0 && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">
-                  {activeAlerts.length} active alert{activeAlerts.length === 1 ? "" : "s"}
-                </h2>
-                <Link
-                  href="/alerts"
-                  className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
-                >
-                  Manage
-                </Link>
-              </div>
-              <ul className="divide-y overflow-hidden rounded-xl border">
-                {activeAlerts.slice(0, 4).map((alert) => (
-                  <li key={alert.id} className="bg-card px-4 py-2.5 text-sm">
-                    {describeAlert(toRuleFromRow(alert))}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Top holdings</h2>
-              <Link
-                href={`/portfolio?p=${active.id}`}
-                className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
-              >
-                View all
-              </Link>
-            </div>
-            <ul className="divide-y overflow-hidden rounded-xl border">
-              {holdings.slice(0, 5).map((h) => (
-                <li key={h.symbol} className="bg-card flex items-center gap-3 px-4 py-3">
-                  <Link href={`/stocks/${h.symbol}`} className="tap min-w-0 flex-1 flex-col !items-start">
-                    <p className="font-medium underline-offset-4 hover:underline">{h.symbol}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {names[h.symbol] ?? `${h.quantity} @ ${formatCurrency(h.averageCost, currency)}`}
-                    </p>
-                  </Link>
-                  <div className="text-right">
-                    <p className="tabular font-medium">{formatCurrency(h.marketValue, currency)}</p>
-                    <Delta value={h.unrealizedPnl} currency={currency} percent={h.returnPct} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
         </>
       )}
     </div>

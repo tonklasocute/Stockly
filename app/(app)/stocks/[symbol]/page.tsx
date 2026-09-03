@@ -32,6 +32,7 @@ import { currencyOf, isValidSymbol, marketOf, normalizeSymbol, symbolKey, toMark
 import { isAIEnabled } from "@/services/ai"
 import { getMarketDataProvider, isMarketDataError } from "@/services/market-data"
 import type { CompanyProfile, Quote } from "@/services/market-data/types"
+import { TrackRecent } from "@/features/personalization/components/track-recent"
 
 type Props = {
   params: Promise<{ symbol: string }>
@@ -112,6 +113,8 @@ export default async function StockPage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      {/* Renders nothing. Records that this page was opened, so it can be reached again. */}
+      <TrackRecent kind="stock" refId={symbolKey(symbol, market)} label={symbol} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div>

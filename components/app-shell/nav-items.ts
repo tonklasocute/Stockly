@@ -11,6 +11,7 @@ import {
   FileUp,
   LayoutDashboard,
   Settings,
+  SlidersHorizontal,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -52,5 +53,8 @@ export const NAV_ITEMS = [
   { href: "/dividends", label: "Dividends", icon: Coins, mobile: false, badge: null },
   { href: "/cash", label: "Cash", icon: Banknote, mobile: false, badge: null },
   { href: "/watchlist", label: "Watchlist", icon: Eye, mobile: false, badge: null },
+  // Phase 15. Beside Settings rather than on the bottom bar: personalization is something you
+  // configure once and revisit rarely, and the bar fits exactly four before labels truncate.
+  { href: "/settings/preferences", label: "Preferences", icon: SlidersHorizontal, mobile: false, badge: null },
   { href: "/settings", label: "Settings", icon: Settings, mobile: false, badge: null },
 ] as const
