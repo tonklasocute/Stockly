@@ -3,6 +3,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { GOAL_DEFINITIONS } from "@/domain/goals"
 import { averageMonthlyContribution } from "@/domain/goals"
 import { impliedYield } from "@/domain/simulation"
+import { drawdownHistory } from "@/domain/drawdown-history"
+import { returnIndex } from "@/domain/returns"
 import { SimulationWorkspace } from "@/features/simulations/components/simulation-workspace"
 import type { PlannableGoal } from "@/features/simulations/components/goal-simulator"
 import { listSimulations } from "@/features/simulations/queries"
@@ -60,6 +62,23 @@ export default async function SimulationsPage({
     unit: progress.unit,
   }))
 
+  /**
+   * The portfolio's own fall history, for the stress tab's historical scenario.
+   *
+   * The same two functions the history page uses — `returnIndex` then `drawdownHistory` — on the
+   * valuation points `loadIntelligence` already loaded, so this costs no extra query and cannot
+   * disagree with that page about what happened. The window is deliberately different and not an
+   * oversight: the history page answers "how did the last year go", and this answers "what is the
+   * worst this portfolio has ever been through", which is a question about all of it.
+   *
+   * Null when there are too few observations. Nothing is estimated in the meantime.
+   */
+  const index = (returnIndex(bundle.valuations) ?? []).map((point) => ({
+    date: point.date,
+    index: point.index * 100,
+  }))
+  const drawdown = index.length > 0 ? drawdownHistory(index) : null
+
   const trailingIncome = analytics.dividends.summary.trailingTwelveMonths
   const yieldPct = impliedYield(trailingIncome, analytics.summary.marketValue)
 
@@ -87,6 +106,8 @@ export default async function SimulationsPage({
         portfolioValue={analytics.totalValue}
         holdings={analytics.holdings}
         cash={analytics.cash.balance}
+        sectorBySymbol={analytics.sectorBySymbol}
+        drawdown={drawdown}
         goals={goals}
         suggestedContribution={suggestedContribution}
         actualTrailingIncome={trailingIncome}

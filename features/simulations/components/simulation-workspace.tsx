@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { StressTester } from "./stress-tester"
+import type { DrawdownHistory } from "@/domain/drawdown-history"
 import type { Currency } from "@/domain/market"
 import type { Holding } from "@/domain/types"
 import { apiFetch } from "@/lib/api-client"
@@ -24,6 +26,9 @@ const TABS = [
   { value: "goal", label: "Goal planning" },
   { value: "dividend", label: "Dividends" },
   { value: "whatif", label: "What-if" },
+  // Phase 20. Beside what-if because it is the same engine: a stress scenario is a what-if whose
+  // assumptions are grouped by market, sector or currency rather than typed in per holding.
+  { value: "stress", label: "Stress test" },
 ] as const
 
 /**
@@ -51,6 +56,8 @@ export function SimulationWorkspace({
   saved,
   pricesAsOf,
   staleCount,
+  sectorBySymbol,
+  drawdown,
 }: {
   portfolioId: string
   currency: Currency
@@ -65,6 +72,10 @@ export function SimulationWorkspace({
   saved: SavedSimulationRow[]
   pricesAsOf: string | null
   staleCount: number
+  /** Sector per `symbolKey`; null where the provider gave none, which the stress tab reports. */
+  sectorBySymbol: Record<string, string | null>
+  /** The portfolio's own return history, or null when there is too little of it. */
+  drawdown: DrawdownHistory | null
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("growth")
@@ -248,6 +259,18 @@ export function SimulationWorkspace({
             holdings={holdings}
             cash={cash}
             baseCurrency={currency}
+            asOf={pricesAsOf}
+            staleCount={staleCount}
+          />
+        </TabsContent>
+
+        <TabsContent value="stress" className="mt-6">
+          <StressTester
+            holdings={holdings}
+            cash={cash}
+            baseCurrency={currency}
+            sectorBySymbol={sectorBySymbol}
+            drawdown={drawdown}
             asOf={pricesAsOf}
             staleCount={staleCount}
           />

@@ -382,8 +382,16 @@ function cashInsights(facts: InsightFacts): Insight[] {
 }
 
 function currencyInsights(facts: InsightFacts): Insight[] {
+  /*
+   * A type predicate rather than a plain filter, so the `weightPct` below is genuinely a number.
+   *
+   * The two `?? 0` fallbacks this replaces were unreachable — the filter had already excluded
+   * nulls — but an unreachable zero in an insight is exactly the pattern that becomes a reachable
+   * one the day somebody edits the predicate. Phase 17.5 filed it as CQ-001; this closes it by
+   * making the narrowing real instead of asserted.
+   */
   const foreign = facts.currencyExposure.filter(
-    (e) =>
+    (e): e is { currency: Currency; weightPct: number } =>
       e.currency !== facts.baseCurrency &&
       e.weightPct !== null &&
       e.weightPct >= INSIGHT_THRESHOLDS.currency.exposureNoticePct,
@@ -394,11 +402,11 @@ function currencyInsights(facts: InsightFacts): Insight[] {
     code: `CURRENCY_EXPOSURE_${exposure.currency}`,
     type: "CURRENCY" as const,
     severity: "INFO" as const,
-    title: `${pct(exposure.weightPct ?? 0)} of the portfolio is held in ${exposure.currency}`,
+    title: `${pct(exposure.weightPct)} of the portfolio is held in ${exposure.currency}`,
     detail:
       `Reported in ${facts.baseCurrency} at today's exchange rate. Movement in ` +
       `${exposure.currency}/${facts.baseCurrency} changes that figure without any holding changing price.`,
-    metric: { label: `${exposure.currency} exposure`, value: pct(exposure.weightPct ?? 0) },
+    metric: { label: `${exposure.currency} exposure`, value: pct(exposure.weightPct) },
   }))
 }
 

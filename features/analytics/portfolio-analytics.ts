@@ -90,7 +90,14 @@ export type AnalyticsBundle = {
   currencies: AllocationSlice[]
   /** Set when the provider gave no metadata at all, so those sections can be hidden. */
   hasSectorData: boolean
+  /**
+   * Sector per `symbolKey`, or null where the provider returned none. Consumed by the sector
+   * stress shock, which reports a null as an exclusion rather than passing over it silently.
+   */
+  sectorBySymbol: Record<string, string | null>
   hasIndustryData: boolean
+  /** P&L share per holding. Rendered by the analytics page's contribution table. */
+  contribution: ReturnType<typeof computeContribution>
   /**
    * Held instruments the provider returned no sector for.
    *
@@ -101,7 +108,6 @@ export type AnalyticsBundle = {
   concentration: Concentration
   movers: { gainers: Mover[]; losers: Mover[] }
   today: { gainers: Mover[]; losers: Mover[] } | null
-  contribution: ReturnType<typeof computeContribution>
   tradeStats: TradeStatistics
   fees: FeeStatistics
   dividends: {
@@ -345,6 +351,19 @@ export const loadAnalytics = cache(
       countries: allocateBy(holdings, factOf, "country"),
       currencies: allocateBy(holdings, factOf, "currency"),
       hasSectorData: sectors.length > 0 && !isAllUnknown(sectors),
+      /*
+       * Sector per `symbolKey`, from the metadata already fetched for the allocation charts.
+       *
+       * `null` where the provider returned none, and it must stay null: a sector shock reports
+       * such a holding as *excluded* rather than quietly leaving it out, which is the difference
+       * between a scenario that covers 18 of 20 holdings and one that appears to cover all 20.
+       */
+      sectorBySymbol: Object.fromEntries(
+        holdings.map((holding) => [
+          symbolKey(holding.symbol, holding.market),
+          facts.get(holding.symbol)?.sector ?? null,
+        ]),
+      ),
       holdingsWithoutMetadata: holdings
         .filter((holding) => {
           const fact = facts.get(holding.symbol)
@@ -353,9 +372,9 @@ export const loadAnalytics = cache(
         .map((holding) => ({ symbol: holding.symbol, market: holding.market })),
       hasIndustryData: industries.length > 0 && !isAllUnknown(industries),
       concentration: computeConcentration(holdings, cash.balance),
+      contribution: computeContribution(holdings, baseTrades),
       movers: topMovers(holdings),
       today: todayMovers(holdings),
-      contribution: computeContribution(holdings, baseTrades),
       tradeStats: computeTradeStatistics(baseTransactions, baseTrades),
       fees: computeFees(baseTransactions),
       dividends: {

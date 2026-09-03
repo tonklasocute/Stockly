@@ -291,6 +291,22 @@ prerendered again: build-time HTML has no nonce, the header does.
 4. Put `CSP_MODE` back to `enforce`. `tests/e2e/smoke.spec.ts` asserts every inline script is nonced
    — run it before you finish.
 
+## 6b. Reconciliation and stress incidents
+
+Neither can corrupt data — both are read-only by construction — so every entry here is about a
+confusing result rather than a damaged one.
+
+| Symptom | What it means | What to do |
+|---|---|---|
+| A reconciliation run is stuck on `PROCESSING` | The run row is written before the comparison, so a crash leaves it visibly stuck rather than leaving no trace | Nothing is corrupt; no financial row was touched. Delete the run or start a new one. The data-quality scan will not count it as a completed reconciliation. |
+| A run finished `FAILED` | The comparison could not complete. **A failed run is not an empty successful one** — the check constraint refuses a `FAILED` row with no reason | Read `error` on the run and the `reconciliation.failed` log line against the request id. Re-run. |
+| Every position reports `MISSING_IN_STOCKLY` | The statement's market column is probably wrong. Positions are keyed by market as well as symbol | Check the pasted `market` values are `US` or `SET`. |
+| Cash reconciles in one currency and not another | Expected. Each currency is compared against its own ledger and nothing is converted | The difference is real, in that currency. Check for an unrecorded fee, tax or interest row. |
+| A sector shock excludes most holdings | The market-data provider returned no sector | A data limitation, not a fault. `FUNDAMENTALS_PROVIDER`/profile coverage on the free tier is thin. The exclusion list names every holding. |
+| A stress result looks wrong | It cannot have changed anything — the engine is pure and runs in the browser | Read the assumptions panel. Components compound, and the order is stated. Check `coverage` before the impact figure. |
+| A split doubled a position twice | It cannot: the unique index on `(portfolio_id, symbol, market, effective_date)` refuses the second | Check for two splits with *different* effective dates. Deleting an adjustment restores every figure exactly. |
+| A user asks to undo a correction | The before-and-after is in `financial_audit`, which nothing can edit | Read the row, and apply the previous values as a new correction with a reason. Never edit the audit table. |
+
 ## 7. Routine maintenance
 
 | When | What |

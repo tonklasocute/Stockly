@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 19 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 20 complete — final phase.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -48,6 +48,15 @@ ledger the kinds a statement actually contains, gave splits a representation tha
 without rewriting a transaction, made every write to a money-bearing table auditable by a database
 trigger nobody can bypass, and made a portfolio transfer what it always should have been: the same
 rows, re-parented, realizing nothing.
+Phase 20 closed the project: a stress engine that restates the portfolio under price, market,
+sector, currency and combined assumptions — built *on* the phase 11 what-if engine rather than
+beside it, so a stress figure and the dashboard can never disagree — with explicit coverage,
+component decomposition, the recovery arithmetic that existed nowhere, and a historical scenario
+taken from the portfolio's own worst observed fall. Alongside it: the cross-system financial
+regression suite that walks transactions → holdings → P&L → cash → performance → attribution → risk
+→ stress on one hand-computed fixture, a scale suite at 1,000 holdings and 10,000 transactions, and
+a full production audit whose honest conclusion is recorded in
+[`docs/phase-20-final-report.md`](docs/phase-20-final-report.md).
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -163,7 +172,8 @@ domain/      pure business logic. No framework imports. Heavily tested.
              fundamentals.ts (statements, periods, margins, growth, TTM) · valuation.ts (multiples,
              yields, historical context) · corporate-events.ts (events, coverage, dividend facts) ·
              reconciliation.ts (position + cash comparison, candidate causes, run status) ·
-             corporate-actions.ts (share adjustments, split arithmetic, what is not adjustable)
+             corporate-actions.ts (share adjustments, split arithmetic, what is not adjustable) ·
+             stress.ts (scenario builders, coverage, decomposition, recovery — over simulateWhatIf)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -767,6 +777,39 @@ Full detail in [`docs/reconciliation.md`](docs/reconciliation.md).
   audit row, an adjustment or a per-currency balance, and `features/operations/privacy.test.ts`
   proves it by projection and by reading the source.
 
+## Stress Testing Rules
+
+Full detail in [`docs/STRESS-TESTING.md`](docs/STRESS-TESTING.md).
+
+- **There is no second valuation engine.** Every stress figure comes from `simulateWhatIf`;
+  `domain/stress.ts` builds adjustments, accounts for coverage, decomposes components and does the
+  recovery arithmetic, and calculates no portfolio value itself. A stress result and the dashboard
+  cannot disagree about what the portfolio is worth, because only one of them computes it.
+- **A scenario is arithmetic on assumptions somebody chose, never a forecast.** `STRESS_DISCLAIMER`
+  is a fixed constant on the screen and `FORBIDDEN_STRESS_PATTERNS` is checked by a test against
+  every sentence the module generates. The disclaimer sits outside the checked text on purpose —
+  the patterns are blunt, and a disclaimer that must say "forecast" would weaken them.
+- **The module has no clock.** `calculatedAt` is passed in, which is what makes a run reproducible
+  and lets a test assert two runs are equal.
+- **Components compound; they never replace.** A holding caught by two assumptions carries both.
+  The order is part of the answer and the assumptions panel says so — with compounding assumptions
+  there is no order-free attribution, and inventing one would be a made-up allocation.
+- **Coverage is three-way: shocked, unaffected, excluded.** A Thai holding in a US shock is
+  *unaffected* — the scenario working, not a gap. Only a missing sector or a missing FX rate is an
+  exclusion, and each is named.
+- **A currency move is not a price move.** A positive currency component means one unit of that
+  currency buys more of the base currency; no instrument's own price changes. The base currency is
+  never shocked, and a currency with no real rate gets no override — a scenario cannot invent a rate.
+- **Recovery is "the gain needed to return to the starting value", never an expected recovery and
+  never a duration.** `null` when nothing was lost and when everything was lost; both render N/A.
+- **Every matrix row is a real run.** Cash does not fall and untranslated holdings are in no total,
+  so the relationship is not proportional and scaling one row would misstate the others.
+- **A historical scenario uses only what was observed**, from the flow-adjusted index, and says so
+  with its dates. `depthPct` is a positive depth and a component is a signed move — the negation is
+  pinned by a test, because reading it straight through applies the worst fall as a rally.
+- **Nothing is stored and there is no endpoint.** The tab runs in the browser because the engine is
+  pure, so there is nowhere for a stress figure to become a financial record.
+
 ## Observability Rules
 
 Full detail in [`docs/observability.md`](docs/observability.md). Audit findings in
@@ -878,7 +921,10 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 17.5 ✅ | Production review: audit report, phase-16 snapshot regression fixed, currency on fundamental figures, two N+1 jobs, one representation of N/A |
 | 18 ✅ | News & market context: provider abstraction, normalization and de-duplication, URL safety, deterministic categories, tone and relevance, corporate-event linking, feeds for portfolio/watchlist/market, opt-in notifications |
 | 19 ✅ | Advanced portfolio operations: position and cash reconciliation with run history, the full cash ledger, split adjustments applied in front of the engine, a trigger-written audit trail, corrections that carry a reason, and portfolio transfer by re-parenting |
-| 20 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
+| 20 ✅ | **Final.** Advanced risk & stress testing over the existing what-if engine, coverage and exclusions, component decomposition, recovery arithmetic, historical scenario, cross-system financial regression suite, scale suite, full production audit and final report |
+
+Stockly is complete. Anything beyond this — Monte Carlo, per-instrument price history and full FX
+attribution, FIFO cost basis, tax lots — is a new project against a finished one, not a phase 21.
 
 Do not start the next phase without being asked.
 

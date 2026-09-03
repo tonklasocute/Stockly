@@ -330,6 +330,46 @@ over rewriting history or synthesising a trade. See [`docs/reconciliation.md`](r
 
 ---
 
+## 10b. Stress scenarios and recovery
+
+A stress scenario restates the portfolio at different prices and rates. It runs through
+`simulateWhatIf` — the same engine the what-if tab uses — so nothing here is a second answer to
+"what is this portfolio worth".
+
+```
+scenarioPrice   = currentPrice × Π (1 + componentᵢ / 100)     ← components compound
+scenarioValue   = scenarioQuantity × scenarioPrice            ← quantity never changes in a shock
+stressedValue   = Σ translatable scenarioValue + max(cash, 0) ← cash does not fall
+```
+
+An untranslatable holding is in neither the base nor the stressed total, and is reported as
+excluded. Coverage is three-way — shocked, correctly unaffected, and excluded with a reason — so a
+scenario never implies it reached a holding it could not.
+
+### Recovery
+
+```
+after a change of d:   value → value × (1 + d)
+to return:             1 / (1 + d)
+required gain    = −d / (1 + d)
+```
+
+| Fall | Gain required |
+|---:|---:|
+| −10% | +11.11% |
+| −20% | +25% |
+| −50% | +100% |
+| −80% | +400% |
+
+`null` when nothing was lost (a rise needs no recovery) and when everything was lost (no finite
+gain restores zero). Both render `N/A`. The figure is labelled **"gain needed to return to the
+starting value"** — never an expected recovery, and never a duration, which Stockly has no basis
+for stating.
+
+Full methodology in [`docs/STRESS-TESTING.md`](STRESS-TESTING.md).
+
+---
+
 ## 11. Snapshots
 
 Portfolio **value** over time cannot be derived from transactions — it needs a market price for every
