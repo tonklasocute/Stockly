@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
-import { Bell, BellRing, Check, Coins, TrendingUp, Trash2 } from "lucide-react"
+import { Bell, Newspaper, BellRing, Check, Coins, TrendingUp, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/empty-state"
@@ -18,6 +18,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   portfolio: TrendingUp,
   dividend: Coins,
   system: Bell,
+  news: Newspaper,
 }
 
 export function NotificationList({

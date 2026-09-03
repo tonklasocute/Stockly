@@ -57,19 +57,47 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
       hint: "Go to",
       href: item.href,
     }))
+    const feeds = [
+      { id: "news:portfolio", label: "Portfolio news", hint: "News", href: "/news?scope=PORTFOLIO" },
+      { id: "news:watchlist", label: "Watchlist news", hint: "News", href: "/news?scope=WATCHLIST" },
+      { id: "news:market", label: "Market news", hint: "News", href: "/news?scope=MARKET" },
+    ]
     const portfolioCommands = portfolios.map((portfolio) => ({
       id: `portfolio:${portfolio.id}`,
       label: portfolio.name,
       hint: "Portfolio",
       href: `/dashboard?p=${portfolio.id}`,
     }))
-    return [...navigation, ...portfolioCommands]
+    return [...navigation, ...feeds, ...portfolioCommands]
   }, [portfolios])
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return commands.slice(0, 8)
-    return commands.filter((command) => command.label.toLowerCase().includes(needle)).slice(0, 8)
+
+    const found = commands
+      .filter((command) => command.label.toLowerCase().includes(needle))
+      .slice(0, 7)
+
+    /*
+     * A ticker typed straight in.
+     *
+     * The palette took sole ownership of ⌘K in phase 18, after it was found sharing the shortcut
+     * with the header's stock search — both dialogs opened, stacked. This is what stops that fix
+     * costing a capability: typing NVDA and pressing Enter still reaches the instrument, using the
+     * existing route rather than a second search implementation.
+     */
+    const ticker = query.trim().toUpperCase()
+    if (/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)) {
+      found.push({
+        id: `stock:${ticker}`,
+        label: ticker,
+        hint: "Open stock",
+        href: `/stocks/${ticker}`,
+      })
+    }
+
+    return found
   }, [commands, query])
 
   /**
@@ -184,7 +212,7 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
         </ul>
 
         <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-          ⌘K to open · g then d, p, t, w, a or s to jump · ↑↓ and Enter
+          ⌘K to open · type a ticker to open it · g then d, p, t, w, a or s to jump
         </p>
       </DialogContent>
     </Dialog>

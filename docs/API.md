@@ -187,6 +187,18 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## News (phase 18)
+
+| | Limit | |
+|---|---|---|
+| `GET /api/news?portfolioId&scope&sort&category&limit` | 30 | One endpoint, not three: portfolio, watchlist and market feeds are the same query with a different instrument set, and three routes would be three copies of the ranking. `scope`, `sort` and `category` are validated against closed enums. |
+
+The response says **why** an article is in the feed — `HELD`, `WATCHED` or `MARKET` — and nothing
+about the position behind it. Ranking uses the caller's holdings, computed on the server under their
+own session; the holdings never leave it. A deployment with no news vendor returns `covered: false`
+so the UI can say "not configured" rather than "no news", and a partial provider failure is reported
+rather than passing a short feed off as a complete one.
+
 ## Fundamentals and events (phase 17)
 
 Both are authenticated and rate-limited. The **data** is public reference information; the ability

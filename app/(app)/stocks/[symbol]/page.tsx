@@ -35,6 +35,8 @@ import type { CompanyProfile, Quote } from "@/services/market-data/types"
 import { TrackRecent } from "@/features/personalization/components/track-recent"
 import { FundamentalsPanel } from "@/features/fundamentals/components/fundamentals-panel"
 import { loadFundamentals } from "@/features/fundamentals/loader"
+import { NewsList } from "@/features/news/components/news-list"
+import { loadSymbolNews } from "@/features/news/loader"
 
 type Props = {
   params: Promise<{ symbol: string }>
@@ -96,6 +98,22 @@ export default async function StockPage({ params, searchParams }: Props) {
    * degrades on its own — a provider with no fundamentals costs this section and nothing else.
    */
   const fundamentals = await loadFundamentals(symbol, market, quote?.price ?? null).catch(() => null)
+
+  /*
+   * News for this instrument, with its corporate events passed in so an article can be related to
+   * one. The event stays the source of truth — a link only says the two are probably about the
+   * same thing, and carries the confidence that judgement was made with.
+   */
+  const news = await loadSymbolNews(
+    symbol,
+    market,
+    (fundamentals?.events ?? []).map((event) => ({
+      symbol: event.symbol,
+      market: event.market,
+      type: event.type,
+      date: event.date,
+    })),
+  ).catch(() => null)
 
   const position = active
     ? (await loadPortfolioView(active.id)).holdings.find(
@@ -170,6 +188,8 @@ export default async function StockPage({ params, searchParams }: Props) {
           what the business reported. Neither is an input to the position above it.
         */}
         {fundamentals && <FundamentalsPanel data={fundamentals} />}
+
+        {news && <NewsList data={news} title="News" description={`Recent coverage of ${symbol}`} />}
       </section>
 
       {active && (

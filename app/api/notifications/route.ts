@@ -3,7 +3,7 @@ import { listNotifications } from "@/features/notifications/queries"
 import { toPage } from "@/lib/pagination"
 import type { NotificationCategory } from "@/types/database"
 
-const CATEGORIES = ["price", "portfolio", "dividend", "system"] as const
+const CATEGORIES = ["price", "portfolio", "dividend", "system", "news"] as const
 
 export async function GET(request: Request) {
   return guarded(async () => {

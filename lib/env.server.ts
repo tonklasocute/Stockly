@@ -40,6 +40,17 @@ export const serverEnv = {
     return process.env.FUNDAMENTALS_PROVIDER ?? "none"
   },
   /**
+   * Where news comes from.
+   *
+   * Defaults to **"none"**, for a sharper reason than the fundamentals default: a mock financial
+   * figure is a wrong number, but a mock headline attributed to a publication is a fabricated quote
+   * from a named organisation. `NEWS_PROVIDER=mock` must be typed deliberately, and the mock's own
+   * sources are fictional on a reserved domain so even that cannot name a real outlet.
+   */
+  get newsProvider() {
+    return process.env.NEWS_PROVIDER ?? "none"
+  },
+  /**
    * Where exchange rates come from. Defaults to the market-data provider: they are the same account
    * on the same rate limit, and running live prices against mock rates is never what anyone meant.
    * An unrecognised value yields no rates at all rather than fabricated ones — see services/fx.

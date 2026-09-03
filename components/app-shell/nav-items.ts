@@ -15,6 +15,7 @@ import {
   Share2,
   ShieldCheck,
   History,
+  Newspaper,
   Sparkles,
   Target,
   Telescope,
@@ -55,6 +56,9 @@ export const NAV_ITEMS = [
   { href: "/screener", label: "Screener", icon: Telescope, mobile: false, badge: null },
   { href: "/dividends", label: "Dividends", icon: Coins, mobile: false, badge: null },
   { href: "/cash", label: "Cash", icon: Banknote, mobile: false, badge: null },
+  // Phase 18. Context around holdings, not a feed to browse — so it sits with the analysis pages
+  // rather than on the four-item bottom bar.
+  { href: "/news", label: "News", icon: Newspaper, mobile: false, badge: null },
   { href: "/watchlist", label: "Watchlist", icon: Eye, mobile: false, badge: null },
   // Phase 15. Beside Settings rather than on the bottom bar: personalization is something you
   // configure once and revisit rarely, and the bar fits exactly four before labels truncate.

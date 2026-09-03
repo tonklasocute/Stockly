@@ -27,16 +27,17 @@ export function StockSearch() {
   const [query, setQuery] = useState("")
   const debounced = useDebounced(query, 300)
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault()
-        setOpen((previous) => !previous)
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
+  /*
+   * **No ⌘K binding here.**
+   *
+   * This component owned ⌘K until phase 15 mounted a command palette in the same shell that binds
+   * it too — so the shortcut opened *both* dialogs, stacked. Phase 18 found it while auditing
+   * search (SEARCH-001 in docs/phase-17.5-audit.md's successor notes).
+   *
+   * The palette is the single global entry point and keeps the shortcut; this keeps its visible
+   * trigger, which is how it was reached from a mouse or a touchscreen anyway. The palette can
+   * navigate to a ticker directly, so no capability was lost.
+   */
 
   const trimmed = debounced.trim()
   const { data, isFetching, isError } = useQuery({

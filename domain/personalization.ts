@@ -69,6 +69,7 @@ export const WIDGETS = [
   "attribution",
   "drawdowns",
   "events",
+  "news",
 ] as const
 export type WidgetId = (typeof WIDGETS)[number]
 
@@ -121,6 +122,12 @@ export const WIDGET_REGISTRY: Record<WidgetId, WidgetDefinition> = {
     description: "Earnings and dividend dates for the instruments you hold or watch.",
     wide: true,
   },
+  news: {
+    id: "news",
+    label: "News",
+    description: "Recent coverage of the instruments you hold and watch.",
+    wide: true,
+  },
   drawdowns: {
     id: "drawdowns",
     label: "Drawdowns",
@@ -159,6 +166,7 @@ export const DEFAULT_LAYOUT: readonly WidgetPlacement[] = [
   { id: "attribution", visible: false },
   { id: "drawdowns", visible: false },
   { id: "events", visible: false },
+  { id: "news", visible: false },
 ]
 
 /**

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { isAuthorizedCronRequest } from "@/features/alerts/cron-auth"
 import { recordJob, refreshMarketData } from "@/features/automation/refresh"
 import { refreshFundamentals } from "@/features/automation/fundamentals-refresh"
+import { refreshNews } from "@/features/automation/news-refresh"
 import { serverEnv } from "@/lib/env.server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { describeError, logger } from "@/lib/log"
@@ -66,6 +67,25 @@ export async function GET(request: Request) {
       return null
     })
 
+    /*
+     * News rides here too, after the quotes and the fundamentals and unable to fail either.
+     *
+     * A fourth endpoint would be a fourth schedule and a fourth history row for something that runs
+     * on the same daily cadence — and news, unlike a quote, has no moment it must be taken at.
+     */
+    const news = await recordJob(supabase, "news-refresh", async () => {
+      const result = await refreshNews(supabase)
+      return {
+        ...result,
+        processed: result.fetched,
+        succeeded: result.written,
+        failed: result.failed,
+      }
+    }).catch((error: unknown) => {
+      logger.warn("cron.news_failed", describeError(error))
+      return null
+    })
+
     // Counters only, and free of anything identifying.
     logger.info("cron.data", {
       symbols: summary.symbols,
@@ -75,6 +95,11 @@ export async function GET(request: Request) {
       fundamentalInstruments: fundamentals?.instruments ?? 0,
       fundamentalStatements: fundamentals?.statementsWritten ?? 0,
       fundamentalEvents: fundamentals?.eventsWritten ?? 0,
+      newsFetched: news?.fetched ?? 0,
+      newsWritten: news?.written ?? 0,
+      newsDeduplicated: news?.deduplicated ?? 0,
+      newsRejected: news?.rejected ?? 0,
+      newsDeleted: news?.deleted ?? 0,
     })
     return NextResponse.json({ success: true, data: summary })
   } catch (error) {

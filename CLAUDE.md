@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 17 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 18 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -85,6 +85,7 @@ production**: they create and delete portfolio records.
 | Sharing | Published jsonb projection + `security definer` token functions | no service-role key on any request path; the anonymous role's whole grant is one table where `visibility = 'PUBLIC'` |
 | Import | Same file's parser + `lib/xlsx.ts` | no dependency: npm `xlsx` carries open advisories `audit:ci` would fail, ExcelJS is a tree to read four XML files |
 | Push | `web-push` (VAPID) | RFC 8291 encryption is not something to hand-roll |
+| News | `NewsProvider` — mock, unavailable | **`NEWS_PROVIDER=none` by default**: no configured vendor supplies news, and the mock's sources are fictional on a reserved domain so it can never name a real outlet |
 | Fundamentals | `FundamentalDataProvider` — mock, unavailable | **`FUNDAMENTALS_PROVIDER=none` by default**: Twelve Data's free tier supplies no statements, so the architecture ships with no vendor and says so |
 | Benchmarks | `BenchmarkProvider` — market-data adapter, mock | index series are not on Twelve Data's free tier; the adapter says so and the UI renders N/A |
 | AI | `AIProvider` — Anthropic (official SDK), OpenAI-compatible (`fetch`), mock | server-side only; `AI_ENABLED=false` by default |
@@ -151,6 +152,7 @@ domain/      pure business logic. No framework imports. Heavily tested.
              history.ts (reconstruct any past date, capital flows, periods, turnover, fee impact) ·
              attribution.ts (money-weighted contribution, price/dividend split, active return) ·
              drawdown-history.ts (peak/trough/recovery events, regime) ·
+             news.ts (articles, URL safety, dedupe, categories, tone, relevance, event links) ·
              fundamentals.ts (statements, periods, margins, growth, TTM) · valuation.ts (multiples,
              yields, historical context) · corporate-events.ts (events, coverage, dividend facts)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
@@ -563,6 +565,41 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## News Rules
+
+Full detail in [`docs/NEWS.md`](docs/NEWS.md).
+
+- **News is context, never financial truth.** An article's numbers are sentences somebody else
+  wrote; none reaches a calculation. `domain/news.ts` cannot receive a portfolio, and a test ingests
+  a thousand articles and asserts every figure is byte-identical.
+- **A fabricated headline is worse than a fabricated number.** A wrong number is wrong; a headline
+  attributed to a real publication that never wrote it is a false statement about a named
+  organisation. Hence `NEWS_PROVIDER=none` by default and a mock whose sources are fictional on a
+  reserved domain.
+- **A provider returns articles; the domain classifies them.** Category, tone, dedupe key and
+  relevance are all derived here, so no provider can smuggle in a sentiment Stockly did not compute.
+- **Nothing unverifiable is shown.** No real title, no named source, no safe https link or a future
+  date means the article is **dropped, not repaired**.
+- **https only, allowlisted.** `javascript:`, `data:` and `vbscript:` execute on click; a URL with
+  credentials is a phishing shape. Stockly never proxies or redirects through its own origin, so
+  there is no open-redirect surface.
+- **The dedupe key is the primary key.** Canonical URL first, never the title alone — the same
+  outlet's "Market wrap" every morning would collapse into one row. The earliest publication wins.
+- **Age is computed from `publishedAt`, never `fetchedAt`.** A story published yesterday and fetched
+  a minute ago is a day old.
+- **Tone describes prose, never direction.** Two signals one way and none the other before a label
+  is claimed; `UNKNOWN` is the default and the common answer. `Positive → Buy` is forbidden, and no
+  rule keys on recommendation vocabulary.
+- **Relevance is a sum of named weights**, and recency is capped below ownership: a week-old story
+  about a holding outranks a fresh headline about a stranger.
+- **An event stays the source of truth.** A link states a confidence and never changes the event; a
+  relationship that cannot be defended is not shown.
+- **A feed is a description of a portfolio.** `news_articles` grants nothing to `anon` and
+  `ShareSource` has no news field — a shared page carrying "your" news would leak the holdings the
+  sharing switches exist to control.
+- **News notifications are opt-in**, unlike every other category: an alert is something the user
+  created, and news is not.
+
 ## Fundamental & Corporate Event Rules
 
 Full detail in [`docs/FUNDAMENTALS.md`](docs/FUNDAMENTALS.md).
@@ -778,7 +815,9 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 15 ✅ | Personalization: user preferences, customizable dashboard widgets, chosen summary metrics, tags and holding groups, saved views, pins and recently viewed, insight dismissal, density, command palette and shortcuts |
 | 16 ✅ | Data intelligence & attribution: historical reconstruction, money-weighted attribution with residual, drawdown history, monthly performance, turnover and fee impact, snapshot quality and versioning, EOD snapshot job, FX rate table |
 | 17 ✅ | Fundamental intelligence: provider abstraction with declared capabilities, normalized statements, metrics and valuation engines, corporate events, fundamental screener filters, portfolio event awareness |
-| 18 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
+| 17.5 ✅ | Production review: audit report, phase-16 snapshot regression fixed, currency on fundamental figures, two N+1 jobs, one representation of N/A |
+| 18 ✅ | News & market context: provider abstraction, normalization and de-duplication, URL safety, deterministic categories, tone and relevance, corporate-event linking, feeds for portfolio/watchlist/market, opt-in notifications |
+| 19 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

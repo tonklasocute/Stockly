@@ -22,6 +22,8 @@ const CATEGORY_PREFERENCE: Record<NotificationCategory, keyof PreferenceRow> = {
   portfolio: "portfolio",
   dividend: "dividend",
   system: "system",
+  // Off by default in the database: news is a firehose nobody asked for, unlike an alert they made.
+  news: "news",
 }
 
 type PreferenceRow = {
@@ -29,14 +31,23 @@ type PreferenceRow = {
   portfolio: boolean
   dividend: boolean
   system: boolean
+  news: boolean
   push: boolean
 }
 
+/**
+ * What a user gets before they have chosen anything.
+ *
+ * **`news` is the one that defaults to false.** The others are consequences of something the user
+ * created — an alert they set, a dividend they recorded — while news is a firehose nobody asked
+ * for. Opting in is the correct direction for it, and the database column defaults the same way.
+ */
 const DEFAULT_PREFERENCES: PreferenceRow = {
   price: true,
   portfolio: true,
   dividend: true,
   system: true,
+  news: false,
   push: true,
 }
 
@@ -53,7 +64,7 @@ export function createNotificationService(
 
     const { data } = await supabase
       .from("notification_preferences")
-      .select("price, portfolio, dividend, system, push")
+      .select("price, portfolio, dividend, system, news, push")
       .eq("user_id", userId)
       .maybeSingle()
 

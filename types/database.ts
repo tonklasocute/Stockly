@@ -144,7 +144,8 @@ export type AlertType =
 
 export type AlertState = "armed" | "triggered" | "cooldown"
 
-export type NotificationCategory = "price" | "portfolio" | "dividend" | "system"
+/** Phase 18 adds "news". Extended rather than paralleled: one preference table, one badge, one centre. */
+export type NotificationCategory = "price" | "portfolio" | "dividend" | "system" | "news"
 
 export type AlertRow = {
   id: string
@@ -195,6 +196,8 @@ export type NotificationPreferencesRow = {
   portfolio: boolean
   dividend: boolean
   system: boolean
+  /** Opt-in, unlike the others. See the migration comment. */
+  news: boolean
   push: boolean
   created_at: string
   updated_at: string
@@ -589,6 +592,37 @@ export type CorporateEventRow = {
   fetched_at: string
 }
 
+/**
+ * Article **metadata**. No `user_id` and no article body: news is context about the world, never a
+ * fact about a user, and a body is somebody else's copyrighted work.
+ */
+export type NewsArticleRow = {
+  /** Primary key and idempotency guarantee — see `domain/news.ts:dedupeKeyFor`. */
+  dedupe_key: string
+  title: string
+  /** The provider's own summary. Null when they supplied none; Stockly never writes one. */
+  summary: string | null
+  url: string
+  source: string
+  /** When the publication published it. */
+  published_at: string
+  /** When Stockly fetched it. A different fact. */
+  fetched_at: string
+  language: string | null
+  market: string | null
+  category: string
+  sentiment: string
+  sentiment_method: string
+  provider: string
+  created_at: string
+}
+
+export type NewsArticleSymbolRow = {
+  dedupe_key: string
+  symbol: string
+  market: string
+}
+
 export type SnapshotQuality = "COMPLETE" | "PARTIAL" | "STALE"
 export type SnapshotSource = "PAGE_VIEW" | "SCHEDULED" | "BACKFILL"
 
@@ -940,6 +974,22 @@ export type Database = {
         Row: SavedViewRow
         Insert: Omit<SavedViewRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Pick<SavedViewRow, "name" | "config" | "portfolio_id">>
+        Relationships: []
+      }
+      news_articles: {
+        Row: NewsArticleRow
+        Insert: Omit<NewsArticleRow, "fetched_at" | "created_at"> & {
+          fetched_at?: string
+          created_at?: string
+        }
+        Update: Partial<Omit<NewsArticleRow, "dedupe_key">>
+        Relationships: []
+      }
+      news_article_symbols: {
+        Row: NewsArticleSymbolRow
+        Insert: NewsArticleSymbolRow
+        /** A link exists or it does not; there is nothing to edit. */
+        Update: never
         Relationships: []
       }
       financial_statements: {

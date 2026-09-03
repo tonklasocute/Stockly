@@ -16,6 +16,8 @@ import { loadPreferences } from "@/features/personalization/queries"
 import { loadHistory } from "@/features/history/loader"
 import { loadPortfolioEvents } from "@/features/fundamentals/events-loader"
 import { EventsWidget } from "@/features/fundamentals/components/events-widget"
+import { NewsList } from "@/features/news/components/news-list"
+import { loadNews } from "@/features/news/loader"
 import { AttributionPanel } from "@/features/history/components/attribution-panel"
 import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
 import { resolveMetrics, visibleWidgets, withoutDismissed, type WidgetId } from "@/domain/personalization"
@@ -84,10 +86,14 @@ export default async function DashboardPage({
    * The events loader is the one on this page that can spend provider credits, so it must never
    * run for a dashboard that does not display it.
    */
-  const [history, events] = await Promise.all([
+  const [history, events, news] = await Promise.all([
     wantsHistory ? loadHistory(active.id, "1Y").catch(() => null) : Promise.resolve(null),
     shown.includes("events")
       ? loadPortfolioEvents(active.id).catch(() => null)
+      : Promise.resolve(null),
+    // Same rule: it can spend provider requests, so it never runs for a dashboard that hides it.
+    shown.includes("news")
+      ? loadNews(active.id, { scope: "PORTFOLIO", limit: 5 }).catch(() => null)
       : Promise.resolve(null),
   ])
   // Dismissal is a display filter applied to a list the rules already produced. The engine runs
@@ -403,6 +409,10 @@ export default async function DashboardPage({
     ) : null,
 
     events: events ? <EventsWidget data={events} /> : null,
+
+    news: news ? (
+      <NewsList data={news} title="News" description="Coverage of what you hold and watch." />
+    ) : null,
 
     drawdowns: history?.drawdowns ? (
       <Section title="Drawdowns" description={history.regime ? REGIME_LABELS[history.regime] : undefined}>

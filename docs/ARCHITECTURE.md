@@ -612,7 +612,29 @@ Full detail in [`FUNDAMENTALS.md`](FUNDAMENTALS.md). The decisions that matter:
 5. **Fundamental filters live in the existing screener's enum**, and an unknown value excludes a
    stock from both sides of a comparison.
 
-## 26. What is deliberately not here yet
+## 26. News and market context (phase 18)
+
+Full detail in [`NEWS.md`](NEWS.md). The decisions that matter:
+
+1. **News is context and never financial truth.** An article's numbers are somebody else's
+   sentences; `domain/news.ts` has no way to receive a portfolio, and a test ingests a thousand
+   articles and asserts every figure is unchanged.
+2. **A fabricated headline is worse than a fabricated number**, which is why `NEWS_PROVIDER`
+   defaults to `none` and the development mock's sources are fictional on a reserved domain. A wrong
+   number is wrong; a headline attributed to a publication that never wrote it is a false statement
+   about a named organisation.
+3. **Providers supply, the domain classifies.** Category, tone, dedupe key and relevance are all
+   derived in one place, so no provider can disagree about what an article is or smuggle in a
+   sentiment Stockly did not compute.
+4. **The dedupe key is the primary key**, which makes ingestion idempotent by construction rather
+   than by an application check.
+5. **URL safety is a domain concern**, because a provider response is untrusted input whose URL
+   reaches an `href`. https allowlist, no credentials, bounded — and no proxy or redirect through
+   Stockly's own origin, so there is no open-redirect surface.
+6. **A feed is a description of a portfolio**, so it never reaches a shared page: no anonymous grant
+   on the tables, and no news field on `ShareSource`.
+
+## 27. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
@@ -626,6 +648,7 @@ dynamic Open Graph image generation, live (rather than published) public pages, 
 comparison, a portfolio event timeline, a user-level display-currency override, drag-and-drop widget
 reordering, per-instrument daily price history and therefore full FX and Brinson attribution,
 market-history backfill, a fundamental quality score, forward estimates, Brinson attribution, a
-stock comparison screen, fundamental alerts, earnings-quality signals, an event bus, any Go service, streamed AI responses, an AI answer cache,
+stock comparison screen, fundamental alerts, earnings-quality signals, article bodies or scraping,
+AI news summarisation, news comments, likes or follows, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

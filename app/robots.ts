@@ -25,6 +25,7 @@ export default function robots(): MetadataRoute.Robots {
           "/dividends",
           "/cash",
           "/watchlist",
+          "/news",
           "/alerts",
           "/notifications",
           "/screener",
