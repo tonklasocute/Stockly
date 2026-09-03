@@ -16,16 +16,30 @@ const SQL = readFileSync(
 )
 const FLAT = SQL.replace(/\s+/g, " ")
 
+/*
+ * The phase 16 constraint was replaced, so its property has to be asserted against the migration
+ * that now states it. Reading the superseded text here would keep passing while the database said
+ * something else — which is the failure mode this file exists to catch.
+ */
+const QUALITY_SQL = readFileSync(
+  join(process.cwd(), "supabase", "migrations", "20260912000000_snapshot_quality_constraint.sql"),
+  "utf8",
+).replace(/\s+/g, " ")
+
 describe("snapshots record their own reliability", () => {
   it("stamps a quality and a calculation version on every row", () => {
     expect(FLAT).toContain("add column quality text not null default 'COMPLETE'")
     expect(FLAT).toContain("add column calculation_version integer not null default 1")
   })
 
-  it("forces quality and the missing count to agree", () => {
-    // A COMPLETE row cannot be missing anything, and a constraint is the only way to guarantee the
-    // two columns never drift apart.
-    expect(FLAT).toContain("check ((quality = 'COMPLETE') = (missing_holdings = 0))")
+  it("forces quality and the missing count to agree, per quality", () => {
+    // A COMPLETE row cannot be missing anything and a PARTIAL row must say how much — a constraint
+    // is the only way to guarantee the two columns never drift apart. STALE is deliberately
+    // unconstrained here: every holding is in the total, so nothing is missing, and the phase 16
+    // biconditional refused every honest STALE row until 20260912000000 replaced it.
+    expect(QUALITY_SQL).toContain("when 'COMPLETE' then missing_holdings = 0")
+    expect(QUALITY_SQL).toContain("when 'PARTIAL' then missing_holdings > 0")
+    expect(QUALITY_SQL).toContain("drop constraint portfolio_snapshots_quality_agrees")
   })
 
   it("restricts quality and source to known values", () => {

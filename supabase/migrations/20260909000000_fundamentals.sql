@@ -163,7 +163,10 @@ create table public.corporate_events (
  */
 create unique index corporate_events_identity_idx
   on public.corporate_events (
-    market, symbol, event_type, coalesce(to_char(event_date, 'YYYY-MM'), 'unknown')
+    -- date_trunc('month', timestamp) is IMMUTABLE; to_char() is only STABLE and Postgres
+    -- refuses it in an index expression. Same month bucket, same idempotency.
+    market, symbol, event_type,
+    coalesce(date_trunc('month', event_date::timestamp), '-infinity'::timestamp)
   );
 
 create index corporate_events_calendar_idx

@@ -162,7 +162,11 @@ export async function recordEndOfDaySnapshots(
         realized_pnl: latest.realized_pnl,
         unrealized_pnl: latest.unrealized_pnl,
         quality: "STALE",
-        missing_holdings: Math.max(latest.missing_holdings, 1),
+        // Carried forward, so exactly what the source row was missing — no more and no less. This
+        // used to be `Math.max(latest.missing_holdings, 1)`, which invented a missing holding to
+        // satisfy the phase 16 constraint that refused a STALE row with a count of 0. Migration
+        // 20260912000000 states that rule per quality instead, so the true count can be written.
+        missing_holdings: latest.missing_holdings,
         calculation_version: latest.calculation_version,
         source: "SCHEDULED",
       },
