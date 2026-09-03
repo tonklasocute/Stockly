@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
           "/auth/",
           "/dashboard",
           "/portfolio",
+          "/portfolio/history",
           "/transactions",
           "/analytics",
           "/dividends",

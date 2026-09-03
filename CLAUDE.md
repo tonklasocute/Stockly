@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 15 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 16 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -146,7 +146,10 @@ domain/      pure business logic. No framework imports. Heavily tested.
              data-quality.ts (freshness + completeness rules, no score) ·
              sharing.ts (visibility, presets, slugs, link state, the public projection) ·
              freshness.ts (one policy for how old a reading may be before it stops being current) ·
-             personalization.ts (widgets, layout, metrics, saved views, tags, pins — display only)
+             personalization.ts (widgets, layout, metrics, saved views, tags, pins — display only) ·
+             history.ts (reconstruct any past date, capital flows, periods, turnover, fee impact) ·
+             attribution.ts (money-weighted contribution, price/dividend split, active return) ·
+             drawdown-history.ts (peak/trough/recovery events, regime)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -557,6 +560,44 @@ Full detail in [`docs/PWA.md`](docs/PWA.md).
 - Every PWA capability degrades: no service worker, blocked storage or no install event costs a
   feature and nothing else.
 
+## Historical & Attribution Rules
+
+Full detail in [`docs/performance-attribution.md`](docs/performance-attribution.md),
+[`docs/fx-attribution.md`](docs/fx-attribution.md) and
+[`docs/historical-rebuild.md`](docs/historical-rebuild.md).
+
+- **Reconstruction is a filter plus the existing engine, never a second one.** `reconstructAt`
+  hands the transactions up to a date to the same `replayPortfolio` and `computeCash` the dashboard
+  calls. A test asserts reconstructing today reproduces today exactly — if those diverge, a second
+  engine has been introduced.
+- **Everything derived is derived on read.** No stored return, contribution, drawdown or monthly
+  figure. Correcting a transaction from March corrects March.
+- **A snapshot stores only what cannot be recomputed** — the value on a day. Quantities, cost basis,
+  realised P&L and cash are exact from transactions whenever they are asked for.
+- **An incomplete day is recorded with its quality, never refused.** A hole in the history is
+  indistinguishable from a day the portfolio was not held; a `PARTIAL` row carries a value *and* the
+  count of what is missing, and a check constraint makes the two agree.
+- **Contribution is money-weighted and says so.** `weight × return` is wrong the moment somebody
+  trades mid-period. The engine reports `basis`, and no screen labels a figure just "return".
+- **The residual is displayed, never distributed.** A gap between the parts and the whole is
+  evidence that something was not captured; scaling the parts to hide it destroys the evidence.
+- **Contribution is not the holding's return**, and both are shown — a position up 40% that was 2%
+  of the portfolio contributed under a point.
+- **Price and dividend components are slices of the total, not additions to it.** Adding them
+  alongside the total double-counts.
+- **FX attribution is always `null`**, typed so. It needs a rate for every day of the period;
+  `fx_rates_daily` starts empty and fills forward, and interpolating a gap is a fabricated
+  observation rather than a recovered one.
+- **Drawdowns are measured on the flow-adjusted return index, never on portfolio value**, so a
+  deposit cannot look like a recovery. Recovery means regaining the old peak, not merely rising, and
+  an unrecovered drawdown is reported as ongoing — never with a projected recovery date.
+- **Regimes are arithmetic states of one portfolio's index**, deliberately not "bull" or "bear".
+- **A value change is not a return.** It includes money paid in, and is labelled separately wherever
+  both appear.
+- **The snapshot job is calendar-aware and idempotent**: the market's own trading date, upserted on
+  `(portfolio_id, snapshot_date)`, refusing a date whose calendar is unverified.
+- **Never rebuild a transaction.** Everything else is a view of them.
+
 ## Personalization Rules
 
 Full detail in [`docs/personalization.md`](docs/personalization.md).
@@ -699,7 +740,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 13 ✅ | Sharing & ecosystem: visibility model, per-section privacy controls, public pages, expiring and revocable share links, immutable snapshots, share presets, preview |
 | 14 ✅ | Production hardening & observability: production audit, provider retry, structured logging everywhere, centralised freshness policy, cache headers, security checklist, incident severity, cross-phase invariants |
 | 15 ✅ | Personalization: user preferences, customizable dashboard widgets, chosen summary metrics, tags and holding groups, saved views, pins and recently viewed, insight dismissal, density, command palette and shortcuts |
-| 16 | Advanced: Monte Carlo, historical FX and currency attribution, FIFO cost basis, tax lots |
+| 16 ✅ | Data intelligence & attribution: historical reconstruction, money-weighted attribution with residual, drawdown history, monthly performance, turnover and fee impact, snapshot quality and versioning, EOD snapshot job, FX rate table |
+| 17 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

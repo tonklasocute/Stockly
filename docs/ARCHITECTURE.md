@@ -563,7 +563,35 @@ Full detail in [`personalization.md`](personalization.md). The decisions that ma
    adds or removes a widget can never leave anyone with a broken or rearranged dashboard.
 6. **Nothing personal can reach a shared page**, because `ShareSource` declares no field for it.
 
-## 24. What is deliberately not here yet
+## 24. Historical intelligence and attribution (phase 16)
+
+Full detail in [`performance-attribution.md`](performance-attribution.md). The decisions that
+matter:
+
+1. **Reconstruction is a filter plus the existing engine.** `reconstructAt` hands the transactions
+   up to a date to the same `replayPortfolio` and `computeCash` the dashboard calls, so a figure
+   about March cannot disagree with what March's dashboard showed — and a test asserts that
+   reconstructing today reproduces today exactly.
+2. **A snapshot stores only what cannot be recomputed.** Quantities, cost basis, realised P&L and
+   cash are exact from transactions on demand; a *price on a past day* is not, and that asymmetry is
+   the entire reason `portfolio_snapshots` exists and the reason it holds so little.
+3. **Attribution is money-weighted, and says so.** `weight × return` assumes a constant weight,
+   which stops being true the moment somebody trades — and recording that is the point of the app.
+   Contributions are measured in money against the same removed flows the portfolio's own gain uses,
+   so the parts sum to the whole arithmetically rather than by construction.
+4. **The residual is displayed, never distributed.** Stockly stores no per-holding price history, so
+   a position held unchanged through a period is under-measured; the gap is shown with the holdings
+   that caused it rather than scaled away.
+5. **FX attribution is typed `null`.** It needs a rate for every day of the period. `fx_rates_daily`
+   begins accumulating them, which makes the capability possible forward and leaves it honestly
+   unavailable for every period before it.
+6. **Drawdowns read the flow-adjusted index**, so a deposit cannot look like a recovery.
+
+`domain/history-invariants.test.ts` runs every historical operation against a live portfolio and
+asserts the transaction set and every financial figure come back byte-identical, plus the structural
+rule that the three new engines import only from `domain/`.
+
+## 25. What is deliberately not here yet
 
 Monte Carlo and any other distribution of outcomes, portfolio optimisation and efficient frontiers,
 automatic execution of any kind, historical FX rates and therefore FX attribution, triangulated
@@ -575,6 +603,7 @@ broker-specific import presets, a public portfolio directory, public profiles or
 comments, followers and every other social feature, shared transactions, journals or simulations,
 dynamic Open Graph image generation, live (rather than published) public pages, portfolio-to-portfolio
 comparison, a portfolio event timeline, a user-level display-currency override, drag-and-drop widget
-reordering, an event bus, any Go service, streamed AI responses, an AI answer cache,
+reordering, per-instrument daily price history and therefore full FX and Brinson attribution,
+market-history backfill, an event bus, any Go service, streamed AI responses, an AI answer cache,
 and any autonomous action taken on a user's behalf. Each has a clear insertion point above; none is
 built until the phase that needs it.

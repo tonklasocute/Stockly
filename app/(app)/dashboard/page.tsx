@@ -13,6 +13,9 @@ import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadDataQuality } from "@/features/data-quality/loader"
 import { loadPreferences } from "@/features/personalization/queries"
+import { loadHistory } from "@/features/history/loader"
+import { AttributionPanel } from "@/features/history/components/attribution-panel"
+import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
 import { resolveMetrics, visibleWidgets, withoutDismissed, type WidgetId } from "@/domain/personalization"
 import { MetricTiles } from "@/features/personalization/components/metric-tiles"
 import { QuickActions } from "@/features/personalization/components/quick-actions"
@@ -65,6 +68,16 @@ export default async function DashboardPage({
   const names = namesFrom(quotes)
   const currency = baseCurrencyOf(active.currency)
   const metrics = resolveMetrics(preferences.favoriteMetrics)
+  /*
+   * Loaded only when a phase 16 widget is actually on screen.
+   *
+   * It costs no upstream call — everything historical is rows already in the database — but it is
+   * still a read, and a dashboard that shows neither widget should not pay for it.
+   */
+  const wantsHistory = visibleWidgets(preferences.dashboardLayout).some(
+    (id) => id === "attribution" || id === "drawdowns",
+  )
+  const history = wantsHistory ? await loadHistory(active.id, "1Y").catch(() => null) : null
   // Dismissal is a display filter applied to a list the rules already produced. The engine runs
   // identically for a user who has dismissed everything.
   const insights = withoutDismissed(intelligence.insights, preferences.dismissedInsights)
@@ -361,6 +374,35 @@ export default async function DashboardPage({
                 </section>
       </>
     ),
+
+    /*
+     * Phase 16's two widgets, both loaded lazily-by-visibility: `loadHistory` is only awaited when
+     * one of them is switched on, so a dashboard that does not show them costs nothing extra. Both
+     * read the same snapshot series and transaction set the rest of the page already has.
+     */
+    attribution: history ? (
+      <AttributionPanel
+        attribution={history.attribution}
+        residual={history.attributionResidual}
+        contributors={history.contributors.contributors}
+        detractors={history.contributors.detractors}
+        currency={currency}
+      />
+    ) : null,
+
+    drawdowns: history?.drawdowns ? (
+      <Section title="Drawdowns" description={history.regime ? REGIME_LABELS[history.regime] : undefined}>
+        <p className="text-sm">
+          {history.drawdowns.worst
+            ? describeDrawdown(history.drawdowns.worst)
+            : "No fall large enough to report."}
+        </p>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Currently {history.drawdowns.currentDepthPct.toFixed(1)}% below its high, measured on the
+          flow-adjusted return index so a deposit cannot look like a recovery.
+        </p>
+      </Section>
+    ) : null,
 
     pinned: (
       <Section title="Pinned">

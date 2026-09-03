@@ -187,6 +187,24 @@ round trip per keystroke would add latency to arithmetic and a second place for 
 the same pure functions that produced it the first time, so it cannot go stale and is never
 financial history.
 
+## History and attribution (phase 16)
+
+**One endpoint, not six.** `/history`, `/attribution`, `/contributors`, `/drawdowns`,
+`/monthly-performance` and `/allocation-history` would be six reads of the same two things — the
+transaction set and the snapshot series — because every one of those answers is derived from them.
+
+| | |
+|---|---|
+| `GET /api/history?portfolioId&period` | Valued series, flow-adjusted index, TWR and MWR, value change and capital flows (stated separately, never conflated), money-weighted attribution with its residual, ranked contributors and detractors, drawdown events with recovery, monthly rows, turnover, fee impact and coverage counts. `period` is validated against a closed enum. |
+
+Everything it returns is **derived on read**. There is no stored return, contribution or drawdown,
+so correcting a transaction corrects the history. It makes **no upstream call** — all of it is rows
+already in the database — so opening the history page cannot cost a provider credit.
+
+`GET|POST /api/cron/snapshots` · shared secret — the end-of-day job. Calendar-aware (the market's
+own trading date, never the server clock), bounded, and idempotent by upsert on
+`(portfolio_id, snapshot_date)`.
+
 ## Personalization (phase 15)
 
 Every route here is user-scoped by RLS, accepts no `userId`, and cannot move a figure — a

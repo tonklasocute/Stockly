@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   Share2,
   ShieldCheck,
+  History,
   Sparkles,
   Target,
   Telescope,
@@ -33,6 +34,8 @@ export const NAV_ITEMS = [
   { href: "/notifications", label: "Notifications", icon: Bell, mobile: true, badge: "unread" },
   { href: "/ai", label: "Stockly AI", icon: Sparkles, mobile: false, badge: null },
   { href: "/analytics", label: "Analytics", icon: BarChart3, mobile: false, badge: null },
+  // Phase 16. Sits beside analytics: both answer "how did this do", one for now and one over time.
+  { href: "/portfolio/history", label: "History", icon: History, mobile: false, badge: null },
   // Phase 10. All three stay off the bottom bar: it fits exactly four before the labels truncate,
   // and a review is something you sit down to, not something you tap between screens.
   { href: "/review", label: "Review", icon: ClipboardCheck, mobile: false, badge: null },

@@ -436,6 +436,15 @@ async function listSnapshots(portfolioId: string): Promise<PortfolioSnapshotRow[
  * ever matters, add a Vercel Cron route that calls this for recently-active portfolios; the upsert
  * below is already idempotent, so nothing else changes.
  */
+/**
+ * The engine version stamped onto every snapshot.
+ *
+ * Bumped when a calculation changes *meaning* — not when it is refactored. It exists so a row from
+ * March is never silently reinterpreted under rules written in June: a reader can see which engine
+ * produced it and, if the two disagree, say so rather than quietly preferring one.
+ */
+export const CALCULATION_VERSION = 1
+
 export async function recordSnapshot(
   portfolioId: string,
   userId: string,
@@ -443,12 +452,22 @@ export async function recordSnapshot(
 ): Promise<void> {
   // A portfolio with no transactions has nothing worth a row.
   if (bundle.transactionCount === 0) return
-  // Never snapshot a value derived from fallback prices — it would bake a wrong day into history.
-  if (bundle.marketDataError || bundle.summary.staleCount > 0) return
-  // Nor one that is missing holdings for want of an exchange rate. A snapshot is the only figure
-  // Stockly cannot recompute later, so a total that silently excluded a position would become a
-  // permanent dip in the performance chart with nothing left to explain it.
-  if (bundle.summary.untranslatedCount > 0) return
+  /*
+   * Phase 16 changed this from "refuse" to "record what it is".
+   *
+   * Refusing an incomplete day left a **hole** in the history, and a hole is indistinguishable from
+   * a day the portfolio was not held — a chart cannot explain a gap it has no row for. Recording
+   * the reading with its quality keeps the evidence: a PARTIAL row carries a value *and* the count
+   * of what is missing from it, and every screen that reads one shows both.
+   *
+   * The one thing still refused is a day priced entirely from fallback: that is not a partial
+   * reading of the market, it is cost basis wearing a price's clothes.
+   */
+  if (bundle.marketDataError) return
+
+  const missingHoldings = bundle.summary.untranslatedCount
+  const quality =
+    bundle.summary.staleCount > 0 ? "STALE" : missingHoldings > 0 ? "PARTIAL" : "COMPLETE"
 
   const supabase = await createClient()
   const { error } = await supabase.from("portfolio_snapshots").upsert(
@@ -463,6 +482,11 @@ export async function recordSnapshot(
       cash_value: Math.max(bundle.cash.balance, 0),
       realized_pnl: bundle.summary.realizedPnl,
       unrealized_pnl: bundle.summary.unrealizedPnl,
+      quality,
+      // A COMPLETE row cannot be missing anything; a check constraint enforces the pair agrees.
+      missing_holdings: quality === "COMPLETE" ? 0 : missingHoldings,
+      calculation_version: CALCULATION_VERSION,
+      source: "PAGE_VIEW",
     },
     { onConflict: "portfolio_id,snapshot_date" },
   )

@@ -104,6 +104,17 @@ export type PortfolioSnapshotRow = {
   cash_value: number
   realized_pnl: number
   unrealized_pnl: number
+  /**
+   * How much of this reading Stockly stands behind. A PARTIAL row carries a value **and**
+   * `missing_holdings`, because a total that quietly excluded two positions looks exactly like one
+   * that included them.
+   */
+  quality: SnapshotQuality
+  /** The engine version that produced it, so an old row is never reinterpreted under new rules. */
+  calculation_version: number
+  missing_holdings: number
+  /** Whether the scheduled close job wrote it, or somebody happening to open the analytics page. */
+  source: SnapshotSource
   created_at: string
   updated_at: string
 }
@@ -511,6 +522,19 @@ export type SavedViewRow = {
   updated_at: string
 }
 
+/** Daily exchange rates. Shared reference data: no user_id, readable by anyone signed in. */
+export type FxRateDailyRow = {
+  base: string
+  quote: string
+  rate_date: string
+  rate: number
+  source: "PROVIDER" | "MANUAL"
+  created_at: string
+}
+
+export type SnapshotQuality = "COMPLETE" | "PARTIAL" | "STALE"
+export type SnapshotSource = "PAGE_VIEW" | "SCHEDULED" | "BACKFILL"
+
 export type ShareVisibility = "PRIVATE" | "LINK_ONLY" | "PUBLIC"
 
 export type PortfolioShareRow = {
@@ -656,7 +680,18 @@ export type Database = {
       }
       portfolio_snapshots: {
         Row: PortfolioSnapshotRow
-        Insert: Omit<PortfolioSnapshotRow, "id" | Timestamps> & { id?: string }
+        // The provenance columns all default in the database, so a row written the way phase 3
+        // wrote it still compiles and still behaves identically.
+        Insert: Omit<
+          PortfolioSnapshotRow,
+          "id" | Timestamps | "quality" | "calculation_version" | "missing_holdings" | "source"
+        > & {
+          id?: string
+          quality?: SnapshotQuality
+          calculation_version?: number
+          missing_holdings?: number
+          source?: SnapshotSource
+        }
         Update: Partial<Omit<PortfolioSnapshotRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
         Relationships: []
       }
@@ -848,6 +883,13 @@ export type Database = {
         Row: SavedViewRow
         Insert: Omit<SavedViewRow, "id" | Timestamps> & { id?: string }
         Update: Partial<Pick<SavedViewRow, "name" | "config" | "portfolio_id">>
+        Relationships: []
+      }
+      fx_rates_daily: {
+        Row: FxRateDailyRow
+        Insert: Omit<FxRateDailyRow, "created_at" | "source"> & { source?: FxRateDailyRow["source"] }
+        /** Reference data written only by the scheduled job; a correction is a new row, not an edit. */
+        Update: never
         Relationships: []
       }
       watchlist_items: {

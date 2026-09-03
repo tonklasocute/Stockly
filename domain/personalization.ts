@@ -66,6 +66,8 @@ export const WIDGETS = [
   "pinned",
   "recent",
   "dataQuality",
+  "attribution",
+  "drawdowns",
 ] as const
 export type WidgetId = (typeof WIDGETS)[number]
 
@@ -106,6 +108,17 @@ export const WIDGET_REGISTRY: Record<WidgetId, WidgetDefinition> = {
   pinned: { id: "pinned", label: "Pinned", description: "Whatever you pinned for quick access." },
   recent: { id: "recent", label: "Recently viewed", description: "The last stocks and portfolios you opened." },
   dataQuality: { id: "dataQuality", label: "Data quality", description: "Stale prices, missing rates and unresolved imports." },
+  attribution: {
+    id: "attribution",
+    label: "Top contributors",
+    description: "Which holdings added most to the portfolio's return, and which removed most.",
+    wide: true,
+  },
+  drawdowns: {
+    id: "drawdowns",
+    label: "Drawdowns",
+    description: "How far the portfolio has fallen from its high, and whether it recovered.",
+  },
 }
 
 export type WidgetPlacement = {
@@ -135,6 +148,9 @@ export const DEFAULT_LAYOUT: readonly WidgetPlacement[] = [
   { id: "pinned", visible: false },
   { id: "recent", visible: false },
   { id: "dataQuality", visible: false },
+  // Phase 16: available, off by default. A new widget must never rearrange an existing dashboard.
+  { id: "attribution", visible: false },
+  { id: "drawdowns", visible: false },
 ]
 
 /**
