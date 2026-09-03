@@ -93,3 +93,28 @@ export const LOCALE_PARAM = "lang"
 
 /** How long the locale cookie lives: a year, refreshed on every change. */
 export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+/**
+ * The request header the middleware uses to carry a URL-chosen language.
+ *
+ * A shared page takes its language from `?lang=`, but `<html lang>` and the client message payload
+ * are decided in the **root layout**, which has no access to a route's search parameters. So the
+ * middleware — which sees the whole URL — puts the answer here, and the resolver reads it first.
+ * Without this the document declared one language while its body rendered in another: a screen
+ * reader would read English prose in a Thai voice, and any client component on the page would
+ * render from the wrong message set.
+ */
+export const LOCALE_HEADER = "x-stockly-locale"
+
+/**
+ * The routes on which `?lang=` decides the language of the whole document.
+ *
+ * Only the pages a stranger reads. Inside the application a language is a preference, and letting
+ * a query parameter override it there would mean any link could silently change what somebody sees
+ * without their preference changing — and would make the cookie and the URL two sources of truth.
+ */
+export const PUBLIC_LOCALE_ROUTES = ["/p/", "/share/", "/snapshot/"] as const
+
+export function acceptsLocaleParam(pathname: string): boolean {
+  return PUBLIC_LOCALE_ROUTES.some((prefix) => pathname.startsWith(prefix))
+}

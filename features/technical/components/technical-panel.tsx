@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { TechnicalSnapshot } from "@/domain/technical"
 import { apiFetch } from "@/lib/api-client"
 import { TechnicalOverview } from "./technical-overview"
+import { useTranslations } from "next-intl"
 
 type Response = {
   snapshot: TechnicalSnapshot
@@ -28,6 +29,7 @@ export function TechnicalPanel({
   currency?: string
   market?: string
 }) {
+  const t = useTranslations("technical")
   const { data, isPending, isError } = useQuery({
     queryKey: ["technical", market, symbol],
     queryFn: () => apiFetch<Response>(`/api/stocks/${symbol}/technical?market=${market}`),
@@ -49,8 +51,8 @@ export function TechnicalPanel({
     return (
       <EmptyState
         icon={LineChart}
-        title="Technical data unavailable"
-        description="Indicators need a year of price history, which could not be loaded for this stock."
+        title={t("unavailable")}
+        description={t("unavailableBody")}
       />
     )
   }

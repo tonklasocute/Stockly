@@ -1,7 +1,9 @@
+import { execSync } from "node:child_process"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { SUPPORTED_LOCALES, type Locale } from "@/domain/locale"
+import { ERROR_CODES, ERROR_DETAILS } from "@/lib/api-codes"
 import { NAMESPACES, type Namespace } from "./namespaces"
 
 /**
@@ -49,18 +51,45 @@ function leaves(messages: Messages, prefix = ""): [string, string][] {
 }
 
 /**
- * The placeholders a message declares.
+ * The placeholders a message declares — the set of values its caller has to supply.
  *
- * ICU plural and select blocks are stripped first, because their *inner* braces are syntax rather
- * than interpolation and their arms legitimately differ between languages — Thai has one plural
- * form and English has two, so `one {...}` exists in one file and not the other. What must match is
- * the set of values the caller has to supply.
+ * ICU plural and select **arms** are removed first, by brace matching, because their inner braces
+ * are syntax rather than interpolation and they legitimately differ between languages: Thai has one
+ * plural form and English has two, so `one {…}` exists in one file and not the other.
+ *
+ * Brace matching rather than a regex, because the first attempt at this cut the message at the
+ * plural block and lost every placeholder *after* it — which then reported a real message as
+ * broken. A nested `{count, plural, one {# holding} other {# holdings}} … {currency}` is exactly
+ * the shape that exposed it.
  */
 function placeholders(message: string): string[] {
-  const withoutArms = message.replace(/,\s*(plural|select|selectordinal)\s*,[\s\S]*$/g, "")
-  return [...withoutArms.matchAll(/\{\s*([a-zA-Z0-9_]+)\s*[,}]/g)]
-    .map((match) => match[1])
-    .sort()
+  let out = ""
+  for (let i = 0; i < message.length; i += 1) {
+    if (message[i] !== "{") {
+      out += message[i]
+      continue
+    }
+
+    // Read the whole `{…}` block, tracking depth so nested arms are consumed with it.
+    let depth = 0
+    let end = i
+    for (; end < message.length; end += 1) {
+      if (message[end] === "{") depth += 1
+      else if (message[end] === "}" && --depth === 0) break
+    }
+    const block = message.slice(i, end + 1)
+    const name = /^\{\s*([a-zA-Z0-9_]+)/.exec(block)?.[1]
+    // Keep the argument name; drop everything the arms contain.
+    out += name ? `{${name}}` : ""
+    i = end
+  }
+
+  /*
+   * A **set**, not a list. English says `{count, plural, one {is} other {are}}` and so mentions
+   * `count` twice, where Thai has no verb agreement and mentions it once. Both need the same value
+   * supplied, which is the only thing this check is about.
+   */
+  return [...new Set([...out.matchAll(/\{\s*([a-zA-Z0-9_]+)\s*\}/g)].map((match) => match[1]))].sort()
 }
 
 describe("translation files", () => {
@@ -134,5 +163,53 @@ describe("translation files", () => {
 
     const thai = values.filter((value) => /[฀-๿]/.test(value))
     expect(thai.length / values.length, `th/${namespace}.json looks untranslated`).toBeGreaterThan(0.5)
+  })
+})
+
+/**
+ * The API's two vocabularies must both have words, in both languages.
+ *
+ * A code with no sentence renders as a key path on screen, and a sentence with no code is dead
+ * weight that nobody notices going stale. Checking both directions catches each.
+ */
+describe("the API error vocabularies are fully translated", () => {
+  const en = JSON.parse(readFileSync(join(ROOT, "en", "errors.json"), "utf8")) as {
+    code: Record<string, string>
+    detail: Record<string, string>
+  }
+  const th = JSON.parse(readFileSync(join(ROOT, "th", "errors.json"), "utf8")) as typeof en
+
+  it("has a sentence for every status code", () => {
+    for (const code of Object.keys(ERROR_CODES)) {
+      expect(en.code[code]?.length, `en ${code}`).toBeGreaterThan(0)
+      expect(th.code[code]?.length, `th ${code}`).toBeGreaterThan(0)
+    }
+  })
+
+  it("has a sentence for every detail", () => {
+    for (const detail of ERROR_DETAILS) {
+      expect(en.detail[detail]?.length, `en ${detail}`).toBeGreaterThan(0)
+      expect(th.detail[detail]?.length, `th ${detail}`).toBeGreaterThan(0)
+    }
+  })
+
+  it("has no sentence for a code or detail that does not exist", () => {
+    expect(Object.keys(en.code).filter((k) => !(k in ERROR_CODES))).toEqual([])
+    expect(Object.keys(en.detail).filter((k) => !(ERROR_DETAILS as readonly string[]).includes(k))).toEqual([])
+  })
+
+  /*
+   * The whole point of the detail vocabulary: every route that throws one must name a key the
+   * client knows. A typo here is a page that shows `errors.detail.dupliactePortfolioName`.
+   */
+  it("is the only vocabulary the route handlers throw", () => {
+    const source = execSync("grep -rho 'new ApiError([^)]*)' app features", { encoding: "utf8" })
+    const thrown = [...source.matchAll(/new ApiError\(\s*"[A-Z_]+",\s*"[^"]*",\s*"([a-zA-Z]+)"/g)].map(
+      (match) => match[1],
+    )
+    expect(thrown.length, "no ApiError carries a detail — did the shape change?").toBeGreaterThan(20)
+    for (const detail of new Set(thrown)) {
+      expect(ERROR_DETAILS as readonly string[], `unknown detail: ${detail}`).toContain(detail)
+    }
   })
 })

@@ -31,20 +31,11 @@ export const EVENT_TYPES = [
 ] as const
 export type EventType = (typeof EVENT_TYPES)[number]
 
-export const EVENT_LABELS: Record<EventType, string> = {
-  EARNINGS: "Earnings",
-  DIVIDEND: "Dividend payment",
-  EX_DIVIDEND: "Ex-dividend",
-  SPLIT: "Share split",
-  REVERSE_SPLIT: "Reverse split",
-  RIGHTS_OFFERING: "Rights offering",
-  TENDER_OFFER: "Tender offer",
-  MERGER: "Merger",
-  ACQUISITION: "Acquisition",
-  AGM: "Annual general meeting",
-  EGM: "Extraordinary general meeting",
-  OTHER: "Corporate action",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /**
  * Which event types a market's data actually covers.
@@ -173,33 +164,51 @@ export function relevantEvents(
 }
 
 /**
- * A sentence for a notification or a list row.
+ * The facts a sentence about an event is built from — never the sentence itself.
  *
- * **Carries no portfolio figure.** A push notification can be read from a lock screen, so it may
- * say that AAPL has an earnings event and must never say what the reader's AAPL position is worth —
- * the same rule phase 5 applied to price alerts.
+ * **Carries no portfolio figure**, and cannot: the shape has nowhere to put one. A push
+ * notification can be read from a lock screen, so it may say that AAPL has an earnings event and
+ * must never say what the reader's AAPL position is worth — the same rule phase 5 applied to price
+ * alerts. The messages in the `fundamentals` namespace are checked against
+ * `FORBIDDEN_INSIGHT_PATTERNS` in both languages, which is where "describes, never advises" is
+ * actually enforced now.
+ *
+ * `shape` picks which sentence to use, and it is deliberately not the event type: "a dividend with
+ * a stated amount" and "a dividend with none" are two different sentences, and four event types
+ * share the generic one.
  */
-export function describeEvent(event: CorporateEvent): string {
-  const when = event.date === null ? "on a date not yet announced" : `on ${event.date}`
-  const qualifier = event.estimated ? " (estimated)" : ""
+export type EventDescription = {
+  shape: "EARNINGS" | "EX_DIVIDEND" | "DIVIDEND_AMOUNT" | "DIVIDEND" | "RATIO" | "GENERIC"
+  symbol: string
+  type: EventType
+  /** `null` means the date has not been announced — never a guessed one. */
+  date: string | null
+  estimated: boolean
+  ratio: string | null
+  amountPerShare: number | null
+  currency: string | null
+}
 
-  switch (event.type) {
-    case "EARNINGS":
-      return `${event.symbol} is scheduled to report earnings ${when}${qualifier}.`
-    case "EX_DIVIDEND":
-      return `${event.symbol} goes ex-dividend ${when}${qualifier}.`
-    case "DIVIDEND":
-      return event.amountPerShare !== null
-        ? `${event.symbol} pays a dividend of ${event.amountPerShare} ${event.currency ?? ""} per share ${when}${qualifier}.`.replace("  ", " ")
-        : `${event.symbol} has a dividend payment ${when}${qualifier}.`
-    case "SPLIT":
-    case "REVERSE_SPLIT":
-      return event.ratio !== null
-        ? `${event.symbol} has a ${event.ratio} ${EVENT_LABELS[event.type].toLowerCase()} ${when}${qualifier}.`
-        : `${event.symbol} has a ${EVENT_LABELS[event.type].toLowerCase()} ${when}${qualifier}.`
-    default:
-      return `${event.symbol} has ${EVENT_LABELS[event.type].toLowerCase()} ${when}${qualifier}.`
+export function describeEvent(event: CorporateEvent): EventDescription {
+  const base = {
+    symbol: event.symbol,
+    type: event.type,
+    date: event.date,
+    estimated: event.estimated,
+    ratio: event.ratio,
+    amountPerShare: event.amountPerShare,
+    currency: event.currency,
   }
+
+  if (event.type === "EARNINGS") return { ...base, shape: "EARNINGS" }
+  if (event.type === "EX_DIVIDEND") return { ...base, shape: "EX_DIVIDEND" }
+  if (event.type === "DIVIDEND") {
+    return { ...base, shape: event.amountPerShare !== null ? "DIVIDEND_AMOUNT" : "DIVIDEND" }
+  }
+  if (event.type === "SPLIT" || event.type === "REVERSE_SPLIT") {
+    return { ...base, shape: event.ratio !== null ? "RATIO" : "GENERIC" }
+  }
+  return { ...base, shape: "GENERIC" }
 }
 
 // ---------------------------------------------------------------- dividend fundamentals

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Rendered per request, not prerendered.
@@ -10,7 +11,9 @@ import Link from "next/link"
  */
 export const dynamic = "force-dynamic"
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations("legal")
+
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm space-y-8">
@@ -24,13 +27,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <nav className="text-muted-foreground flex justify-center gap-4 text-xs">
           <Link href="/terms" className="hover:text-foreground underline-offset-4 hover:underline">
-            Terms
+            {t("nav.terms")}
           </Link>
           <Link href="/privacy" className="hover:text-foreground underline-offset-4 hover:underline">
-            Privacy
+            {t("nav.privacy")}
           </Link>
           <Link href="/disclaimer" className="hover:text-foreground underline-offset-4 hover:underline">
-            Disclaimer
+            {t("nav.disclaimer")}
           </Link>
         </nav>
       </div>

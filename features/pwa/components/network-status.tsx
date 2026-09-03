@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { WifiOff } from "lucide-react"
 import { toast } from "sonner"
 import { useOnline } from "../use-pwa"
+import { useTranslations } from "next-intl"
 
 /**
  * A banner while offline, and a controlled refresh when the connection returns.
@@ -18,6 +19,7 @@ import { useOnline } from "../use-pwa"
  * requests to every endpoint the app knows.
  */
 export function NetworkStatus() {
+  const t = useTranslations("pwa")
   const online = useOnline()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -35,8 +37,8 @@ export function NetworkStatus() {
     // them, which is the whole point of having a query cache.
     void queryClient.invalidateQueries()
     router.refresh()
-    toast.success("Back online — refreshing your data.")
-  }, [online, queryClient, router])
+    toast.success(t("network.backOnline"))
+  }, [online, queryClient, router, t])
 
   if (online) return null
 
@@ -46,8 +48,6 @@ export function NetworkStatus() {
       aria-live="polite"
       className="bg-muted text-muted-foreground safe-top sticky top-0 z-40 flex items-center justify-center gap-2 px-4 py-1.5 text-center text-xs font-medium"
     >
-      <WifiOff className="size-3.5" aria-hidden />
-      Offline · showing the last data loaded
-    </div>
+      <WifiOff className="size-3.5" aria-hidden />{t("network.offline")}</div>
   )
 }

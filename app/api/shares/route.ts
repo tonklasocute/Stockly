@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/server"
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.", "portfolioRequired")
 
     const [row, links, snapshots, published, events] = await Promise.all([
       loadShare(portfolioId),
@@ -64,7 +64,7 @@ export async function PUT(request: Request) {
     const supabase = await createClient()
 
     if (body.slug && !(await slugAvailable(body.slug, body.portfolioId))) {
-      throw new ApiError("CONFLICT", "That public address is already taken.")
+      throw new ApiError("CONFLICT", "That public address is already taken.", "duplicateSlug")
     }
 
     const existing = await loadShare(body.portfolioId)
@@ -83,9 +83,9 @@ export async function PUT(request: Request) {
       { onConflict: "portfolio_id" },
     )
 
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "That public address is already taken.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "That public address is already taken.", "duplicateSlug")
     // A check constraint fired: the database restating a rule the schema also checks.
-    if (error?.code === "23514") throw new ApiError("VALIDATION_ERROR", "Those settings are not allowed together.")
+    if (error?.code === "23514") throw new ApiError("VALIDATION_ERROR", "Those settings are not allowed together.", "settingsIncompatible")
     if (error) throw error
 
     if (before.visibility !== config.visibility) {

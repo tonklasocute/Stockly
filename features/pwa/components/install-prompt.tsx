@@ -9,6 +9,7 @@ import {
   usePlatform,
   useStandalone,
 } from "../use-pwa"
+import { useTranslations } from "next-intl"
 
 /** The Chromium-only event that lets a page trigger the real install dialog. */
 type BeforeInstallPromptEvent = Event & {
@@ -27,6 +28,8 @@ type BeforeInstallPromptEvent = Event & {
  * event and the dismissal timestamp, so there is no effect writing state during render.
  */
 export function InstallPrompt() {
+  const t = useTranslations("pwa")
+  const tc = useTranslations("common")
   const standalone = useStandalone()
   const platform = usePlatform()
   const dismissed = useInstallDismissed()
@@ -66,7 +69,7 @@ export function InstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Install Stockly"
+      aria-label={t("install.title")}
       className="bg-card safe-bottom fixed inset-x-3 bottom-20 z-40 rounded-xl border p-4 shadow-lg sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm lg:bottom-4"
     >
       <div className="flex items-start gap-3">
@@ -74,12 +77,10 @@ export function InstallPrompt() {
           S
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">Install Stockly</p>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            Install Stockly on your device for a faster, app-like experience.
-          </p>
+          <p className="font-semibold">{t("install.title")}</p>
+          <p className="text-muted-foreground mt-0.5 text-sm">{t("install.body")}</p>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Dismiss" onClick={dismissInstallPrompt}>
+        <Button variant="ghost" size="icon-sm" aria-label={tc("actions.dismiss")} onClick={dismissInstallPrompt}>
           <X className="size-4" aria-hidden />
         </Button>
       </div>
@@ -87,23 +88,15 @@ export function InstallPrompt() {
       {platform === "ios" ? (
         <ol className="text-muted-foreground mt-3 space-y-1.5 border-t pt-3 text-sm">
           <li className="flex items-center gap-2">
-            <span className="tabular w-4 shrink-0 font-medium">1.</span>
-            Tap <Share className="size-4 shrink-0" aria-hidden /> Share
-          </li>
+            <span className="tabular w-4 shrink-0 font-medium">1.</span>{t("install.iosTap")}<Share className="size-4 shrink-0" aria-hidden />{t("install.iosShare")}</li>
           <li className="flex items-center gap-2">
-            <span className="tabular w-4 shrink-0 font-medium">2.</span>
-            Choose <SquarePlus className="size-4 shrink-0" aria-hidden /> Add to Home Screen
-          </li>
+            <span className="tabular w-4 shrink-0 font-medium">2.</span>{t("install.iosChoose")}<SquarePlus className="size-4 shrink-0" aria-hidden />{t("install.iosAddToHome")}</li>
           <li className="flex items-center gap-2">
-            <span className="tabular w-4 shrink-0 font-medium">3.</span>
-            Tap Add
-          </li>
+            <span className="tabular w-4 shrink-0 font-medium">3.</span>{t("install.iosTapAdd")}</li>
         </ol>
       ) : (
         <Button onClick={install} className="mt-3 w-full gap-2">
-          <Download className="size-4" aria-hidden />
-          Install
-        </Button>
+          <Download className="size-4" aria-hidden />{t("install.action")}</Button>
       )}
     </div>
   )

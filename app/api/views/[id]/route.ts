@@ -21,9 +21,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .select("*")
       .maybeSingle()
 
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a view with that name.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a view with that name.", "duplicateViewName")
     if (error) throw error
-    if (!data) throw new ApiError("NOT_FOUND", "That view does not exist.")
+    if (!data) throw new ApiError("NOT_FOUND", "That view does not exist.", "viewMissing")
 
     invalidatePersonalization()
     return ok(data)
@@ -38,7 +38,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     // Deleting a view deletes a filter. No transaction, holding or P&L figure is reachable from it.
     const { data, error } = await supabase.from("saved_views").delete().eq("id", id).select("id").maybeSingle()
     if (error) throw error
-    if (!data) throw new ApiError("NOT_FOUND", "That view does not exist.")
+    if (!data) throw new ApiError("NOT_FOUND", "That view does not exist.", "viewMissing")
 
     invalidatePersonalization()
     return ok({ deleted: true })

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 import { buildPortfolio, replayPortfolio } from "./holdings"
 import { computeCash } from "./cash"
 import {
+  acceptsLocaleParam,
   DEFAULT_LOCALE,
   intlTag,
   isLocale,
@@ -224,7 +225,17 @@ describe("the locale registry", () => {
 })
 
 describe("the locale module cannot reach anything", () => {
+  /*
+   * Comments stripped first.
+   *
+   * The rule is about what the module *does*, and a doc comment that explains why it must not touch
+   * `document.` is not the module touching it. Searching the raw file reported exactly that, which
+   * is a test failing on its own explanation — and the kind of false positive that gets a real
+   * guard deleted.
+   */
   const contents = readFileSync(join(process.cwd(), "domain", "locale.ts"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1")
 
   const FORBIDDEN = [
     "@/lib/",
@@ -249,5 +260,39 @@ describe("the locale module cannot reach anything", () => {
 
   it("imports nothing at all", () => {
     expect(contents).not.toMatch(/^\s*import\s/m)
+  })
+})
+
+/**
+ * Which routes let a URL decide the language.
+ *
+ * Only the pages a stranger reads. Inside the application a language is a preference, and a query
+ * parameter that could override it would mean any link silently changed what somebody saw — and
+ * would make the cookie and the URL two sources of truth for one setting.
+ */
+describe("the public-locale routes", () => {
+  it("covers exactly the three shared routes", () => {
+    for (const path of ["/p/acme", "/share/abc123", "/snapshot/abc123"]) {
+      expect(acceptsLocaleParam(path), path).toBe(true)
+    }
+  })
+
+  it("covers nothing inside the application", () => {
+    for (const path of [
+      "/dashboard",
+      "/portfolio",
+      "/transactions",
+      "/settings",
+      "/login",
+      "/api/portfolios",
+      "/",
+      "/privacy",
+      // Near-misses, deliberately: a prefix match must not catch these.
+      "/paper-trading",
+      "/shared-thing",
+      "/snapshots",
+    ]) {
+      expect(acceptsLocaleParam(path), path).toBe(false)
+    }
   })
 })

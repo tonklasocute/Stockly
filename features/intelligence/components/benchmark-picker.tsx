@@ -13,6 +13,7 @@ import {
 import { apiFetch } from "@/lib/api-client"
 // From the types module, not the barrel: the barrel is `server-only`.
 import type { BenchmarkDefinition } from "@/services/benchmark/types"
+import { useTranslations } from "next-intl"
 
 const NONE = "__none"
 
@@ -32,6 +33,7 @@ export function BenchmarkPicker({
   benchmarks: BenchmarkDefinition[]
   selectedId: string | null
 }) {
+  const t = useTranslations("intelligence")
   const router = useRouter()
 
   const select = useMutation({
@@ -41,7 +43,7 @@ export function BenchmarkPicker({
         body: JSON.stringify({ portfolioId, benchmarkId }),
       }),
     onSuccess: () => {
-      toast.success("Benchmark updated.")
+      toast.success(t("benchmark.updated"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -55,17 +57,17 @@ export function BenchmarkPicker({
       onValueChange={(value) => select.mutate(value === NONE || !value ? null : value)}
       disabled={select.isPending}
     >
-      <SelectTrigger aria-label="Benchmark" className="w-48">
+      <SelectTrigger aria-label={t("benchmark.label")} className="w-48">
         <SelectValue>
           {(value) =>
             value === NONE
-              ? "No benchmark"
-              : (benchmarks.find((b) => b.id === value)?.name ?? "No benchmark")
+              ? t("benchmark.none")
+              : (benchmarks.find((b) => b.id === value)?.name ?? t("benchmark.none"))
           }
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE}>No benchmark</SelectItem>
+        <SelectItem value={NONE}>{t("benchmark.none")}</SelectItem>
         {benchmarks.map((benchmark) => (
           <SelectItem key={benchmark.id} value={benchmark.id}>
             {benchmark.name} · {benchmark.currency}

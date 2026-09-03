@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { PortfolioRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 export function PortfolioSwitcher({
   portfolios,
@@ -22,6 +23,7 @@ export function PortfolioSwitcher({
   activeId: string | null
   onCreate: () => void
 }) {
+  const t = useTranslations("portfolios")
   const router = useRouter()
   const pathname = usePathname()
   const active = portfolios.find((p) => p.id === activeId)
@@ -29,9 +31,7 @@ export function PortfolioSwitcher({
   if (portfolios.length === 0) {
     return (
       <Button variant="outline" size="sm" onClick={onCreate} className="gap-2">
-        <Plus className="size-4" aria-hidden />
-        New portfolio
-      </Button>
+        <Plus className="size-4" aria-hidden />{t("newPortfolio")}</Button>
     )
   }
 
@@ -61,9 +61,7 @@ export function PortfolioSwitcher({
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onCreate} className="gap-2">
-          <Plus className="size-4" aria-hidden />
-          New portfolio
-        </DropdownMenuItem>
+          <Plus className="size-4" aria-hidden />{t("newPortfolio")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

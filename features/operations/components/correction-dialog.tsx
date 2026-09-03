@@ -22,6 +22,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatTime } from "@/lib/format"
 import type { FinancialAuditRow, TransactionRow } from "@/types/database"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 /**
  * Correcting a transaction, with the reason kept.
@@ -57,6 +58,9 @@ export function CorrectionDialog({
   onOpenChange: (open: boolean) => void
   transaction: TransactionRow
 }) {
+  const to = useTranslations("operations")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [symbol, setSymbol] = useState(transaction.symbol)
@@ -100,7 +104,7 @@ export function CorrectionDialog({
         }),
       }),
     onSuccess: () => {
-      toast.success("Corrected. The original values are kept in the audit trail.")
+      toast.success(to("correction.corrected"))
       onOpenChange(false)
       router.refresh()
     },
@@ -120,16 +124,14 @@ export function CorrectionDialog({
           noValidate
         >
           <DialogHeader>
-            <DialogTitle>Correct this transaction</DialogTitle>
-            <DialogDescription>
-              The previous values are kept. Nothing is overwritten without a record of what it was.
-            </DialogDescription>
+            <DialogTitle>{to("correction.title")}</DialogTitle>
+            <DialogDescription>{to("correction.hint")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="corr-symbol">Symbol</Label>
+                <Label htmlFor="corr-symbol">{to("correction.symbol")}</Label>
                 <Input
                   id="corr-symbol"
                   value={symbol}
@@ -139,19 +141,19 @@ export function CorrectionDialog({
               </div>
               <MarketSelect id="corr-market" value={market} onChange={setMarket} />
               <div className="space-y-2">
-                <Label htmlFor="corr-side">Side</Label>
+                <Label htmlFor="corr-side">{to("correction.side")}</Label>
                 <select
                   id="corr-side"
                   value={side}
                   onChange={(event) => setSide(event.target.value as typeof side)}
                   className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
                 >
-                  <option value="buy">Buy</option>
-                  <option value="sell">Sell</option>
+                  <option value="buy">{tEnum("transactionSide.buy")}</option>
+                  <option value="sell">{tEnum("transactionSide.sell")}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="corr-date">Trade date</Label>
+                <Label htmlFor="corr-date">{to("correction.tradeDate")}</Label>
                 <Input
                   id="corr-date"
                   type="date"
@@ -160,7 +162,7 @@ export function CorrectionDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="corr-quantity">Quantity</Label>
+                <Label htmlFor="corr-quantity">{to("correction.quantity")}</Label>
                 <Input
                   id="corr-quantity"
                   type="number"
@@ -173,7 +175,7 @@ export function CorrectionDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="corr-price">Price</Label>
+                <Label htmlFor="corr-price">{to("correction.price")}</Label>
                 <Input
                   id="corr-price"
                   type="number"
@@ -186,7 +188,7 @@ export function CorrectionDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="corr-fee">Fee</Label>
+                <Label htmlFor="corr-fee">{to("correction.fee")}</Label>
                 <Input
                   id="corr-fee"
                   type="number"
@@ -201,12 +203,12 @@ export function CorrectionDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="corr-reason">Why are you correcting it?</Label>
+              <Label htmlFor="corr-reason">{to("correction.why")}</Label>
               <Input
                 id="corr-reason"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                placeholder="The statement shows 110 shares, not 100"
+                placeholder={to("correction.placeholder")}
                 maxLength={500}
                 required
                 aria-describedby="corr-reason-help"
@@ -218,15 +220,13 @@ export function CorrectionDialog({
             </div>
 
             <div className="space-y-2 border-t pt-3">
-              <p className="text-sm font-medium">History</p>
+              <p className="text-sm font-medium">{to("correction.history")}</p>
               {history.isPending ? (
-                <p className="text-muted-foreground text-xs">Loading…</p>
+                <p className="text-muted-foreground text-xs">{tc("state.loading")}</p>
               ) : history.isError ? (
-                <p className="text-muted-foreground text-xs">
-                  The history could not be loaded. The correction above still works.
-                </p>
+                <p className="text-muted-foreground text-xs">{to("correction.historyFailed")}</p>
               ) : (history.data?.events.length ?? 0) === 0 ? (
-                <p className="text-muted-foreground text-xs">No changes recorded yet.</p>
+                <p className="text-muted-foreground text-xs">{to("correction.noChanges")}</p>
               ) : (
                 <ul className="text-muted-foreground space-y-1.5 text-xs">
                   {history.data?.events.map((event) => (
@@ -247,9 +247,7 @@ export function CorrectionDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{tc("actions.cancel")}</Button>
             <Button type="submit" disabled={!canSubmit || mutation.isPending}>
               {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               Save correction

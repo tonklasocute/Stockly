@@ -20,11 +20,11 @@ import type { Currency, MarketId } from "./market"
 export const SHARE_VISIBILITIES = ["PRIVATE", "LINK_ONLY", "PUBLIC"] as const
 export type ShareVisibility = (typeof SHARE_VISIBILITIES)[number]
 
-export const VISIBILITY_LABELS: Record<ShareVisibility, string> = {
-  PRIVATE: "Private",
-  LINK_ONLY: "Anyone with the link",
-  PUBLIC: "Public",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export const VISIBILITY_HELP: Record<ShareVisibility, string> = {
   PRIVATE: "Only you can see this portfolio. Any share link you have created stops working.",
@@ -96,12 +96,11 @@ export const DEFAULT_SHARE_CONFIG: ShareConfig = {
 export const SHARE_TEMPLATES = ["PRIVATE", "PERFORMANCE", "OVERVIEW", "FULL"] as const
 export type ShareTemplate = (typeof SHARE_TEMPLATES)[number]
 
-export const TEMPLATE_LABELS: Record<ShareTemplate, string> = {
-  PRIVATE: "Private",
-  PERFORMANCE: "Performance",
-  OVERVIEW: "Portfolio overview",
-  FULL: "Everything shareable",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export const TEMPLATE_HELP: Record<ShareTemplate, string> = {
   PRIVATE: "Nothing is shared.",

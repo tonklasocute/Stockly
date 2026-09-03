@@ -31,18 +31,12 @@ import { currencyOf, symbolKey, toMarket } from "@/domain/market"
 import { formatCurrency, formatOptional } from "@/lib/format"
 import type { Quote } from "@/services/market-data/types"
 import type { WatchlistItemRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 type SortKey = "added" | "symbol" | "change" | "score" | "rsi" | "rvol" | "adx"
 
-const SORT_LABELS: Record<SortKey, string> = {
-  added: "Recently added",
-  symbol: "Symbol",
-  change: "Biggest move",
-  score: "Technical score",
-  rsi: "RSI",
-  rvol: "Relative volume",
-  adx: "ADX",
-}
+/** Keys into `watchlist.sortBy`; the words are chosen at the render site. */
+const SORT_KEYS: readonly SortKey[] = ["added", "symbol", "change", "score", "rsi", "rvol", "adx"]
 
 /** A technical figure for one row, as of the last snapshot refresh. */
 export type RowTechnicals = {
@@ -64,6 +58,7 @@ export function WatchlistTable({
   quotes: Record<string, Quote>
   technicals?: Record<string, RowTechnicals>
 }) {
+  const t = useTranslations("watchlist")
   const router = useRouter()
   // Quotes and snapshots arrive keyed by market and symbol together, so a mixed-market list cannot
   // show a US price on a SET row.
@@ -104,7 +99,7 @@ export function WatchlistTable({
     mutationFn: (item: WatchlistItemRow) =>
       apiFetch(`/api/watchlist/${item.symbol}?market=${item.market}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Removed from your watchlist.")
+      toast.success(t("removed"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -115,8 +110,8 @@ export function WatchlistTable({
       <div className="rounded-xl border">
         <EmptyState
           icon={Eye}
-          title="Your watchlist is empty"
-          description="Search for a stock and add it to start tracking it."
+          title={t("empty")}
+          description={t("emptyBody")}
         />
       </div>
     )
@@ -166,19 +161,19 @@ export function WatchlistTable({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search watchlist"
+            placeholder={t("search")}
             className="pl-9"
-            aria-label="Search watchlist"
+            aria-label={t("search")}
           />
         </div>
         <Select value={sort} onValueChange={(value) => setSort((value as SortKey) ?? "added")}>
-          <SelectTrigger aria-label="Sort watchlist" className="w-40">
-            <SelectValue>{(value) => SORT_LABELS[value as SortKey]}</SelectValue>
+          <SelectTrigger aria-label={t("sort")} className="w-40">
+            <SelectValue>{(value) => t(`sortBy.${value as SortKey}`)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+            {SORT_KEYS.map((key) => (
               <SelectItem key={key} value={key}>
-                {SORT_LABELS[key]}
+                {t(`sortBy.${key}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -187,7 +182,7 @@ export function WatchlistTable({
 
       {visible.length === 0 ? (
         <div className="rounded-xl border">
-          <EmptyState icon={Search} title="No matches" description={`Nothing matches “${query}”.`} />
+          <EmptyState icon={Search} title={t("noMatches")} description={`Nothing matches “${query}”.`} />
         </div>
       ) : (
         <>
@@ -224,14 +219,14 @@ export function WatchlistTable({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Change</TableHead>
+                  <TableHead>{t("symbol")}</TableHead>
+                  <TableHead>{t("company")}</TableHead>
+                  <TableHead className="text-right">{t("price")}</TableHead>
+                  <TableHead className="text-right">{t("change")}</TableHead>
                   <TableHead className="text-right">RSI</TableHead>
                   <TableHead className="text-right">RVOL</TableHead>
-                  <TableHead>Trend</TableHead>
-                  <TableHead className="text-right">Target buy</TableHead>
+                  <TableHead>{t("trend")}</TableHead>
+                  <TableHead className="text-right">{t("targetBuy")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>

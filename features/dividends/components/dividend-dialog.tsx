@@ -28,6 +28,7 @@ import {
   type DividendFormValues,
   type DividendInput,
 } from "../schema"
+import { useTranslations } from "next-intl"
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -44,6 +45,8 @@ export function DividendDialog({
   currency: string
   dividend?: DividendRow
 }) {
+  const t = useTranslations("dividends")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(dividend)
 
@@ -100,10 +103,10 @@ export function DividendDialog({
   const errors = form.formState.errors
 
   const numberFields = [
-    { name: "shares", label: "Shares" },
-    { name: "dividendPerShare", label: "Dividend / share" },
-    { name: "tax", label: "Tax" },
-    { name: "fee", label: "Fee" },
+    { name: "shares", label: t("columns.shares") },
+    { name: "dividendPerShare", label: t("form.perShare") },
+    { name: "tax", label: t("columns.tax") },
+    { name: "fee", label: t("columns.fee") },
   ] as const
 
   return (
@@ -112,15 +115,13 @@ export function DividendDialog({
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} noValidate>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit dividend" : "Record dividend"}</DialogTitle>
-            <DialogDescription>
-              Net dividends are added to your cash balance and drive both yield figures.
-            </DialogDescription>
+            <DialogDescription>{t("form.hint")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="dividend-symbol">Symbol</Label>
+                <Label htmlFor="dividend-symbol">{t("columns.symbol")}</Label>
                 <Input
                   id="dividend-symbol"
                   placeholder="AAPL"
@@ -139,7 +140,7 @@ export function DividendDialog({
                 onChange={(next) => form.setValue("market", next)}
               />
               <div className="space-y-2">
-                <Label htmlFor="dividend-date">Payment date</Label>
+                <Label htmlFor="dividend-date">{t("form.paymentDate")}</Label>
                 <Input
                   id="dividend-date"
                   type="date"
@@ -175,19 +176,18 @@ export function DividendDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dividend-notes">
-                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              <Label htmlFor="dividend-notes">{t("form.notes")}<span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input id="dividend-notes" {...form.register("notes")} />
             </div>
 
             <dl className="bg-muted/50 grid grid-cols-2 gap-2 rounded-lg px-3 py-2.5 text-sm">
               <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Gross</dt>
+                <dt className="text-muted-foreground">{t("columns.gross")}</dt>
                 <dd className="tabular font-medium">{formatCurrency(gross, currency)}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-muted-foreground">Net</dt>
+                <dt className="text-muted-foreground">{t("columns.net")}</dt>
                 <dd className="tabular font-semibold">{formatCurrency(net, currency)}</dd>
               </div>
             </dl>
@@ -201,9 +201,7 @@ export function DividendDialog({
               variant="ghost"
               className="max-sm:h-11"
               onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+            >{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Record dividend"}

@@ -24,17 +24,17 @@ export async function GET(request: Request) {
 
     const scope = params.get("scope") ?? "PORTFOLIO"
     if (!SCOPES.includes(scope as FeedScope)) {
-      throw new ApiError("VALIDATION_ERROR", "That feed does not exist.")
+      throw new ApiError("VALIDATION_ERROR", "That feed does not exist.", "feedInvalid")
     }
 
     const sort = params.get("sort") ?? "RELEVANCE"
     if (!(NEWS_SORTS as readonly string[]).includes(sort)) {
-      throw new ApiError("VALIDATION_ERROR", "That sort order is not one Stockly offers.")
+      throw new ApiError("VALIDATION_ERROR", "That sort order is not one Stockly offers.", "sortInvalid")
     }
 
     const category = params.get("category") ?? undefined
     if (category !== undefined && !(NEWS_CATEGORIES as readonly string[]).includes(category)) {
-      throw new ApiError("VALIDATION_ERROR", "That category does not exist.")
+      throw new ApiError("VALIDATION_ERROR", "That category does not exist.", "categoryInvalid")
     }
 
     const limit = Number(params.get("limit") ?? 40)

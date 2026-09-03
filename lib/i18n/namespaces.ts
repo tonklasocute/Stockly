@@ -19,12 +19,13 @@ export const NAMESPACES = [
   "validation",
   "metadata",
 
-  // One per feature slice in `features/`.
+  // One per feature slice in `features/` that has any user-facing text. `features/automation` is
+  // the scheduled-refresh layer: it writes counters to `job_executions` and renders nothing, and
+  // an empty namespace is a file nobody notices going stale.
   "ai",
   "alerts",
   "analytics",
   "auth",
-  "automation",
   "cash",
   "dashboard",
   "dataQuality",
@@ -35,6 +36,9 @@ export const NAMESPACES = [
   "imports",
   "intelligence",
   "journal",
+  // Not a feature slice: the privacy, terms and disclaimer pages belong to the product, not to
+  // any part of it, and their prose is long enough that mixing it into `common` would drown it.
+  "legal",
   "news",
   "notifications",
   "operations",

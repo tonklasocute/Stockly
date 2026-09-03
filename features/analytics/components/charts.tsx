@@ -16,6 +16,7 @@ import {
 import type { AllocationSlice, PerformancePoint } from "@/domain/analytics"
 import type { DividendPeriod } from "@/domain/dividends"
 import { formatCurrency, formatPercent } from "@/lib/format"
+import { useTranslations } from "next-intl"
 
 const COLORS = [
   "var(--chart-1)",
@@ -58,9 +59,10 @@ export function AllocationDonut({
   currency: string
   keep?: number
 }) {
+  const t = useTranslations("analytics")
   const data = collapse(slices, keep)
   if (data.length === 0) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">Nothing to allocate yet.</p>
+    return <p className="text-muted-foreground py-8 text-center text-sm">{t("allocation.empty")}</p>
   }
 
   return (

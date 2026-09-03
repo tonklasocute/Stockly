@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { NAV_ITEMS } from "@/components/app-shell/nav-items"
 import type { PortfolioRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 /**
  * The command palette, and the shortcuts that open it.
@@ -42,6 +43,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
+  const t = useTranslations("personalization")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -54,22 +56,22 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
     const navigation = NAV_ITEMS.map((item) => ({
       id: `nav:${item.href}`,
       label: item.label,
-      hint: "Go to",
+      hint: t("palette.goTo"),
       href: item.href,
     }))
     const feeds = [
-      { id: "news:portfolio", label: "Portfolio news", hint: "News", href: "/news?scope=PORTFOLIO" },
-      { id: "news:watchlist", label: "Watchlist news", hint: "News", href: "/news?scope=WATCHLIST" },
-      { id: "news:market", label: "Market news", hint: "News", href: "/news?scope=MARKET" },
+      { id: "news:portfolio", label: t("palette.portfolioNews"), hint: t("palette.news"), href: "/news?scope=PORTFOLIO" },
+      { id: "news:watchlist", label: t("palette.watchlistNews"), hint: t("palette.news"), href: "/news?scope=WATCHLIST" },
+      { id: "news:market", label: t("palette.marketNews"), hint: t("palette.news"), href: "/news?scope=MARKET" },
     ]
     const portfolioCommands = portfolios.map((portfolio) => ({
       id: `portfolio:${portfolio.id}`,
       label: portfolio.name,
-      hint: "Portfolio",
+      hint: t("palette.portfolio"),
       href: `/dashboard?p=${portfolio.id}`,
     }))
     return [...navigation, ...feeds, ...portfolioCommands]
-  }, [portfolios])
+  }, [portfolios, t])
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -92,13 +94,13 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
       found.push({
         id: `stock:${ticker}`,
         label: ticker,
-        hint: "Open stock",
+        hint: t("palette.openStock"),
         href: `/stocks/${ticker}`,
       })
     }
 
     return found
-  }, [commands, query])
+  }, [commands, query, t])
 
   /**
    * Clamped during render rather than reset in an effect.
@@ -161,7 +163,7 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="p-0 sm:max-w-lg">
-        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogTitle className="sr-only">{t("palette.open")}</DialogTitle>
         <input
           ref={inputRef}
           autoFocus
@@ -170,8 +172,8 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
             setQuery(event.target.value)
             setHighlighted(0)
           }}
-          placeholder="Go to a page or a portfolio…"
-          aria-label="Search commands"
+          placeholder={t("palette.placeholder")}
+          aria-label={t("palette.searchCommands")}
           aria-controls="command-results"
           aria-activedescendant={matches[activeIndex] ? `command-${matches[activeIndex].id}` : undefined}
           className="w-full border-b bg-transparent px-4 py-3 text-sm outline-none"
@@ -189,9 +191,9 @@ export function CommandPalette({ portfolios }: { portfolios: PortfolioRow[] }) {
           }}
         />
 
-        <ul id="command-results" role="listbox" aria-label="Commands" className="max-h-80 overflow-y-auto p-1">
+        <ul id="command-results" role="listbox" aria-label={t("palette.commands")} className="max-h-80 overflow-y-auto p-1">
           {matches.length === 0 ? (
-            <li className="text-muted-foreground px-3 py-6 text-center text-sm">No matches.</li>
+            <li className="text-muted-foreground px-3 py-6 text-center text-sm">{t("palette.empty")}</li>
           ) : (
             matches.map((command, index) => (
               <li key={command.id} id={`command-${command.id}`} role="option" aria-selected={index === activeIndex}>

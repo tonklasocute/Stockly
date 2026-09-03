@@ -12,6 +12,7 @@ import { TAG_COLORS } from "@/features/personalization/schema"
 import { TAG_CLASSES } from "@/features/personalization/tag-colors"
 import { apiFetch } from "@/lib/api-client"
 import type { TagRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 /**
  * Creating and deleting tags.
@@ -20,6 +21,8 @@ import type { TagRow } from "@/types/database"
  * else — no transaction references a tag, so there is no way for this screen to touch money.
  */
 export function TagManager({ tags }: { tags: TagRow[] }) {
+  const t = useTranslations("personalization")
+  const tc = useTranslations("common")
   const router = useRouter()
   const [name, setName] = useState("")
   const [color, setColor] = useState<(typeof TAG_COLORS)[number]>("slate")
@@ -41,8 +44,8 @@ export function TagManager({ tags }: { tags: TagRow[] }) {
 
   return (
     <Section
-      title="Tags"
-      description="Your own labels for positions — “Core”, “Dividend”, “High conviction”. They group and filter holdings and never change a figure."
+      title={t("tags.title")}
+      description={t("tags.managerDescription")}
     >
       <form
         className="flex flex-wrap items-end gap-2"
@@ -57,17 +60,17 @@ export function TagManager({ tags }: { tags: TagRow[] }) {
         }}
       >
         <div className="min-w-40 flex-1 space-y-1.5">
-          <Label htmlFor="tagName">New tag</Label>
+          <Label htmlFor="tagName">{t("tags.new")}</Label>
           <Input
             id="tagName"
             value={name}
             onChange={(event) => setName(event.target.value)}
             maxLength={30}
-            placeholder="High conviction"
+            placeholder={t("tags.examplePlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="tagColor">Colour</Label>
+          <Label htmlFor="tagColor">{t("tags.colour")}</Label>
           <select
             id="tagColor"
             className="border-input bg-background h-9 rounded-md border px-3 text-sm capitalize pointer-coarse:h-11"
@@ -83,7 +86,7 @@ export function TagManager({ tags }: { tags: TagRow[] }) {
         </div>
         <Button type="submit" disabled={busy || name.trim().length === 0}>
           <Plus className="size-4" />
-          Add
+          {tc("actions.add")}
         </Button>
       </form>
 
@@ -114,7 +117,7 @@ export function TagManager({ tags }: { tags: TagRow[] }) {
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground mt-4 text-sm">No tags yet.</p>
+        <p className="text-muted-foreground mt-4 text-sm">{t("tags.noneYet")}</p>
       )}
     </Section>
   )

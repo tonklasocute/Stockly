@@ -1,7 +1,19 @@
+/*
+ * The prompt is English, deliberately, and reads the English messages directly.
+ *
+ * The model is asked to name a metric and an operator; the words it is given must be the words the
+ * system prompt was written around, and they must not change when a user switches language — an
+ * English prompt with Thai vocabulary in the middle of it is a worse prompt, and a *translated*
+ * prompt is a different prompt whose behaviour nobody has checked. So this imports `locales/en`
+ * rather than calling a translator: one source for the words, and an explicit statement that this
+ * particular consumer always wants the English ones. See `docs/AI.md`.
+ */
+import EN_ENUMS from "@/locales/en/enums.json"
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import {
+  type DataPoint,
   assessCompleteness,
   summarizeHistory,
   type AIIntent,
@@ -11,7 +23,6 @@ import {
 import {
   analyze,
   scoreTechnicals,
-  SIGNAL_LABELS,
   type ScoreComponent,
   type TechnicalSnapshot,
 } from "@/domain/technical"
@@ -19,8 +30,6 @@ import {
 import {
   matchesFilter,
   readMetric,
-  METRIC_LABELS,
-  OPERATOR_LABELS,
   SCREENER_PRESETS,
   type ScreenerDefinition,
   type ScreenerMetric,
@@ -228,7 +237,7 @@ async function loadStockFacts(
         : snapshot
           ? rebuildComponents(snapshot)
           : [],
-      signals: (snapshot?.signals ?? []).map((code) => SIGNAL_LABELS[code] ?? code),
+      signals: (snapshot?.signals ?? []).map((code) => EN_ENUMS.technicalSignal[code] ?? code),
       candleCount: snapshot?.candleCount ?? 0,
       indicatorsAsOf: calculatedAt,
       indicatorsDelayed: snapshot === null ? true : delayed,
@@ -379,30 +388,30 @@ export async function buildContext(input: BuildContextInput): Promise<AIContext>
  * confidence that a price will move; nothing in Stockly produces one of those.
  */
 function completenessPoints(grounded: GroundedData, plan: ReturnType<typeof retrievalPlan>) {
-  const points: { label: string; available: boolean }[] = []
+  const points: DataPoint[] = []
 
   for (const stock of grounded.stocks) {
     points.push(
-      { label: `${stock.symbol} price`, available: stock.price !== null },
-      { label: `${stock.symbol} indicators`, available: stock.rsi !== null || stock.adx !== null },
-      { label: `${stock.symbol} technical score`, available: stock.score !== null },
-      { label: `${stock.symbol} volume`, available: stock.relativeVolume !== null },
+      { ref: { code: "price", symbol: stock.symbol }, available: stock.price !== null },
+      { ref: { code: "indicators", symbol: stock.symbol }, available: stock.rsi !== null || stock.adx !== null },
+      { ref: { code: "score", symbol: stock.symbol }, available: stock.score !== null },
+      { ref: { code: "volume", symbol: stock.symbol }, available: stock.relativeVolume !== null },
     )
     if (plan.history) {
-      points.push({ label: `${stock.symbol} price history`, available: stock.history !== null })
+      points.push({ ref: { code: "history", symbol: stock.symbol }, available: stock.history !== null })
     }
   }
   if (plan.portfolio) {
     points.push(
-      { label: "Portfolio valuation", available: grounded.portfolio !== null },
-      { label: "Sector breakdown", available: (grounded.portfolio?.sectors.length ?? 0) > 0 },
+      { ref: { code: "portfolioValuation" }, available: grounded.portfolio !== null },
+      { ref: { code: "sectorBreakdown" }, available: (grounded.portfolio?.sectors.length ?? 0) > 0 },
     )
   }
   if (plan.watchlist) {
-    points.push({ label: "Watchlist", available: (grounded.watchlist?.count ?? 0) > 0 })
+    points.push({ ref: { code: "watchlist" }, available: (grounded.watchlist?.count ?? 0) > 0 })
   }
-  if (plan.market) points.push({ label: "Market breadth", available: grounded.market !== null })
-  if (plan.screen) points.push({ label: "Screen results", available: grounded.screen !== null })
+  if (plan.market) points.push({ ref: { code: "marketBreadth" }, available: grounded.market !== null })
+  if (plan.screen) points.push({ ref: { code: "screenResults" }, available: grounded.screen !== null })
 
   return points
 }
@@ -555,7 +564,7 @@ async function explainScreen(
   const results = definition.filters.map((filter) => {
     const passed = matchesFilter(stored.snapshot, context, filter)
     return {
-      condition: `${METRIC_LABELS[filter.metric]} ${OPERATOR_LABELS[filter.operator]} ${filter.value}`,
+      condition: `${EN_ENUMS.screenerMetric[filter.metric]} ${EN_ENUMS.screenerOperator[filter.operator]} ${filter.value}`,
       passed,
       actual: describeActual(stored.snapshot, filter.metric),
     }

@@ -25,10 +25,10 @@ export async function POST(request: Request) {
 
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData().catch(() => null)
-      if (!form) throw new ApiError("VALIDATION_ERROR", "That upload could not be read.")
+      if (!form) throw new ApiError("VALIDATION_ERROR", "That upload could not be read.", "fileUnreadable")
 
       const file = form.get("file")
-      if (!(file instanceof File)) throw new ApiError("VALIDATION_ERROR", "Attach a file.")
+      if (!(file instanceof File)) throw new ApiError("VALIDATION_ERROR", "Attach a file.", "fileRequired")
       if (file.size > MAX_IMPORT_BYTES) {
         throw new ApiError(
           "PAYLOAD_TOO_LARGE",

@@ -27,6 +27,7 @@ import {
   formatPercent,
 } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /**
  * Stress testing.
@@ -91,6 +92,7 @@ export function StressTester({
   asOf: string | null
   staleCount: number
 }) {
+  const t = useTranslations("simulations")
   const [drafts, setDrafts] = useState<Draft[]>([{ kind: "UNIFORM", target: "", changePct: "-20" }])
 
   const sectors = useMemo(
@@ -133,9 +135,7 @@ export function StressTester({
 
   if (holdings.length === 0) {
     return (
-      <p className="text-muted-foreground py-8 text-center text-sm">
-        Stress testing needs at least one holding to restate.
-      </p>
+      <p className="text-muted-foreground py-8 text-center text-sm">{t("stress.needsHolding")}</p>
     )
   }
 
@@ -152,8 +152,8 @@ export function StressTester({
 
       {/* ---------------------------------------------------------------- matrix */}
       <Section
-        title="Scenario matrix"
-        description="The same portfolio under a series of falls. Each row is a full calculation, not the first row scaled — cash does not fall, so the relationship is not proportional."
+        title={t("stress.matrix")}
+        description={t("stress.matrixHint")}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem] text-sm">
@@ -164,11 +164,11 @@ export function StressTester({
             </caption>
             <thead>
               <tr className="text-muted-foreground border-b text-left text-xs">
-                <th scope="col" className="py-2 pr-3 font-medium">Price fall</th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">Portfolio value</th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">Impact</th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">Portfolio change</th>
-                <th scope="col" className="py-2 text-right font-medium">Gain needed to return</th>
+                <th scope="col" className="py-2 pr-3 font-medium">{t("stress.priceFall")}</th>
+                <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.portfolioValue")}</th>
+                <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.impact")}</th>
+                <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.portfolioChange")}</th>
+                <th scope="col" className="py-2 text-right font-medium">{t("stress.gainNeeded")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -202,16 +202,14 @@ export function StressTester({
 
       {/* ---------------------------------------------------------------- builder */}
       <Section
-        title="Build a scenario"
-        description="Add assumptions. Where two of them reach the same holding they compound, and each one's own effect is listed below."
+        title={t("stress.build")}
+        description={t("stress.buildHint")}
       >
         <div className="space-y-3">
           {drafts.map((draft, index) => (
             <div key={index} className="grid gap-2 sm:grid-cols-[10rem_1fr_7rem_auto]">
               <div className="space-y-1">
-                <Label htmlFor={`stress-kind-${index}`} className="sr-only">
-                  Assumption type
-                </Label>
+                <Label htmlFor={`stress-kind-${index}`} className="sr-only">{t("stress.assumptionType")}</Label>
                 <select
                   id={`stress-kind-${index}`}
                   value={draft.kind}
@@ -234,9 +232,7 @@ export function StressTester({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor={`stress-target-${index}`} className="sr-only">
-                  What it applies to
-                </Label>
+                <Label htmlFor={`stress-target-${index}`} className="sr-only">{t("stress.appliesTo")}</Label>
                 <select
                   id={`stress-target-${index}`}
                   value={draft.target}
@@ -279,9 +275,7 @@ export function StressTester({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor={`stress-pct-${index}`} className="sr-only">
-                  Percentage move
-                </Label>
+                <Label htmlFor={`stress-pct-${index}`} className="sr-only">{t("stress.percentageMove")}</Label>
                 <Input
                   id={`stress-pct-${index}`}
                   type="number"
@@ -316,9 +310,7 @@ export function StressTester({
             size="sm"
             onClick={() => setDrafts((current) => [...current, { kind: "MARKET", target: "", changePct: "-10" }])}
           >
-            <Plus className="size-4" aria-hidden />
-            Add an assumption
-          </Button>
+            <Plus className="size-4" aria-hidden />{t("stress.addAssumption")}</Button>
         </div>
 
         {currencies.length > 0 ? (
@@ -333,20 +325,20 @@ export function StressTester({
       {/* ---------------------------------------------------------------- result */}
       {result ? (
         <>
-          <Section title="Result" description={result.scenario.name}>
+          <Section title={t("stress.result")} description={result.scenario.name}>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Metric label="Portfolio now" value={formatCurrency(result.baseValue, baseCurrency)} />
+              <Metric label={t("stress.portfolioNow")} value={formatCurrency(result.baseValue, baseCurrency)} />
               <Metric
-                label="Under this scenario"
+                label={t("stress.underScenario")}
                 value={formatCurrency(result.stressedValue, baseCurrency)}
               />
               <Metric
-                label="Impact"
+                label={t("stress.impact")}
                 value={formatCurrency(result.absoluteImpact, baseCurrency)}
                 hint={formatOptionalPercent(result.percentageImpact)}
               />
               <Metric
-                label="Gain needed to return"
+                label={t("stress.gainNeeded")}
                 value={formatOptionalPercent(result.recovery?.requiredGainPct ?? null)}
                 hint={
                   result.recovery
@@ -359,8 +351,8 @@ export function StressTester({
 
           {result.components.length > 0 ? (
             <Section
-              title="Where the impact comes from"
-              description="Each assumption's effect on top of the ones before it, in the order applied. The parts add up to the whole exactly."
+              title={t("stress.decomposition")}
+              description={t("stress.decompositionHint")}
             >
               <ul className="divide-y">
                 {result.components.map((component, index) => (
@@ -378,7 +370,7 @@ export function StressTester({
                   </li>
                 ))}
                 <li className="flex items-baseline justify-between gap-2 py-2 text-sm font-semibold">
-                  <span>Total</span>
+                  <span>{t("stress.total")}</span>
                   <span className="tabular">{formatCurrency(result.absoluteImpact, baseCurrency)}</span>
                 </li>
               </ul>
@@ -386,18 +378,18 @@ export function StressTester({
           ) : null}
 
           <Section
-            title="By position"
-            description="Only holdings the scenario moved, largest impact first."
+            title={t("stress.byPosition")}
+            description={t("stress.byPositionHint")}
           >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
                   <tr className="text-muted-foreground border-b text-left text-xs">
-                    <th scope="col" className="py-2 pr-3 font-medium">Holding</th>
-                    <th scope="col" className="py-2 pr-3 text-right font-medium">Price move</th>
-                    <th scope="col" className="py-2 pr-3 text-right font-medium">Value now</th>
-                    <th scope="col" className="py-2 pr-3 text-right font-medium">Scenario value</th>
-                    <th scope="col" className="py-2 text-right font-medium">Impact</th>
+                    <th scope="col" className="py-2 pr-3 font-medium">{t("stress.holding")}</th>
+                    <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.priceMove")}</th>
+                    <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.valueNow")}</th>
+                    <th scope="col" className="py-2 pr-3 text-right font-medium">{t("stress.scenarioValue")}</th>
+                    <th scope="col" className="py-2 text-right font-medium">{t("stress.impact")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -429,7 +421,7 @@ export function StressTester({
             </div>
           </Section>
 
-          <Section title="What this assumed" description="Read the figures above only with these.">
+          <Section title={t("stress.assumed")} description={t("stress.assumedHint")}>
             <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-sm">
               {result.assumptions.map((line, index) => (
                 <li key={index}>{line}</li>
@@ -438,22 +430,22 @@ export function StressTester({
 
             <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Metric
-                label="Coverage"
+                label={t("stress.coverage")}
                 value={`${result.coverage.shocked} / ${result.coverage.total}`}
                 hint="holdings moved by this scenario"
               />
               <Metric
-                label="Out of scope"
+                label={t("stress.outOfScope")}
                 value={result.coverage.unaffected}
                 hint="correctly untouched"
               />
               <Metric
-                label="Excluded"
+                label={t("stress.excluded")}
                 value={result.coverage.excluded.length}
                 hint={result.coverage.excluded.length > 0 ? "data gaps — see below" : "none"}
               />
               <Metric
-                label="Prices as of"
+                label={t("stress.pricesAsOf")}
                 value={result.dataAsOf ?? "N/A"}
                 hint={staleCount > 0 ? `${staleCount} priced from cost` : undefined}
               />
@@ -480,30 +472,28 @@ export function StressTester({
           </Section>
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">
-          Set a percentage on at least one assumption to see a result.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("stress.needsPercentage")}</p>
       )}
 
       {/* ---------------------------------------------------------------- historical */}
       <Section
-        title="Worst fall this portfolio has been through"
-        description="Measured on its own return history, with money paid in and taken out removed — so a deposit was never mistaken for a recovery."
+        title={t("stress.historical")}
+        description={t("stress.historicalHint")}
       >
         {historicalResult && historical ? (
           <>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Metric
-                label="Observed fall"
+                label={t("stress.observedFall")}
                 value={formatPercent(historical.components[0].changePct as number)}
               />
               <Metric
-                label="Same fall applied today"
+                label={t("stress.sameFallToday")}
                 value={formatCurrency(historicalResult.stressedValue, baseCurrency)}
                 hint={formatCurrency(historicalResult.absoluteImpact, baseCurrency)}
               />
               <Metric
-                label="Gain needed to return"
+                label={t("stress.gainNeeded")}
                 value={formatOptionalPercent(historicalResult.recovery?.requiredGainPct ?? null)}
               />
             </dl>

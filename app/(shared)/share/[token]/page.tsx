@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { getTranslations } from "next-intl/server"
 import { PublicPortfolioView } from "@/features/sharing/components/public-portfolio-view"
 import { Unavailable } from "@/features/sharing/components/unavailable"
 import { readSharedByToken } from "@/features/sharing/public"
@@ -19,9 +20,18 @@ import { resolvePublicLocale } from "@/lib/i18n/resolve"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export const metadata: Metadata = {
-  title: "Shared portfolio",
-  robots: { index: false, follow: false, nocache: true },
+/**
+ * Localized, and still `noindex` unconditionally.
+ *
+ * A crawler that indexed a capability link would turn "anyone with the link" into "anyone" — the
+ * language of the title has no bearing on that, and the directive stays where it was.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("metadata")
+  return {
+    title: t("shared.sharedPortfolio"),
+    robots: { index: false, follow: false, nocache: true },
+  }
 }
 
 export default async function SharedLinkPage({
@@ -36,7 +46,7 @@ export default async function SharedLinkPage({
     readSharedByToken(token),
     resolvePublicLocale(await searchParams),
   ])
-  if (!view) return <Unavailable reason="LINK" />
+  if (!view) return <Unavailable reason="LINK" locale={locale} />
 
   return <PublicPortfolioView portfolio={view.portfolio} asOf={view.publishedAt} locale={locale} />
 }

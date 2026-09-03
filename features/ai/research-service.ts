@@ -68,12 +68,16 @@ export type ResearchInput = {
   savedScreens?: SavedScreenRow[]
 }
 
-/** The narrative used when the model cannot produce a compliant answer. Never a fabricated one. */
+/**
+ * The narrative used when the model cannot produce a compliant answer. Never a fabricated one.
+ *
+ * The sentence is empty and the answer's existing `safetyFiltered` flag is what says why; the words
+ * are chosen by the component, in the reader's language. Phase 21: this is the one narrative Stockly writes itself, so it is the one
+ * that has to be translatable — everything else in a `Narrative` is the model's own prose and is
+ * left exactly as it was generated.
+ */
 const WITHHELD_NARRATIVE: Narrative = {
-  summary:
-    "Stockly AI could not produce a compliant summary for this question, so the written analysis " +
-    "has been withheld. The data below was still retrieved from Stockly's own engines and is " +
-    "unaffected.",
+  summary: "",
   interpretation: "",
   positives: [],
   risks: [],

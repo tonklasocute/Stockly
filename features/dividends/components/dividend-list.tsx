@@ -28,6 +28,7 @@ import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import type { DividendRow } from "@/types/database"
 import { DividendDialog } from "./dividend-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 const amountsOf = (row: DividendRow) =>
   dividendAmounts({
@@ -46,6 +47,8 @@ export function DividendList({
   portfolioId: string
   currency: string
 }) {
+  const t = useTranslations("dividends")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [query, setQuery] = useState("")
@@ -63,7 +66,7 @@ export function DividendList({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/dividends/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Dividend deleted.")
+      toast.success(t("deleted"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -89,9 +92,7 @@ export function DividendList({
           }}
           className="gap-2"
         >
-          <Pencil className="size-4" aria-hidden />
-          Edit
-        </DropdownMenuItem>
+          <Pencil className="size-4" aria-hidden />{tc("actions.edit")}</DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           className="gap-2"
@@ -101,9 +102,7 @@ export function DividendList({
             }
           }}
         >
-          <Trash2 className="size-4" aria-hidden />
-          Delete
-        </DropdownMenuItem>
+          <Trash2 className="size-4" aria-hidden />{tc("actions.delete")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -119,34 +118,30 @@ export function DividendList({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search symbol or notes"
+            placeholder={t("search.placeholder")}
             className="pl-9"
-            aria-label="Search dividends"
+            aria-label={t("search.label")}
           />
         </div>
         <Button onClick={openNew} className="gap-2 max-sm:h-11 max-sm:w-full">
-          <Plus className="size-4" aria-hidden />
-          Record dividend
-        </Button>
+          <Plus className="size-4" aria-hidden />{t("record")}</Button>
       </div>
 
       {dividends.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
             icon={Coins}
-            title="No dividends yet"
-            description="Record a payment and Stockly works out your income, yield on cost and yield on current value."
+            title={t("empty.title")}
+            description={t("empty.body")}
             action={
               <Button onClick={openNew} className="gap-2 max-sm:h-11">
-                <Plus className="size-4" aria-hidden />
-                Record dividend
-              </Button>
+                <Plus className="size-4" aria-hidden />{t("record")}</Button>
             }
           />
         </div>
       ) : visible.length === 0 ? (
         <div className="rounded-xl border">
-          <EmptyState icon={Search} title="No matches" description={`Nothing matches “${query}”.`} />
+          <EmptyState icon={Search} title={t("noMatches")} description={`Nothing matches “${query}”.`} />
         </div>
       ) : (
         <>
@@ -169,17 +164,17 @@ export function DividendList({
                   </div>
                   <dl className="text-muted-foreground mt-2.5 grid grid-cols-3 gap-2 border-t pt-2.5 text-xs">
                     <div>
-                      <dt>Shares</dt>
+                      <dt>{t("columns.shares")}</dt>
                       <dd className="tabular text-foreground">{formatQuantity(row.shares)}</dd>
                     </div>
                     <div>
-                      <dt>Per share</dt>
+                      <dt>{t("columns.perShare")}</dt>
                       <dd className="tabular text-foreground">
                         {formatCurrency(row.dividend_per_share, currency, 4)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Gross</dt>
+                      <dt>{t("columns.gross")}</dt>
                       <dd className="tabular text-foreground">
                         {formatCurrency(amounts.gross, currency)}
                       </dd>
@@ -194,14 +189,14 @@ export function DividendList({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead className="text-right">Shares</TableHead>
-                  <TableHead className="text-right">Per share</TableHead>
-                  <TableHead className="text-right">Gross</TableHead>
-                  <TableHead className="text-right">Tax</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>{t("columns.date")}</TableHead>
+                  <TableHead>{t("columns.symbol")}</TableHead>
+                  <TableHead className="text-right">{t("columns.shares")}</TableHead>
+                  <TableHead className="text-right">{t("columns.perShare")}</TableHead>
+                  <TableHead className="text-right">{t("columns.gross")}</TableHead>
+                  <TableHead className="text-right">{t("columns.tax")}</TableHead>
+                  <TableHead className="text-right">{t("columns.fee")}</TableHead>
+                  <TableHead className="text-right">{t("columns.net")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>

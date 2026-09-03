@@ -221,16 +221,11 @@ export function qualityOf({
 export const HISTORY_PERIODS = ["1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "MAX"] as const
 export type HistoryPeriod = (typeof HISTORY_PERIODS)[number]
 
-export const PERIOD_LABELS: Record<HistoryPeriod, string> = {
-  "1W": "1 week",
-  "1M": "1 month",
-  "3M": "3 months",
-  "6M": "6 months",
-  YTD: "Year to date",
-  "1Y": "1 year",
-  "3Y": "3 years",
-  MAX: "All time",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** Where a period starts, in calendar terms. MAX has no start. */
 export function periodStart(period: HistoryPeriod, now: Date): string | null {

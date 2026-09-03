@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import type { CashTransactionRow } from "@/types/database"
 import { CashDialog } from "./cash-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 export function CashList({
   transactions,
@@ -30,6 +31,8 @@ export function CashList({
   portfolioId: string
   currency: string
 }) {
+  const t = useTranslations("cash")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [editing, setEditing] = useState<CashTransactionRow | undefined>()
@@ -38,7 +41,7 @@ export function CashList({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/cash/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Cash transaction deleted.")
+      toast.success(t("deleted"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -53,22 +56,18 @@ export function CashList({
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={openNew} className="gap-2 max-sm:h-11 max-sm:w-full">
-          <Plus className="size-4" aria-hidden />
-          Record cash
-        </Button>
+          <Plus className="size-4" aria-hidden />{t("record")}</Button>
       </div>
 
       {transactions.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
             icon={Banknote}
-            title="No cash movements yet"
-            description="Record the deposits that funded your trades so your cash balance and allocation are accurate."
+            title={t("empty.title")}
+            description={t("empty.body")}
             action={
               <Button onClick={openNew} className="gap-2 max-sm:h-11">
-                <Plus className="size-4" aria-hidden />
-                Record cash
-              </Button>
+                <Plus className="size-4" aria-hidden />{t("record")}</Button>
             }
           />
         </div>
@@ -125,9 +124,7 @@ export function CashList({
                     }}
                     className="gap-2"
                   >
-                    <Pencil className="size-4" aria-hidden />
-                    Edit
-                  </DropdownMenuItem>
+                    <Pencil className="size-4" aria-hidden />{tc("actions.edit")}</DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
                     className="gap-2"
@@ -135,9 +132,7 @@ export function CashList({
                       if (confirm(`Delete this ${row.kind}?`)) remove.mutate(row.id)
                     }}
                   >
-                    <Trash2 className="size-4" aria-hidden />
-                    Delete
-                  </DropdownMenuItem>
+                    <Trash2 className="size-4" aria-hidden />{tc("actions.delete")}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </li>

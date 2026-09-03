@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest"
+import EN_ENUMS from "@/locales/en/enums.json"
+import TH_ENUMS from "@/locales/th/enums.json"
 import {
   CROSSABLE_METRICS,
   FUNDAMENTAL_METRICS,
   isFundamentalMetric,
   matchesFilter,
-  METRIC_LABELS,
   readMetric,
   SCREENER_METRICS,
   type ScreenerContext,
@@ -84,11 +85,15 @@ describe("the fundamental metrics live in the same screener", () => {
 
   it("each carry a label naming its period, never a bare multiple", () => {
     for (const metric of FUNDAMENTAL_METRICS) {
-      expect(METRIC_LABELS[metric].length).toBeGreaterThan(0)
+      expect(EN_ENUMS.screenerMetric[metric].length, `en ${metric}`).toBeGreaterThan(0)
+      expect(TH_ENUMS.screenerMetric[metric].length, `th ${metric}`).toBeGreaterThan(0)
     }
     // A multiple without its period is the thing a reader misreads.
-    expect(METRIC_LABELS.PE_RATIO).toContain("TTM")
-    expect(METRIC_LABELS.REVENUE_GROWTH).toContain("YoY")
+    // A period is part of a figure, in both languages: "P/E" bare is never shown.
+    expect(EN_ENUMS.screenerMetric.PE_RATIO).toContain("TTM")
+    expect(TH_ENUMS.screenerMetric.PE_RATIO).toContain("12 เดือนย้อนหลัง")
+    expect(EN_ENUMS.screenerMetric.REVENUE_GROWTH).toContain("YoY")
+    expect(TH_ENUMS.screenerMetric.REVENUE_GROWTH).toContain("เทียบปีก่อน")
   })
 
   it("offer crossing operators only where a crossing exists", () => {

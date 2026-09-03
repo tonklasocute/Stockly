@@ -8,7 +8,7 @@ import { describeError, logger, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveReque
 import { rateLimit } from "@/lib/rate-limit"
 import { isAIError } from "@/services/ai/errors"
 import { isMarketDataError } from "@/services/market-data/errors"
-import { ERROR_CODES, type ErrorCode } from "./api-codes"
+import { ERROR_CODES, type ErrorCode, type ErrorDetail } from "./api-codes"
 import { getUser } from "@/lib/supabase/server"
 
 /*
@@ -41,7 +41,14 @@ export const MAX_IMPORT_REQUEST_BYTES = 2 * 1024 * 1024
 export type ApiSuccess<T> = { success: true; data: T }
 export type ApiFailure = {
   success: false
-  error: { code: ErrorCode; message: string; details?: Record<string, string[]> }
+  error: {
+    code: ErrorCode
+    /** English, for logs and for a developer. The client translates `detail` or `code`. */
+    message: string
+    /** A specific reason the client can put words to. */
+    detail?: ErrorDetail
+    details?: Record<string, string[]>
+  }
   /** Echoed so a user can quote it in a bug report and it can be found in the logs. */
   requestId?: string
 }
@@ -67,11 +74,17 @@ export function fail(
   message: string,
   details?: Record<string, string[]>,
   requestId?: string,
+  detail?: ErrorDetail,
 ) {
   return NextResponse.json<ApiFailure>(
     {
       success: false,
-      error: { code, message, ...(details ? { details } : {}) },
+      error: {
+        code,
+        message,
+        ...(detail ? { detail } : {}),
+        ...(details ? { details } : {}),
+      },
       ...(requestId ? { requestId } : {}),
     },
     {
@@ -107,7 +120,13 @@ async function requestHeadersOrNull(): Promise<Headers | null> {
 export class ApiError extends Error {
   constructor(
     readonly code: ErrorCode,
+    /**
+     * The English sentence, for a log and for a developer. **Never shown to a user** since phase
+     * 21 — the client renders `detail` or `code` instead, in the reader's own language.
+     */
     message: string,
+    /** Which specific reason this is, when the status code alone does not say. */
+    readonly detail?: ErrorDetail,
   ) {
     super(message)
   }
@@ -159,7 +178,7 @@ export async function guarded(
       return finish(fail(error.code, error.message, error.details, requestId), "warn")
     }
     if (error instanceof ApiError) {
-      return finish(fail(error.code, error.message, undefined, requestId), "warn")
+      return finish(fail(error.code, error.message, undefined, requestId, error.detail), "warn")
     }
     // The message is already written for a user; the provider detail stays in `cause`.
     if (isMarketDataError(error)) {

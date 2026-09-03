@@ -1,1 +1,40 @@
-{}
+{
+  "title": "Dashboard",
+  "empty": {
+    "title": "Nothing to show yet",
+    "body": "Add your first transaction and your portfolio value, cost basis and profit and loss appear here.",
+    "action": "Add a transaction"
+  },
+  "sections": {
+    "allocation": "Allocation",
+    "allocationEmpty": "No open positions to allocate.",
+    "performance": "Performance",
+    "performanceEmpty": "No open positions yet.",
+    "topHoldings": "Top holdings",
+    "goals": "Goals",
+    "goalsHint": "Measured from the same figures as everything above.",
+    "insights": "Worth a look",
+    "insightsHint": "Facts about this portfolio, never advice.",
+    "news": "News",
+    "newsHint": "Coverage of what you hold and watch.",
+    "drawdowns": "Drawdowns",
+    "pinned": "Pinned",
+    "recent": "Recently viewed",
+    "transactions": "Transactions"
+  },
+  "actions": {
+    "review": "Review",
+    "manage": "Manage",
+    "plan": "Plan",
+    "fullReview": "Full review",
+    "viewAll": "View all"
+  },
+  "review": {
+    "investedCapital": "Invested capital",
+    "netContributed": "Net contributed",
+    "dividendsReceived": "Dividends received",
+    "totalFees": "Total fees",
+    "bestPerformer": "Best performer",
+    "worstPerformer": "Worst performer"
+  }
+}

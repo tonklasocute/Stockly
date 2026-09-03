@@ -1,1 +1,22 @@
-{}
+{
+  "title": "Title",
+  "status": "Status",
+  "whyBought": "Why I bought this",
+  "expect": "What I expect",
+  "catalysts": "Catalysts",
+  "risks": "Risks",
+  "changeMind": "What would change my mind",
+  "none": "No thesis recorded",
+  "write": "Write a thesis",
+  "setStatus": "Set status:",
+  "statusUpdated": "Thesis status updated.",
+  "factsHint": "Facts about this position today. Stockly does not decide what they mean for your thesis.",
+  "placeholders": {
+    "whyBought": "The reasoning at the time, in your own words.",
+    "expect": "What has to happen for this to work out.",
+    "catalysts": "Events that would move the thesis forward.",
+    "risks": "What could go wrong.",
+    "changeMind": "Decided in advance, while you are calm. Stockly will show this back to you — it never judges whether it has happened."
+  },
+  "conviction": "Conviction · {value}/10"
+}

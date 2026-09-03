@@ -13,8 +13,13 @@ import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Data quality" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("dataQuality") }
+}
 export const dynamic = "force-dynamic"
 
 const ICONS: Record<DataQualitySeverity, typeof Info> = {
@@ -43,6 +48,8 @@ export default async function DataQualityPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("dataQuality")
   const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -59,7 +66,7 @@ export default async function DataQualityPage({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Data quality</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("dataQuality")}</h1>
         <p className="text-muted-foreground text-sm">
           {active.name} · what Stockly could not confirm, and why a figure reads N/A
         </p>
@@ -71,14 +78,12 @@ export default async function DataQualityPage({
             ? "Nothing to report"
             : `${report.issues.length} issue${report.issues.length === 1 ? "" : "s"}`
         }
-        description="Computed from the portfolio as it stands, every time this page loads — so an issue cannot linger after the thing that caused it was fixed."
+        description={t("hint")}
       >
         {report.issues.length === 0 ? (
           <div className="flex items-center gap-3 py-4">
             <CircleCheck className="text-gain size-5 shrink-0" aria-hidden />
-            <p className="text-muted-foreground text-sm">
-              Every holding is priced, every currency has a rate, and no import needs attention.
-            </p>
+            <p className="text-muted-foreground text-sm">{t("clean")}</p>
           </div>
         ) : (
           <ul className="divide-y">
@@ -117,26 +122,26 @@ export default async function DataQualityPage({
       </Section>
 
       <Section
-        title="Scheduled refresh"
-        description="Quotes and exchange rates are warmed on a schedule so your first page load of the day is not the request that pays for them."
+        title={t("scheduled")}
+        description={t("scheduledHint")}
       >
         <dl className="grid gap-4 sm:grid-cols-3">
           <Metric
-            label="Last run"
+            label={t("lastRun")}
             value={
               report.lastRefresh
                 ? formatTime(report.lastRefresh.started_at, locale)
-                : <span className="text-muted-foreground">Never</span>
+                : <span className="text-muted-foreground">{t("never")}</span>
             }
             hint={report.lastRefresh ? `Status: ${report.lastRefresh.status}` : "No run recorded yet"}
           />
           <Metric
-            label="Refreshed"
+            label={t("refreshed")}
             value={report.lastRefresh ? String(report.lastRefresh.succeeded) : "N/A"}
             hint="Quotes and rates fetched"
           />
           <Metric
-            label="Failures"
+            label={t("failures")}
             value={report.lastRefresh ? String(report.lastRefresh.failed) : "N/A"}
             hint={report.lastRefresh?.error_summary ?? "Providers that did not answer"}
           />
@@ -152,9 +157,7 @@ export default async function DataQualityPage({
       <p className="text-muted-foreground text-xs">
         Stockly reports what it could not confirm rather than filling the gap with a zero. A figure
         it cannot compute honestly reads N/A everywhere it appears — see{" "}
-        <Link href="/settings" className="underline-offset-4 hover:underline">
-          Settings
-        </Link>{" "}
+        <Link href="/settings" className="underline-offset-4 hover:underline">{t("settings")}</Link>{" "}
         for provider status.
       </p>
     </div>

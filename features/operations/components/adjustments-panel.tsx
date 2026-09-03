@@ -16,6 +16,7 @@ import { formatCurrency, formatDate, formatQuantity } from "@/lib/format"
 import type { Holding } from "@/domain/types"
 import type { ShareAdjustmentRow } from "@/types/database"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 /**
  * Recording a split, and undoing one.
@@ -36,6 +37,7 @@ export function AdjustmentsPanel({
   holdings: Holding[]
   adjustments: ShareAdjustmentRow[]
 }) {
+  const to = useTranslations("operations")
   const locale = useAppLocale()
   const router = useRouter()
   const [symbol, setSymbol] = useState("")
@@ -69,7 +71,7 @@ export function AdjustmentsPanel({
         }),
       }),
     onSuccess: () => {
-      toast.success("Split recorded. Your transactions were not changed.")
+      toast.success(to("adjustments.recorded"))
       setSymbol("")
       router.refresh()
     },
@@ -79,7 +81,7 @@ export function AdjustmentsPanel({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/adjustments/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Split removed. Every figure is back to what it was.")
+      toast.success(to("adjustments.removed"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -96,7 +98,7 @@ export function AdjustmentsPanel({
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="adj-symbol">Symbol</Label>
+            <Label htmlFor="adj-symbol">{to("adjustments.symbol")}</Label>
             <Input
               id="adj-symbol"
               value={symbol}
@@ -109,7 +111,7 @@ export function AdjustmentsPanel({
           {/* MarketSelect renders its own label, so there is no second one here. */}
           <MarketSelect id="adj-market" value={market} onChange={setMarket} />
           <div className="space-y-2">
-            <Label htmlFor="adj-date">Effective date</Label>
+            <Label htmlFor="adj-date">{to("adjustments.effectiveDate")}</Label>
             <Input
               id="adj-date"
               type="date"
@@ -117,12 +119,10 @@ export function AdjustmentsPanel({
               onChange={(event) => setEffectiveDate(event.target.value)}
               aria-describedby="adj-date-help"
             />
-            <p id="adj-date-help" className="text-muted-foreground text-xs">
-              The first day trading at the new price. Trades on or after it are already adjusted.
-            </p>
+            <p id="adj-date-help" className="text-muted-foreground text-xs">{to("adjustments.effectiveDateHint")}</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="adj-numerator">Ratio</Label>
+            <Label htmlFor="adj-numerator">{to("adjustments.ratio")}</Label>
             <div className="flex items-center gap-2">
               <Input
                 id="adj-numerator"
@@ -136,7 +136,7 @@ export function AdjustmentsPanel({
               />
               <span aria-hidden>:</span>
               <Input
-                aria-label="Ratio denominator"
+                aria-label={to("adjustments.ratioDenominator")}
                 type="number"
                 inputMode="decimal"
                 min={0}
@@ -165,23 +165,23 @@ export function AdjustmentsPanel({
 
         {preview && held ? (
           <div className="bg-muted/40 space-y-2 rounded-lg border p-3 text-sm">
-            <p className="font-medium">What this changes</p>
+            <p className="font-medium">{to("adjustments.whatChanges")}</p>
             <dl className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
               <div>
-                <dt>Shares</dt>
+                <dt>{to("adjustments.shares")}</dt>
                 <dd className="text-foreground tabular">
                   {formatQuantity(preview.quantityBefore)} → {formatQuantity(preview.quantityAfter)}
                 </dd>
               </div>
               <div>
-                <dt>Average cost</dt>
+                <dt>{to("adjustments.averageCost")}</dt>
                 <dd className="text-foreground tabular">
                   {formatCurrency(preview.averageCostBefore, currencyOf(held.market))} →{" "}
                   {formatCurrency(preview.averageCostAfter, currencyOf(held.market))}
                 </dd>
               </div>
               <div>
-                <dt>Invested value</dt>
+                <dt>{to("adjustments.investedValue")}</dt>
                 <dd className="text-foreground tabular">
                   {formatCurrency(preview.investedValue, currencyOf(held.market))} · unchanged
                 </dd>
@@ -194,9 +194,7 @@ export function AdjustmentsPanel({
                 sale as a transaction.
               </p>
             ) : null}
-            <p className="text-muted-foreground text-xs">
-              Your transactions are not rewritten. Removing this later restores every figure exactly.
-            </p>
+            <p className="text-muted-foreground text-xs">{to("adjustments.notRewritten")}</p>
           </div>
         ) : null}
 
@@ -228,7 +226,7 @@ export function AdjustmentsPanel({
                 onClick={() => remove.mutate(adjustment.id)}
               >
                 <Trash2 className="size-4" aria-hidden />
-                <span className="sr-only sm:not-sr-only">Remove</span>
+                <span className="sr-only sm:not-sr-only">{to("adjustments.remove")}</span>
               </Button>
             </li>
           ))}

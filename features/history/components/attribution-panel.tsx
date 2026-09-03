@@ -1,6 +1,7 @@
 import { Metric, Section } from "@/components/metric"
 import { Delta, Percent } from "@/components/value"
-import { UNAVAILABLE_REASONS, describeContribution, type AttributionResult, type Contribution } from "@/domain/attribution"
+import { describeContribution, type AttributionResult, type Contribution } from "@/domain/attribution"
+import { getTranslations } from "next-intl/server"
 import { formatCurrency, formatOptionalPercent } from "@/lib/format"
 import type { Currency } from "@/domain/market"
 
@@ -17,7 +18,7 @@ import type { Currency } from "@/domain/market"
  *    happened. `attribution.test.ts` holds these sentences to the insights engine's forbidden
  *    vocabulary.
  */
-export function AttributionPanel({
+export async function AttributionPanel({
   attribution,
   residual,
   contributors,
@@ -30,43 +31,47 @@ export function AttributionPanel({
   detractors: Contribution[]
   currency: Currency
 }) {
+  const t = await getTranslations("analytics")
+
   if (!attribution.ok) {
     return (
-      <Section title="What produced this return" description="Money-weighted attribution">
-        <p className="text-muted-foreground text-sm">{UNAVAILABLE_REASONS[attribution.reason]}</p>
+      <Section title={t("attribution.title")} description={t("attribution.method")}>
+        <p className="text-muted-foreground text-sm">
+          {t(`attribution.unavailable.${attribution.reason}`)}
+        </p>
       </Section>
     )
   }
 
   return (
     <Section
-      title="What produced this return"
-      description="Money-weighted: each holding measured against the money actually in it."
+      title={t("attribution.title")}
+      description={t("attribution.methodHint")}
     >
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Metric
-          label="Total gain"
+          label={t("attribution.totalGain")}
           value={<Delta value={attribution.totalGain} currency={currency} />}
           hint={<Percent value={attribution.totalReturnPct} />}
         />
         <Metric
-          label="From price"
+          label={t("attribution.fromPrice")}
           value={<Delta value={attribution.priceGain} currency={currency} />}
           hint={formatOptionalPercent(attribution.pricePct)}
         />
         <Metric
-          label="From dividends"
+          label={t("attribution.fromDividends")}
           value={<Delta value={attribution.dividendGain} currency={currency} />}
           hint={formatOptionalPercent(attribution.dividendPct)}
         />
         <Metric
-          label="From currency"
+          label={t("attribution.fromCurrency")}
           value={<span className="text-muted-foreground">N/A</span>}
-          hint="Needs historical rates"
+          hint={t("attribution.needsHistoricalRates")}
         />
       </dl>
 
-      <p className="text-muted-foreground mt-3 text-xs">{attribution.fxUnavailableReason}</p>
+      <p className="text-muted-foreground mt-3 text-xs">{t(`attribution.unavailable.${attribution.fxUnavailableCode}`)}</p>
 
       {/*
         External money, stated separately and never folded into the gain. A portfolio that grew
@@ -81,8 +86,8 @@ export function AttributionPanel({
       )}
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
-        <ContributionList title="Added most" rows={contributors} currency={currency} />
-        <ContributionList title="Removed most" rows={detractors} currency={currency} />
+        <ContributionList title={t("attribution.addedMost")} rows={contributors} currency={currency} />
+        <ContributionList title={t("attribution.removedMost")} rows={detractors} currency={currency} />
       </div>
 
       {residual !== null && Math.abs(residual) > 0.01 && (
@@ -98,7 +103,7 @@ export function AttributionPanel({
   )
 }
 
-function ContributionList({
+async function ContributionList({
   title,
   rows,
   currency,
@@ -107,11 +112,13 @@ function ContributionList({
   rows: Contribution[]
   currency: Currency
 }) {
+  const t = await getTranslations("analytics")
+
   return (
     <div className="space-y-2">
       <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</h3>
       {rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nothing in this period.</p>
+        <p className="text-muted-foreground text-sm">{t("attribution.empty")}</p>
       ) : (
         <ul className="divide-y">
           {rows.map((row) => (
@@ -128,9 +135,9 @@ function ContributionList({
                 portfolio contributed under a point.
               */}
               <p className="text-muted-foreground text-xs">
-                {describeContribution(row, currency)}
+                {sentenceFor(describeContribution(row, currency), t)}
                 {row.holdingReturnPct !== null
-                  ? ` Its own return was ${row.holdingReturnPct.toFixed(1)}%.`
+                  ? t("attribution.ownReturn", { pct: row.holdingReturnPct.toFixed(1) })
                   : ""}
               </p>
             </li>
@@ -139,4 +146,25 @@ function ContributionList({
       )}
     </div>
   )
+}
+
+/**
+ * The facts become a sentence here, and only here.
+ *
+ * `describeContribution` reports what a holding did; the ICU message decides how to say it. That
+ * split is why Thai reads as Thai rather than as an English skeleton with Thai words dropped into
+ * it, and why the forbidden-vocabulary test can be run against both languages.
+ */
+function sentenceFor(
+  facts: ReturnType<typeof describeContribution>,
+  t: Awaited<ReturnType<typeof getTranslations<"analytics">>>,
+): string {
+  return facts.incomplete
+    ? t("attribution.contribution.incomplete", { symbol: facts.symbol })
+    : t(`attribution.contribution.${facts.direction}`, {
+        symbol: facts.symbol,
+        points: facts.points,
+        amount: facts.amount,
+        currency: facts.currency,
+      })
 }

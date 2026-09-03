@@ -13,6 +13,7 @@ import { formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { NotificationCategory, NotificationRow } from "@/types/database"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   price: BellRing,
@@ -29,6 +30,7 @@ export function NotificationList({
   notifications: NotificationRow[]
   unread: number
 }) {
+  const t = useTranslations("notifications")
   const locale = useAppLocale()
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export function NotificationList({
   const markAll = useMutation({
     mutationFn: () => apiFetch("/api/notifications/read-all", { method: "POST" }),
     onSuccess: () => {
-      toast.success("All notifications marked as read.")
+      toast.success(t("allMarkedRead"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -59,8 +61,8 @@ export function NotificationList({
       <div className="rounded-xl border">
         <EmptyState
           icon={Bell}
-          title="Nothing here yet"
-          description="When one of your alerts triggers, or a dividend is recorded, it appears here."
+          title={t("empty")}
+          description={t("emptyBody")}
         />
       </div>
     )
@@ -77,9 +79,7 @@ export function NotificationList({
             disabled={markAll.isPending}
             onClick={() => markAll.mutate()}
           >
-            <Check className="size-4" aria-hidden />
-            Mark all as read
-          </Button>
+            <Check className="size-4" aria-hidden />{t("markAllRead")}</Button>
         </div>
       )}
 
@@ -131,7 +131,7 @@ export function NotificationList({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Mark as read"
+                    aria-label={t("markRead")}
                     disabled={busy === notification.id}
                     onClick={() => markRead.mutate(notification.id)}
                   >
@@ -141,7 +141,7 @@ export function NotificationList({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Delete notification"
+                  aria-label={t("deleteOne")}
                   onClick={() => remove.mutate(notification.id)}
                 >
                   <Trash2 className="size-4" aria-hidden />

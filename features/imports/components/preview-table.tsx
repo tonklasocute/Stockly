@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import type { ImportPreview, ImportSeverity, RowOutcome } from "@/domain/import"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 const OUTCOME_LABELS: Record<RowOutcome, string> = {
   CREATE: "Will import",
@@ -43,6 +44,7 @@ const SEVERITY_TONE: Record<ImportSeverity, string> = {
  * on a phone.
  */
 export function PreviewTable({ preview }: { preview: ImportPreview }) {
+  const t = useTranslations("imports")
   const [showAll, setShowAll] = useState(false)
 
   const problems = preview.rows.filter(
@@ -52,9 +54,7 @@ export function PreviewTable({ preview }: { preview: ImportPreview }) {
 
   if (visible.length === 0) {
     return (
-      <p className="text-muted-foreground rounded-xl border py-8 text-center text-sm">
-        Every row passed. Nothing needs your attention.
-      </p>
+      <p className="text-muted-foreground rounded-xl border py-8 text-center text-sm">{t("allPassed")}</p>
     )
   }
 
@@ -104,14 +104,14 @@ export function PreviewTable({ preview }: { preview: ImportPreview }) {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-16">Row</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Symbol</TableHead>
-              <TableHead>Side</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Fee</TableHead>
-              <TableHead>Outcome</TableHead>
+              <TableHead className="w-16">{t("row")}</TableHead>
+              <TableHead>{t("date")}</TableHead>
+              <TableHead>{t("symbol")}</TableHead>
+              <TableHead>{t("side")}</TableHead>
+              <TableHead className="text-right">{t("quantity")}</TableHead>
+              <TableHead className="text-right">{t("price")}</TableHead>
+              <TableHead className="text-right">{t("fee")}</TableHead>
+              <TableHead>{t("outcome")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

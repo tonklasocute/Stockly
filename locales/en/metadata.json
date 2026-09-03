@@ -7,5 +7,15 @@
     "snapshot": "Portfolio snapshot",
     "defaultDescription": "A portfolio shared on Stockly.",
     "describedBy": "A portfolio shared on Stockly by {name}."
+  },
+  "pages": {
+    "notificationSettings": "Notification settings",
+    "importDetail": "Import detail",
+    "privacy": "Privacy",
+    "disclaimer": "Disclaimer",
+    "terms": "Terms",
+    "createAccount": "Create account",
+    "signIn": "Sign in",
+    "offline": "Offline"
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { APP_VERSION } from "@/lib/version"
+import { useTranslations } from "next-intl"
 
 /**
  * Registers the service worker and offers an update when a new one is waiting.
@@ -15,6 +16,8 @@ import { APP_VERSION } from "@/lib/version"
  * discard their input, so the new worker waits until they accept.
  */
 export function ServiceWorkerManager() {
+  const t = useTranslations("pwa")
+  const tc = useTranslations("common")
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null)
 
   useEffect(() => {
@@ -70,10 +73,8 @@ export function ServiceWorkerManager() {
       className="bg-card safe-bottom fixed inset-x-3 bottom-20 z-50 flex items-center gap-3 rounded-xl border p-3 shadow-lg sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm lg:bottom-4"
     >
       <RefreshCw className="text-muted-foreground size-4 shrink-0" aria-hidden />
-      <p className="flex-1 text-sm">A new version of Stockly is available.</p>
-      <Button size="sm" className="max-sm:h-10" onClick={() => waiting.postMessage({ type: "SKIP_WAITING" })}>
-        Refresh
-      </Button>
+      <p className="flex-1 text-sm">{t("update.available")}</p>
+      <Button size="sm" className="max-sm:h-10" onClick={() => waiting.postMessage({ type: "SKIP_WAITING" })}>{tc("actions.refresh")}</Button>
     </div>
   )
 }

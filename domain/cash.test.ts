@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
+import EN_ENUMS from "@/locales/en/enums.json"
+import TH_ENUMS from "@/locales/th/enums.json"
 import {
   CASH_FLOW_DIRECTION,
   CASH_FLOW_KINDS,
-  CASH_FLOW_LABELS,
   computeCash,
   computeCashByCurrency,
   isCapitalFlow,
@@ -83,10 +84,13 @@ describe("cash balance", () => {
 // ---------------------------------------------------------------- phase 19: the wider ledger
 
 describe("cash flow kinds", () => {
-  it("gives every kind a direction and a label", () => {
+  it("gives every kind a direction, and a name in both languages", () => {
+    // The words moved to the `enums` namespace in phase 21; the rule that every kind has one is
+    // now checked against both files rather than against one English map.
     for (const kind of CASH_FLOW_KINDS) {
       expect(CASH_FLOW_DIRECTION[kind]).toBeDefined()
-      expect(CASH_FLOW_LABELS[kind]).toBeTruthy()
+      expect(EN_ENUMS.cashFlow[kind], `en ${kind}`).toBeTruthy()
+      expect(TH_ENUMS.cashFlow[kind], `th ${kind}`).toBeTruthy()
     }
   })
 

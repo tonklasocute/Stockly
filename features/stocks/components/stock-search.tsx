@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { currencyOf } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { InstrumentSummary } from "@/services/market-data/types"
+import { useTranslations } from "next-intl"
 
 /** Waits for the user to stop typing before spending an API credit. */
 function useDebounced<T>(value: T, ms: number): T {
@@ -22,6 +23,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function StockSearch() {
+  const t = useTranslations("stocks")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -68,12 +70,10 @@ export function StockSearch() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        aria-label="Search stocks"
+        aria-label={t("search")}
         className="text-muted-foreground hidden w-56 justify-start gap-2 font-normal sm:flex"
       >
-        <Search className="size-4" aria-hidden />
-        Search stocks…
-        <kbd className="bg-muted text-muted-foreground ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium">
+        <Search className="size-4" aria-hidden />{t("searchShort")}<kbd className="bg-muted text-muted-foreground ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium">
           ⌘K
         </kbd>
       </Button>
@@ -81,7 +81,7 @@ export function StockSearch() {
         variant="ghost"
         size="icon"
         className="sm:hidden"
-        aria-label="Search stocks"
+        aria-label={t("search")}
         onClick={() => setOpen(true)}
       >
         <Search className="size-4" aria-hidden />
@@ -89,15 +89,15 @@ export function StockSearch() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="gap-0 p-0 sm:top-[12dvh] sm:max-w-lg sm:translate-y-0">
-          <DialogTitle className="sr-only">Search stocks</DialogTitle>
+          <DialogTitle className="sr-only">{t("search")}</DialogTitle>
 
           <div className="flex items-center gap-2.5 border-b px-4">
             <Search className="text-muted-foreground size-4 shrink-0" aria-hidden />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by symbol or company name"
-              aria-label="Search by symbol or company name"
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchPlaceholder")}
               className="h-12 border-0 px-0 shadow-none focus-visible:ring-0"
             />
             {isFetching && <Loader2 className="text-muted-foreground size-4 animate-spin" aria-hidden />}
@@ -105,14 +105,10 @@ export function StockSearch() {
 
           <div className="max-h-[55dvh] overflow-y-auto p-1.5 sm:max-h-[60dvh]">
             {trimmed.length < 2 && (
-              <p className="text-muted-foreground px-3 py-8 text-center text-sm">
-                Type at least two characters to search.
-              </p>
+              <p className="text-muted-foreground px-3 py-8 text-center text-sm">{t("searchMinChars")}</p>
             )}
             {isError && (
-              <p className="text-muted-foreground px-3 py-8 text-center text-sm">
-                Unable to load market data. Please try again later.
-              </p>
+              <p className="text-muted-foreground px-3 py-8 text-center text-sm">{t("marketDataError")}</p>
             )}
             {showEmpty && (
               <p className="text-muted-foreground px-3 py-8 text-center text-sm">

@@ -7,10 +7,12 @@ import {
   type FundamentalMetrics,
 } from "@/domain/fundamentals"
 import { VALUATION_DISCLAIMER } from "@/domain/valuation"
-import { EVENT_LABELS, describeEvent } from "@/domain/corporate-events"
+import { describeEvent } from "@/domain/corporate-events"
+import { eventSentence } from "../event-sentence"
 import type { FundamentalBundle } from "@/features/fundamentals/loader"
 import { formatCompact, formatDate } from "@/lib/format"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
 /**
  * The fundamentals section of an instrument page.
@@ -26,6 +28,8 @@ import { appLocale } from "@/lib/i18n/server"
  *    is never something to take on faith.
  */
 export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
+  const tEnum = await getTranslations("enums")
+  const tf = await getTranslations("fundamentals")
   const locale = await appLocale()
   /*
    * The currency the COMPANY reports in — not the market's and not the portfolio's.
@@ -38,12 +42,10 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
     data.ttm?.currency ?? data.annual[0]?.currency ?? data.quarterly[0]?.currency ?? null
   if (!data.covered || data.unavailableReason !== null) {
     return (
-      <Section title="Fundamentals">
+      <Section title={tf("title")}>
         <p className="text-muted-foreground text-sm">{data.unavailableReason}</p>
         {!data.covered && (
-          <p className="text-muted-foreground mt-2 text-xs">
-            This is a limitation of Stockly&apos;s configuration, not a statement about the company.
-          </p>
+          <p className="text-muted-foreground mt-2 text-xs">{tf("notConfigured")}</p>
         )}
       </Section>
     )
@@ -54,11 +56,11 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
   return (
     <div className="space-y-4">
       <Section
-        title="Fundamentals"
+        title={tf("title")}
         description={data.metricsPeriodLabel ? `Latest period: ${data.metricsPeriodLabel}` : undefined}
         action={
           data.freshness === "STALE" ? (
-            <Badge variant="secondary">Data may be outdated</Badge>
+            <Badge variant="secondary">{tf("outdated")}</Badge>
           ) : null
         }
       >
@@ -93,20 +95,20 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
             ))}
           </dl>
         ) : (
-          <p className="text-muted-foreground text-sm">No financial statements are available.</p>
+          <p className="text-muted-foreground text-sm">{tf("noStatements")}</p>
         )}
       </Section>
 
       {growth && (
-        <Section title="Growth" description={`${growth.from} to ${growth.to}, year on year`}>
+        <Section title={tf("growth")} description={`${growth.from} to ${growth.to}, year on year`}>
           {growth.unavailableReason ? (
             <p className="text-muted-foreground text-sm">{growth.unavailableReason}</p>
           ) : (
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Metric label="Revenue" value={renderPercent(growth.revenueGrowth)} />
-              <Metric label="Operating income" value={renderPercent(growth.operatingIncomeGrowth)} />
-              <Metric label="Net income" value={renderPercent(growth.netIncomeGrowth)} />
-              <Metric label="Free cash flow" value={renderPercent(growth.fcfGrowth)} />
+              <Metric label={tf("revenue")} value={renderPercent(growth.revenueGrowth)} />
+              <Metric label={tf("operatingIncome")} value={renderPercent(growth.operatingIncomeGrowth)} />
+              <Metric label={tf("netIncome")} value={renderPercent(growth.netIncomeGrowth)} />
+              <Metric label={tf("freeCashFlow")} value={renderPercent(growth.fcfGrowth)} />
             </dl>
           )}
           <p className="text-muted-foreground mt-3 text-xs">
@@ -118,7 +120,7 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
 
       {valuation && (
         <Section
-          title="Valuation"
+          title={tf("valuation")}
           description={valuation.periodLabel ? `Measured against ${valuation.periodLabel}` : undefined}
         >
           {valuation.unavailableReason ? (
@@ -132,13 +134,13 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
                   hint={valuation.priceToEarnings === null ? "No positive earnings" : undefined}
                 />
                 <Metric label={`P/S (${valuation.periodLabel})`} value={renderRatio(valuation.priceToSales)} />
-                <Metric label="P/B" value={renderRatio(valuation.priceToBook)} />
-                <Metric label="EV / EBITDA" value={renderRatio(valuation.evToEbitda)} />
-                <Metric label="Earnings yield" value={renderPercent(valuation.earningsYield)} />
-                <Metric label="Free cash flow yield" value={renderPercent(valuation.freeCashFlowYield)} />
-                <Metric label="Dividend yield" value={renderPercent(valuation.dividendYield)} />
+                <Metric label={tf("pb")} value={renderRatio(valuation.priceToBook)} />
+                <Metric label={tf("evEbitda")} value={renderRatio(valuation.evToEbitda)} />
+                <Metric label={tf("earningsYield")} value={renderPercent(valuation.earningsYield)} />
+                <Metric label={tf("fcfYield")} value={renderPercent(valuation.freeCashFlowYield)} />
+                <Metric label={tf("dividendYield")} value={renderPercent(valuation.dividendYield)} />
                 <Metric
-                  label="Market cap"
+                  label={tf("marketCap")}
                   value={
                     valuation.marketCap === null
                       ? "N/A"
@@ -153,15 +155,15 @@ export async function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
       )}
 
       {data.events.length > 0 && (
-        <Section title="Events" description="Scheduled corporate events for this instrument.">
+        <Section title={tf("eventsSection")} description={tf("eventsHint")}>
           <ul className="divide-y">
             {data.events.slice(0, 8).map((event, index) => (
               <li key={`${event.type}-${event.date ?? index}`} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm">
-                <span>{describeEvent(event)}</span>
+                <span>{eventSentence(describeEvent(event), tf, tEnum(`corporateEvent.${event.type}`))}</span>
                 <span className="flex items-center gap-2">
                   {/* An estimated date is labelled every time it appears. */}
-                  {event.estimated && <Badge variant="secondary">Estimated</Badge>}
-                  <span className="text-muted-foreground text-xs">{EVENT_LABELS[event.type]}</span>
+                  {event.estimated && <Badge variant="secondary">{tf("estimated")}</Badge>}
+                  <span className="text-muted-foreground text-xs">{tEnum(`corporateEvent.${event.type}`)}</span>
                 </span>
               </li>
             ))}

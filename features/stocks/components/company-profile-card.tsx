@@ -5,19 +5,21 @@ import { ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCompact } from "@/lib/format"
 import type { CompanyProfile } from "@/services/market-data/types"
+import { useTranslations } from "next-intl"
 
 /** Descriptions run to several hundred words; on a phone that has to be collapsible. */
 export function CompanyProfileCard({ profile }: { profile: CompanyProfile }) {
+  const t = useTranslations("stocks")
   const [expanded, setExpanded] = useState(false)
 
   const facts = [
-    { label: "Exchange", value: profile.exchange },
-    { label: "Sector", value: profile.sector },
-    { label: "Industry", value: profile.industry },
-    { label: "Country", value: profile.country },
-    { label: "Market cap", value: profile.marketCap === null ? null : formatCompact(profile.marketCap) },
+    { label: t("profile.exchange"), value: profile.exchange },
+    { label: t("profile.sector"), value: profile.sector },
+    { label: t("profile.industry"), value: profile.industry },
+    { label: t("profile.country"), value: profile.country },
+    { label: t("profile.marketCap"), value: profile.marketCap === null ? null : formatCompact(profile.marketCap) },
     {
-      label: "Employees",
+      label: t("profile.employees"),
       value: profile.employees === null ? null : formatCompact(profile.employees),
     },
   ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value))
@@ -35,9 +37,7 @@ export function CompanyProfileCard({ profile }: { profile: CompanyProfile }) {
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-4 hover:underline"
-          >
-            Website
-            <ExternalLink className="size-3" aria-hidden />
+          >{t("profile.website")}<ExternalLink className="size-3" aria-hidden />
           </a>
         )}
       </div>

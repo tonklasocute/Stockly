@@ -6,8 +6,13 @@ import { journalFilterSchema } from "@/features/journal/schema"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { toPage } from "@/lib/pagination"
 import { NoPortfolio } from "../_no-portfolio"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Journal" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("journal") }
+}
 
 type Props = {
   searchParams: Promise<{
@@ -21,6 +26,7 @@ type Props = {
 }
 
 export default async function JournalPage({ searchParams }: Props) {
+  const tNav = await getTranslations("navigation")
   const query = await searchParams
   const { active } = await resolveActivePortfolio(query.p)
   if (!active) return <NoPortfolio />
@@ -44,7 +50,7 @@ export default async function JournalPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Investment journal</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("journal")}</h1>
         <p className="text-muted-foreground text-sm">
           {active.name} · why you did what you did, kept beside the numbers
         </p>

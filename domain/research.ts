@@ -30,14 +30,11 @@ export const JOURNAL_TYPES = [
 
 export type JournalType = (typeof JOURNAL_TYPES)[number]
 
-export const JOURNAL_LABELS: Record<JournalType, string> = {
-  BUY_THESIS: "Buy thesis",
-  SELL_REASON: "Sell reason",
-  POSITION_REVIEW: "Position review",
-  MARKET_NOTE: "Market note",
-  DIVIDEND_NOTE: "Dividend note",
-  GENERAL: "General",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 // ---------------------------------------------------------------- sell review
 
@@ -54,16 +51,11 @@ export const SELL_REASONS = [
 
 export type SellReason = (typeof SELL_REASONS)[number]
 
-export const SELL_REASON_LABELS: Record<SellReason, string> = {
-  TARGET_REACHED: "Target reached",
-  THESIS_BROKEN: "Thesis broken",
-  RISK_INCREASED: "Risk increased",
-  VALUATION: "Valuation",
-  PORTFOLIO_REBALANCE: "Rebalancing",
-  LIQUIDITY: "Needed the cash",
-  TAX: "Tax",
-  OTHER: "Other",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /**
  * A sell review records *why*. **It never records how much.**
@@ -85,13 +77,11 @@ export const THESIS_STATUSES = ["ACTIVE", "CONFIRMED", "QUESTIONED", "BROKEN", "
 
 export type ThesisStatus = (typeof THESIS_STATUSES)[number]
 
-export const THESIS_STATUS_LABELS: Record<ThesisStatus, string> = {
-  ACTIVE: "Active",
-  CONFIRMED: "Confirmed",
-  QUESTIONED: "Questioned",
-  BROKEN: "Broken",
-  CLOSED: "Closed",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** Drives a badge. Never a judgement — "broken" is the user's word about their own reasoning. */
 export const THESIS_STATUS_TONE: Record<ThesisStatus, "neutral" | "positive" | "caution" | "negative"> = {

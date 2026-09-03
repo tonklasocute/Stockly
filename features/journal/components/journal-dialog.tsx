@@ -29,16 +29,15 @@ import {
 import { MarketSelect } from "@/components/market-select"
 import { toMarket, type MarketId } from "@/domain/market"
 import {
-  JOURNAL_LABELS,
   JOURNAL_TYPES,
   SELL_REASONS,
-  SELL_REASON_LABELS,
   type JournalType,
   type SellReason,
 } from "@/domain/research"
 import { apiFetch } from "@/lib/api-client"
 import type { JournalRow } from "@/types/database"
 import { journalInputSchema, type JournalFormValues, type JournalInput } from "../schema"
+import { useTranslations } from "next-intl"
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -72,6 +71,9 @@ export function JournalDialog({
     title?: string
   }
 }) {
+  const t = useTranslations("journal")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(entry)
 
@@ -138,7 +140,7 @@ export function JournalDialog({
           <div className="grid gap-4 py-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="journal-type">Type</Label>
+                <Label htmlFor="journal-type">{t("type")}</Label>
                 <Select
                   value={type}
                   onValueChange={(value) => form.setValue("type", value as JournalType)}
@@ -150,7 +152,7 @@ export function JournalDialog({
                   <SelectContent>
                     {JOURNAL_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {JOURNAL_LABELS[t]}
+                        {tEnum(`journalType.${t}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -158,7 +160,7 @@ export function JournalDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="journal-date">Date</Label>
+                <Label htmlFor="journal-date">{t("date")}</Label>
                 <Input
                   id="journal-date"
                   type="date"
@@ -174,18 +176,18 @@ export function JournalDialog({
 
             {isSellReview && (
               <div className="space-y-2">
-                <Label htmlFor="journal-reason">Why you sold</Label>
+                <Label htmlFor="journal-reason">{t("whySold")}</Label>
                 <Select
                   value={(form.watch("reason") as string) ?? ""}
                   onValueChange={(value) => form.setValue("reason", value as SellReason)}
                 >
                   <SelectTrigger id="journal-reason" className="w-full">
-                    <SelectValue placeholder="Choose a reason" />
+                    <SelectValue placeholder={t("chooseReason")} />
                   </SelectTrigger>
                   <SelectContent>
                     {SELL_REASONS.map((reason) => (
                       <SelectItem key={reason} value={reason}>
-                        {SELL_REASON_LABELS[reason]}
+                        {tEnum(`sellReason.${reason}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -200,8 +202,7 @@ export function JournalDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="journal-symbol">
-                  Symbol <span className="text-muted-foreground font-normal">(optional)</span>
+                <Label htmlFor="journal-symbol">{t("symbol")}<span className="text-muted-foreground font-normal">(optional)</span>
                 </Label>
                 <Input
                   id="journal-symbol"
@@ -225,10 +226,10 @@ export function JournalDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="journal-title">Title</Label>
+              <Label htmlFor="journal-title">{t("title")}</Label>
               <Input
                 id="journal-title"
-                placeholder="Why I bought this"
+                placeholder={t("whyBought")}
                 aria-invalid={!!errors.title}
                 {...form.register("title")}
               />
@@ -236,11 +237,11 @@ export function JournalDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="journal-content">Notes</Label>
+              <Label htmlFor="journal-content">{t("notes")}</Label>
               <Textarea
                 id="journal-content"
                 rows={6}
-                placeholder="What you were thinking, and what you expected to happen."
+                placeholder={t("thinkingHint")}
                 {...form.register("content")}
               />
               {errors.content && <p className="text-destructive text-sm">{errors.content.message}</p>}
@@ -255,9 +256,7 @@ export function JournalDialog({
               variant="ghost"
               className="max-sm:h-11"
               onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+            >{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Save entry"}

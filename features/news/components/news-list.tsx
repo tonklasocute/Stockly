@@ -3,15 +3,14 @@ import { EmptyState } from "@/components/empty-state"
 import { Section } from "@/components/metric"
 import { Newspaper, ExternalLink } from "lucide-react"
 import {
-  CATEGORY_LABELS,
   NEWS_DISCLAIMER,
   SENTIMENT_DISCLAIMER,
-  SENTIMENT_LABELS,
   type Sentiment,
 } from "@/domain/news"
 import type { NewsBundle } from "@/features/news/loader"
 import { formatTime } from "@/lib/format"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
 /**
  * A news feed.
@@ -38,14 +37,14 @@ export async function NewsList({
   title?: string
   description?: string
 }) {
+  const tn = await getTranslations("news")
+  const tEnum = await getTranslations("enums")
   const locale = await appLocale()
   if (!data.covered) {
     return (
       <Section title={title}>
         <p className="text-muted-foreground text-sm">{data.degradedReason}</p>
-        <p className="text-muted-foreground mt-2 text-xs">
-          This is a limitation of Stockly&apos;s configuration, not a quiet news day.
-        </p>
+        <p className="text-muted-foreground mt-2 text-xs">{tn("emptyBody")}</p>
       </Section>
     )
   }
@@ -55,7 +54,7 @@ export async function NewsList({
       <Section title={title} description={description}>
         <EmptyState
           icon={Newspaper}
-          title="No news available"
+          title={tn("empty")}
           description={
             data.degradedReason ??
             "Nothing has been published recently for the instruments in this feed."
@@ -98,8 +97,8 @@ export async function NewsList({
                 {/* Source and time, always. */}
                 <span className="font-medium">{article.source}</span>
                 <time dateTime={article.publishedAt}>{formatTime(article.publishedAt, locale)}</time>
-                {article.age === "BREAKING" && <Badge variant="outline">Just published</Badge>}
-                <span>{CATEGORY_LABELS[article.category]}</span>
+                {article.age === "BREAKING" && <Badge variant="outline">{tn("justPublished")}</Badge>}
+                <span>{tEnum(`newsCategory.${article.category}`)}</span>
                 {article.relation !== "MARKET" && (
                   <Badge variant={article.relation === "HELD" ? "outline" : "secondary"}>
                     {article.relation === "HELD" ? "Held" : "Watching"}
@@ -139,7 +138,8 @@ export async function NewsList({
  * absence is the message, and the disclaimer under the list explains what a present badge means.
  * Never colour alone: the label is the content.
  */
-function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
+async function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
+  const tEnum = await getTranslations("enums")
   if (sentiment === "UNKNOWN") return null
-  return <Badge variant="secondary">{SENTIMENT_LABELS[sentiment]}</Badge>
+  return <Badge variant="secondary">{tEnum(`sentiment.${sentiment}`)}</Badge>
 }

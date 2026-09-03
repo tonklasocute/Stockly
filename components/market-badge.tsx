@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils"
 import { formatFxRate } from "@/lib/format"
 import type { Currency, MarketId } from "@/domain/market"
 import type { HoldingFx } from "@/domain/types"
+import { getTranslations } from "next-intl/server"
 
 /**
  * "SET · THB" — which venue an instrument trades on and what its prices are in.
@@ -38,7 +39,7 @@ export function MarketBadge({
  * user cannot check. Renders nothing for the identity conversion — there is no rate to disclose
  * when the currencies already match.
  */
-export function FxNote({
+export async function FxNote({
   from,
   to,
   fx,
@@ -49,6 +50,7 @@ export function FxNote({
   fx: HoldingFx | null
   className?: string
 }) {
+  const tc = await getTranslations("common")
   if (fx === null) {
     return (
       <span className={cn("text-muted-foreground text-xs", className)}>
@@ -62,7 +64,7 @@ export function FxNote({
     <span className={cn("text-muted-foreground text-xs", className)}>
       at {formatFxRate(from, to, fx.rate)}
       {fx.freshness === "stale" && (
-        <span className="text-loss ml-1" title="This rate is over an hour old.">
+        <span className="text-loss ml-1" title={tc("state.rateOverAnHourOld")}>
           · delayed
         </span>
       )}

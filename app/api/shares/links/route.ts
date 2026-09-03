@@ -8,7 +8,7 @@ import { createLinkSchema, MAX_LINKS_PER_PORTFOLIO } from "@/features/sharing/sc
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.", "portfolioRequired")
     return ok({ links: await listShareLinks(portfolioId) })
   })
 }

@@ -1,6 +1,12 @@
 {
-  "transactionSide": { "buy": "Buy", "sell": "Sell" },
-  "market": { "US": "United States", "TH": "Thailand (SET)" },
+  "transactionSide": {
+    "buy": "Buy",
+    "sell": "Sell"
+  },
+  "market": {
+    "US": "United States",
+    "TH": "Thailand (SET)"
+  },
   "cashFlow": {
     "deposit": "Deposit",
     "withdrawal": "Withdrawal",
@@ -218,6 +224,80 @@
     "market": "Market",
     "sector": "Sector"
   },
-  "density": { "comfortable": "Comfortable", "compact": "Compact" },
-  "theme": { "system": "Follow the device", "light": "Light", "dark": "Dark" }
+  "density": {
+    "comfortable": "Comfortable",
+    "compact": "Compact"
+  },
+  "theme": {
+    "system": "Follow the device",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "screenerMetric": {
+    "PRICE": "Price",
+    "MARKET_CAP": "Market cap",
+    "VOLUME": "Volume",
+    "RELATIVE_VOLUME": "Relative volume",
+    "RSI": "RSI (14)",
+    "ADX": "ADX (14)",
+    "ATR_PCT": "ATR % of price",
+    "TECHNICAL_SCORE": "Technical score",
+    "MACD_HISTOGRAM": "MACD histogram",
+    "PRICE_VS_EMA50": "Price vs 50 EMA (%)",
+    "PRICE_VS_EMA200": "Price vs 200 EMA (%)",
+    "PRICE_VS_SMA200": "Price vs 200 SMA (%)",
+    "EMA50_VS_EMA200": "50 EMA vs 200 EMA (%)",
+    "TREND": "Trend",
+    "REVENUE_GROWTH": "Revenue growth (YoY)",
+    "EPS_GROWTH": "EPS growth (YoY)",
+    "GROSS_MARGIN": "Gross margin",
+    "OPERATING_MARGIN": "Operating margin",
+    "NET_MARGIN": "Net margin",
+    "ROE": "Return on equity",
+    "ROA": "Return on assets",
+    "FCF_MARGIN": "Free cash flow margin",
+    "DEBT_TO_EQUITY": "Debt to equity",
+    "CURRENT_RATIO": "Current ratio",
+    "PE_RATIO": "P/E (TTM)",
+    "PS_RATIO": "P/S (TTM)",
+    "PB_RATIO": "P/B",
+    "EV_EBITDA": "EV / EBITDA",
+    "DIVIDEND_YIELD": "Dividend yield",
+    "PAYOUT_RATIO": "Payout ratio"
+  },
+  "aiIntent": {
+    "STOCK_ANALYSIS": "Stock analysis",
+    "STOCK_COMPARISON": "Stock comparison",
+    "TECHNICAL_EXPLANATION": "Technical explanation",
+    "PORTFOLIO_ANALYSIS": "Portfolio analysis",
+    "WATCHLIST_ANALYSIS": "Watchlist analysis",
+    "SCREENER_EXPLANATION": "Screener explanation",
+    "MARKET_SUMMARY": "Market summary",
+    "INDICATOR_EXPLANATION": "Indicator explanation",
+    "GENERAL_RESEARCH": "General research"
+  },
+  "technicalSignal": {
+    "PRICE_ABOVE_EMA200": "Price above the 200 EMA",
+    "PRICE_BELOW_EMA200": "Price below the 200 EMA",
+    "PRICE_ABOVE_EMA50": "Price above the 50 EMA",
+    "PRICE_BELOW_EMA50": "Price below the 50 EMA",
+    "GOLDEN_CROSS": "50 EMA crossed above the 200 EMA",
+    "DEATH_CROSS": "50 EMA crossed below the 200 EMA",
+    "MACD_BULLISH": "MACD above its signal line",
+    "MACD_BEARISH": "MACD below its signal line",
+    "MACD_BULLISH_CROSS": "MACD crossed above its signal line",
+    "MACD_BEARISH_CROSS": "MACD crossed below its signal line",
+    "RSI_OVERSOLD": "RSI below 30",
+    "RSI_OVERBOUGHT": "RSI above 70",
+    "RSI_NEUTRAL": "RSI between 45 and 55",
+    "STRONG_TREND": "ADX above 25",
+    "WEAK_TREND": "ADX below 20",
+    "HIGH_RELATIVE_VOLUME": "Volume above 1.5× its average",
+    "VOLUME_SPIKE": "Volume above 2× its average",
+    "LOW_RELATIVE_VOLUME": "Volume below its average",
+    "ABOVE_UPPER_BAND": "Price above the upper Bollinger band",
+    "BELOW_LOWER_BAND": "Price below the lower Bollinger band",
+    "HIGH_VOLATILITY": "ATR above 4% of price",
+    "LOW_VOLATILITY": "ATR below 2% of price"
+  }
 }

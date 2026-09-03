@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { credentialsSchema, type Credentials } from "../schema"
+import { useTranslations } from "next-intl"
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
+  const t = useTranslations("auth")
   const router = useRouter()
   const searchParams = useSearchParams()
   const [formError, setFormError] = useState<string | null>(null)
@@ -47,9 +49,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   if (checkYourEmail) {
     return (
       <Alert>
-        <AlertDescription>
-          Check your inbox to confirm your email address, then sign in.
-        </AlertDescription>
+        <AlertDescription>{t("confirmEmail")}</AlertDescription>
       </Alert>
     )
   }
@@ -63,12 +63,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? "email-error" : undefined}
           {...register("email")}
@@ -81,7 +81,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("password")}</Label>
         <Input
           id="password"
           type="password"

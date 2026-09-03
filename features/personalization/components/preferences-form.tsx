@@ -12,7 +12,6 @@ import { Section } from "@/components/metric"
 import {
   DENSITIES,
   METRICS,
-  METRIC_REGISTRY,
   MAX_FAVORITE_METRICS,
   THEMES,
   WIDGET_REGISTRY,
@@ -24,7 +23,7 @@ import {
   type Theme,
   type WidgetPlacement,
 } from "@/domain/personalization"
-import { LOCALE_META, SUPPORTED_LOCALES, type Locale } from "@/domain/locale"
+import { LOCALE_META, SUPPORTED_LOCALES } from "@/domain/locale"
 import { apiFetch } from "@/lib/api-client"
 import { useErrorMessage } from "@/lib/i18n/errors"
 import { useAppLocale } from "@/lib/i18n/locale"
@@ -58,6 +57,8 @@ export function PreferencesForm({
   }
 }) {
   const t = useTranslations("settings")
+  const tp = useTranslations("personalization")
+  const tc = useTranslations("common")
   const tEnum = useTranslations("enums")
   const describeError = useErrorMessage()
   const locale = useAppLocale()
@@ -166,14 +167,12 @@ export function PreferencesForm({
                 </Button>
               ))}
             </div>
-            <p className="text-muted-foreground text-xs">
-              Applies to the holdings, transactions and watchlist tables.
-            </p>
+            <p className="text-muted-foreground text-xs">{tp("densityHint")}</p>
           </fieldset>
         </div>
 
         <div className="mt-5 space-y-1.5">
-          <Label htmlFor="defaultPortfolio">Default portfolio</Label>
+          <Label htmlFor="defaultPortfolio">{t("defaultPortfolio.label")}</Label>
           <select
             id="defaultPortfolio"
             className="border-input bg-background h-9 w-full max-w-sm rounded-md border px-3 text-sm pointer-coarse:h-11"
@@ -184,21 +183,19 @@ export function PreferencesForm({
               void save({ defaultPortfolioId }, { ...state, defaultPortfolioId })
             }}
           >
-            <option value="">Most recently created</option>
+            <option value="">{t("defaultPortfolio.mostRecent")}</option>
             {portfolios.map((portfolio) => (
               <option key={portfolio.id} value={portfolio.id}>
                 {portfolio.name}
               </option>
             ))}
           </select>
-          <p className="text-muted-foreground text-xs">
-            Where Stockly opens. You can still switch portfolio at any time.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("defaultPortfolio.description")}</p>
         </div>
       </Section>
 
       <Section
-        title="Summary metrics"
+        title={tp("metrics.title")}
         description={`The tiles at the top of your dashboard. Choose up to ${MAX_FAVORITE_METRICS}.`}
       >
         <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
@@ -215,7 +212,7 @@ export function PreferencesForm({
                     onChange={() => {
                       const result = toggleMetric(state.favoriteMetrics, id)
                       if (result.rejected) {
-                        toast.error(`You can choose at most ${MAX_FAVORITE_METRICS} metrics.`)
+                        toast.error(tp("metrics.limit", { max: MAX_FAVORITE_METRICS }))
                         return
                       }
                       void save(
@@ -225,11 +222,11 @@ export function PreferencesForm({
                     }}
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm">{METRIC_REGISTRY[id].label}</span>
+                    <span className="block text-sm">{tp(`metrics.${id}.label`)}</span>
                     {/* The definition is beside the choice, so "yield on cost" and "yield on
                         current value" are never picked by guessing which one is meant. */}
                     <span className="text-muted-foreground block text-xs">
-                      {METRIC_REGISTRY[id].definition}
+                      {tp(`metrics.${id}.definition`)}
                     </span>
                   </span>
                 </label>
@@ -240,8 +237,8 @@ export function PreferencesForm({
       </Section>
 
       <Section
-        title="Dashboard"
-        description="What appears, and in what order."
+        title={tp("widgets.title")}
+        description={tp("widgets.description")}
         action={
           <Button
             type="button"
@@ -256,7 +253,7 @@ export function PreferencesForm({
                   { method: "DELETE" },
                 )
                 setState((current) => ({ ...current, dashboardLayout: result.dashboardLayout }))
-                toast.success("Dashboard reset.")
+                toast.success(tp("widgetsReset"))
                 startTransition(() => router.refresh())
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Could not reset that.")
@@ -266,13 +263,15 @@ export function PreferencesForm({
             }}
           >
             <RotateCcw className="size-3.5" />
-            Reset
+            {tc("actions.reset")}
           </Button>
         }
       >
         <ol className="divide-y">
           {state.dashboardLayout.map((placement, index) => {
             const definition = WIDGET_REGISTRY[placement.id]
+            // The words come from the namespace, keyed by the same id the registry uses.
+            const label = tp(`widgets.${placement.id}.label`)
             const commit = (dashboardLayout: WidgetPlacement[]) =>
               void save({ dashboardLayout }, { ...state, dashboardLayout })
 
@@ -280,12 +279,16 @@ export function PreferencesForm({
               <li key={placement.id} className="flex items-center gap-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className={placement.visible ? "text-sm font-medium" : "text-muted-foreground text-sm"}>
-                    {definition.label}
+                    {label}
                     {definition.required ? (
-                      <span className="text-muted-foreground ml-2 text-xs">Always shown</span>
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        {tp("widgets.required")}
+                      </span>
                     ) : null}
                   </p>
-                  <p className="text-muted-foreground text-xs">{definition.description}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {tp(`widgets.${placement.id}.description`)}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -294,7 +297,7 @@ export function PreferencesForm({
                     variant="ghost"
                     size="sm"
                     disabled={saving || index === 0}
-                    aria-label={`Move ${definition.label} up`}
+                    aria-label={`${tc("actions.moveUp")}: ${label}`}
                     onClick={() => commit(moveWidget(state.dashboardLayout, placement.id, "up"))}
                   >
                     <ArrowUp className="size-3.5" />
@@ -304,7 +307,7 @@ export function PreferencesForm({
                     variant="ghost"
                     size="sm"
                     disabled={saving || index === state.dashboardLayout.length - 1}
-                    aria-label={`Move ${definition.label} down`}
+                    aria-label={`${tc("actions.moveDown")}: ${label}`}
                     onClick={() => commit(moveWidget(state.dashboardLayout, placement.id, "down"))}
                   >
                     <ArrowDown className="size-3.5" />
@@ -314,7 +317,7 @@ export function PreferencesForm({
                     variant="ghost"
                     size="sm"
                     disabled={saving || definition.required}
-                    aria-label={`${placement.visible ? "Hide" : "Show"} ${definition.label}`}
+                    aria-label={`${placement.visible ? tc("actions.hide") : tc("actions.show")}: ${label}`}
                     onClick={() =>
                       commit(toggleWidget(state.dashboardLayout, placement.id, !placement.visible))
                     }
@@ -330,8 +333,8 @@ export function PreferencesForm({
 
       {state.dismissedInsights.length > 0 ? (
         <Section
-          title="Hidden observations"
-          description="Observations you dismissed. Restoring one brings it back when its rule next applies."
+          title={tp("dismissed.title")}
+          description={tp("dismissed.description")}
         >
           <ul className="flex flex-wrap gap-2">
             {state.dismissedInsights.map((code) => (

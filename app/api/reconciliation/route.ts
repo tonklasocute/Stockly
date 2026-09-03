@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server"
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.", "portfolioRequired")
     return ok({ runs: await listRuns(portfolioId) })
   })
 }

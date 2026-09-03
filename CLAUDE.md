@@ -74,6 +74,8 @@ npm run test:e2e:install # once, to download the browser
 npm run audit:ci         # runtime dependency audit, high and critical only
 npm start                # serve the production build (PWA needs a real build, not `next dev`)
 npx supabase gen types typescript --local > types/database.ts   # once a project exists
+node scripts/i18n-extract.mjs app components features   # find hardcoded user-facing text
+SUMMARY=1 node scripts/i18n-extract.mjs app components features   # …as a per-file count
 ```
 
 Keep this section accurate — update it in the same change that adds or renames a script.
@@ -181,6 +183,7 @@ services/    external integrations behind interfaces (market-data/, fx/, benchma
 types/       shared types, generated types/supabase.ts.
 supabase/    migrations/, seed.sql.
 locales/     th/ and en/ — one JSON per namespace, plus a static barrel per language.
+scripts/     i18n-extract.mjs — finds hardcoded user-facing text. Run by a test, not just by hand.
 docs/        architecture and design docs.
 
 Unit tests live next to the source as *.test.ts. Add a tests/ folder when the first E2E spec exists.
@@ -757,10 +760,20 @@ Full detail in [`docs/i18n.md`](docs/i18n.md).
   does the reverse. Never derive one from another.
 - **An enum is never rendered raw.** ``tEnum(`cashFlow.${kind}`)`` — the domain keeps the value,
   the `enums` namespace keeps the words.
-- **The server sends a code; the client chooses the words.** `apiFetch` throws `ApiClientError` with
-  the code intact and `useErrorMessage()` translates it. Never render `error.message` to a user —
-  it is written for a developer, it is not translated, and it is how an internal detail leaks onto a
-  screen.
+- **The server sends a code; the client chooses the words.** Two vocabularies in
+  `lib/api-codes.ts`: `ERROR_CODES` is the status contract, `ERROR_DETAILS` is the *reason* when a
+  status alone does not say it — `new ApiError("CONFLICT", "…", "duplicatePortfolioName")`.
+  `useErrorMessage()` renders the detail, then the code, and the server's English `message` only
+  when a newer server sends a detail this client has never heard of. Never render `error.message`
+  to a user directly.
+- **A domain module returns facts, never a sentence.** `describeAlert`, `describeEvent`,
+  `describeContribution` and `newsNotificationText` all report *what happened* — a code, a
+  direction, a symbol — and the ICU message decides how to say it. A sentence has grammar, and
+  grammar is the one thing a pure module cannot have two of: no amount of interpolation into an
+  English skeleton produces the Thai one.
+- **A label in a module-level table is a key, not a word.** `NAV_ITEMS`, `TYPE_GROUPS`, `SORT_KEYS`,
+  `FIELDS` — module scope has no translator, so the table holds the key and the render site
+  resolves it.
 - **A public page's language comes from `?lang=`, never from the owner's cookie.** The owner is not
   the one reading it. `PublicPortfolioView` takes `locale` as a prop and cannot resolve it itself.
 - **Nothing a user wrote is translated**, and neither is provider content. A headline attributed to a
@@ -774,6 +787,13 @@ Full detail in [`docs/i18n.md`](docs/i18n.md).
 - **A hook or a server helper, never both.** `useAppLocale()` inside a client tree, `await
   appLocale()` in a Server Component, and a `locale` **prop** for a component rendered from both —
   which the build catches, loudly, rather than the reviewer.
+- **`?lang=` reaches the root layout through the middleware, on the three shared routes only.**
+  `<html lang>` and the client message payload are decided in the root layout, which cannot see a
+  route's search parameters — so `acceptsLocaleParam` and `LOCALE_HEADER` carry the answer there. A
+  document that declares one language and renders another reads English prose in a Thai voice.
+- **No new hardcoded user-facing string.** `lib/i18n/no-hardcoded-text.test.ts` runs the extractor
+  over the whole tree and names the file and the sentence. Its allowlist is the complete list of
+  deliberate exceptions; adding to it needs an argument, not a commit.
 
 ## Reconciliation & Operations Rules
 
@@ -972,7 +992,7 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 19 ✅ | Advanced portfolio operations: position and cash reconciliation with run history, the full cash ledger, split adjustments applied in front of the engine, a trigger-written audit trail, corrections that carry a reason, and portfolio transfer by re-parenting |
 | 20 ✅ | Advanced risk & stress testing over the existing what-if engine, coverage and exclusions, component decomposition, recovery arithmetic, historical scenario, cross-system financial regression suite, scale suite, full production audit and final report |
 
-| 21 🚧 | **Bilingual.** Thai + English throughout: locale registry, cookie-resolved locale with a stored per-user preference, language switcher, namespaced translations, enum/error/validation vocabulary, Gregorian-pinned Thai dates, localized metadata and PWA manifest, `?lang=` on public pages, completeness and financial-invariant test suites |
+| 21 ✅ | **Bilingual.** Thai + English throughout: locale registry, cookie-resolved locale with a stored per-user preference, language switcher, namespaced translations, enum/error/validation vocabulary, Gregorian-pinned Thai dates, localized metadata and PWA manifest, `?lang=` on public pages, completeness, hardcoded-text, resolution, persistence and financial-invariant suites, plus a bilingual E2E walk of every page |
 
 Anything beyond this — Monte Carlo, per-instrument price history and full FX
 attribution, FIFO cost basis, tax lots — is a new project against a finished one, not a phase 21.

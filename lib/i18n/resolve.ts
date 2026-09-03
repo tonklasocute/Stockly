@@ -1,7 +1,14 @@
 import "server-only"
 
-import { cookies } from "next/headers"
-import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALE_PARAM, toLocale, type Locale } from "@/domain/locale"
+import { cookies, headers } from "next/headers"
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  LOCALE_PARAM,
+  toLocale,
+  type Locale,
+} from "@/domain/locale"
 
 /**
  * Which language this request is in.
@@ -26,7 +33,18 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALE_PARAM, toLocale, type Locale } fr
  * only ever produce the default. That is the whole of the locale attack surface.
  */
 export async function resolveLocale(): Promise<Locale> {
-  const store = await cookies()
+  /*
+   * The header the middleware set from `?lang=`, above everything else.
+   *
+   * It is only ever present on a shared route, and on those the visitor's URL is the most explicit
+   * statement there is — more explicit than a cookie, which on those pages might belong to the
+   * owner rather than the reader. This is what keeps `<html lang>` and the client message payload
+   * agreeing with the server-rendered body.
+   */
+  const [store, requestHeaders] = await Promise.all([cookies(), headers()])
+
+  const fromUrl = toLocale(requestHeaders.get(LOCALE_HEADER))
+  if (fromUrl) return fromUrl
 
   const fromCookie = toLocale(store.get(LOCALE_COOKIE)?.value)
   if (fromCookie) return fromCookie
@@ -76,6 +94,12 @@ export async function resolvePublicLocale(
   const requested = toLocale(Array.isArray(raw) ? raw[0] : raw)
   if (requested) return requested
 
-  const store = await cookies()
-  return toLocale(store.get(LOCALE_COOKIE)?.value) ?? DEFAULT_LOCALE
+  /*
+   * Falls through to `resolveLocale`, rather than repeating its chain.
+   *
+   * The two used to derive the answer separately, and the consequence was a document that declared
+   * `lang="th"` while its body rendered in English. Deferring here means the page body, `<html
+   * lang>` and the client message payload cannot disagree, because only one function decides.
+   */
+  return resolveLocale()
 }

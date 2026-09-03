@@ -7,22 +7,30 @@ import { listNotifications, unreadCount } from "@/features/notifications/queries
 import { toPage } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
 import type { NotificationCategory } from "@/types/database"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Notifications" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("notifications") }
+}
 
-const FILTERS: Array<{ key: string; label: string }> = [
-  { key: "", label: "All" },
-  { key: "price", label: "Price" },
-  { key: "portfolio", label: "Portfolio" },
-  { key: "dividend", label: "Dividend" },
-  { key: "system", label: "System" },
-]
+/** `key` is the query value; `label` is its key in the `notifications` namespace. */
+const FILTERS = [
+  { key: "", label: "all" },
+  { key: "price", label: "price" },
+  { key: "portfolio", label: "portfolio" },
+  { key: "dividend", label: "dividend" },
+  { key: "system", label: "system" },
+] as const
 
 export default async function NotificationsPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string; category?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("notifications")
   const { page: pageParam, category: rawCategory } = await searchParams
   const category = FILTERS.some((f) => f.key && f.key === rawCategory)
     ? (rawCategory as NotificationCategory)
@@ -37,7 +45,7 @@ export default async function NotificationsPage({
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Notifications</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("notifications")}</h1>
           <p className="text-muted-foreground text-sm">
             {unread > 0 ? `${unread} unread` : "You are all caught up"}
           </p>
@@ -47,12 +55,10 @@ export default async function NotificationsPage({
           render={<Link href="/settings/notifications" />}
           variant="outline"
           size="sm"
-        >
-          Settings
-        </Button>
+        >{t("settings")}</Button>
       </div>
 
-      <nav aria-label="Filter notifications" className="flex gap-1 overflow-x-auto">
+      <nav aria-label={t("filter")} className="flex gap-1 overflow-x-auto">
         {FILTERS.map((filter) => {
           const selected = (rawCategory ?? "") === filter.key
           return (
@@ -68,7 +74,7 @@ export default async function NotificationsPage({
                   : "text-muted-foreground hover:bg-accent/60",
               )}
             >
-              {filter.label}
+              {t(filter.label)}
             </Link>
           )
         })}

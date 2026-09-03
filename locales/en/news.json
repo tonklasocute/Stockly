@@ -1,1 +1,22 @@
-{}
+{
+  "notification": {
+    "market": "New market news is available.",
+    "symbol": "New {symbol} news is available ({category})."
+  },
+  "title": "News",
+  "hint": "Context around what you hold and watch. Stockly does not interpret it.",
+  "feed": "Feed",
+  "sort": "Sort",
+  "all": "All",
+  "portfolio": "Portfolio",
+  "watchlist": "Watchlist",
+  "market": "Market",
+  "empty": "No news available",
+  "emptyBody": "This is a limitation of Stockly's configuration, not a quiet news day.",
+  "justPublished": "Just published",
+  "sortBy": {
+    "mostRelevant": "Most relevant",
+    "newest": "Newest",
+    "oldest": "Oldest"
+  }
+}

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { EmptyState } from "@/components/empty-state"
 import { describeAlert } from "@/domain/alerts"
+import { alertSentence } from "@/features/alerts/alert-sentence"
 import { toRuleFromRow } from "../to-rule"
 import { apiFetch } from "@/lib/api-client"
 import { formatTime } from "@/lib/format"
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils"
 import type { AlertRow } from "@/types/database"
 import { AlertDialog } from "./alert-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 type Filter = "all" | "enabled" | "disabled"
 
@@ -47,7 +49,10 @@ export function AlertList({
   alerts: AlertRow[]
   portfolioId?: string
 }) {
+  const tc = useTranslations("common")
   const locale = useAppLocale()
+  const ta = useTranslations("alerts")
+  const tEnum = useTranslations("enums")
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("all")
@@ -76,7 +81,7 @@ export function AlertList({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/alerts/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Alert deleted.")
+      toast.success(ta("deleted"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -98,13 +103,13 @@ export function AlertList({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by symbol"
+            placeholder={ta("search")}
             className="pl-9"
-            aria-label="Search alerts"
+            aria-label={ta("searchLabel")}
           />
         </div>
         <Select value={filter} onValueChange={(value) => setFilter((value as Filter) ?? "all")}>
-          <SelectTrigger aria-label="Filter alerts" className="sm:w-40">
+          <SelectTrigger aria-label={ta("filter")} className="sm:w-40">
             <SelectValue>{(value) => FILTERS[value as Filter]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -116,28 +121,24 @@ export function AlertList({
           </SelectContent>
         </Select>
         <Button onClick={openNew} className="gap-2 max-sm:w-full">
-          <Plus className="size-4" aria-hidden />
-          New alert
-        </Button>
+          <Plus className="size-4" aria-hidden />{ta("new")}</Button>
       </div>
 
       {alerts.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
             icon={Bell}
-            title="No alerts yet"
-            description="Set a price target and Stockly watches it on the server — you will hear about it whether or not the app is open."
+            title={ta("empty")}
+            description={ta("emptyBody")}
             action={
               <Button onClick={openNew} className="gap-2">
-                <Plus className="size-4" aria-hidden />
-                New alert
-              </Button>
+                <Plus className="size-4" aria-hidden />{ta("new")}</Button>
             }
           />
         </div>
       ) : visible.length === 0 ? (
         <div className="rounded-xl border">
-          <EmptyState icon={Search} title="No matches" description="No alert matches those filters." />
+          <EmptyState icon={Search} title={ta("noMatches")} description={ta("noMatchesBody")} />
         </div>
       ) : (
         <ul className="grid gap-2">
@@ -154,7 +155,7 @@ export function AlertList({
                         {alert.symbol}
                       </Link>
                     ) : (
-                      <span className="font-semibold">Portfolio</span>
+                      <span className="font-semibold">{ta("portfolio")}</span>
                     )}
                     {/* State is shown as a word as well as a dot: colour alone is not a label. */}
                     <Badge
@@ -174,13 +175,15 @@ export function AlertList({
                       {alert.enabled ? "Active" : "Disabled"}
                     </Badge>
                     {alert.state === "triggered" && alert.enabled && (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Waiting to reset
-                      </Badge>
+                      <Badge variant="outline" className="text-muted-foreground">{ta("waitingToReset")}</Badge>
                     )}
                   </div>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    {describeAlert(toRuleFromRow(alert))}
+                    {alertSentence(
+                    describeAlert(toRuleFromRow(alert)),
+                    ta,
+                    tEnum(`alertType.${alert.type}`),
+                  )}
                   </p>
                   <p className="text-muted-foreground mt-0.5 text-xs">
                     {alert.last_triggered_at
@@ -217,9 +220,7 @@ export function AlertList({
                       }}
                       className="gap-2"
                     >
-                      <Pencil className="size-4" aria-hidden />
-                      Edit
-                    </DropdownMenuItem>
+                      <Pencil className="size-4" aria-hidden />{tc("actions.edit")}</DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
                       className="gap-2"
@@ -229,9 +230,7 @@ export function AlertList({
                         }
                       }}
                     >
-                      <Trash2 className="size-4" aria-hidden />
-                      Delete
-                    </DropdownMenuItem>
+                      <Trash2 className="size-4" aria-hidden />{tc("actions.delete")}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

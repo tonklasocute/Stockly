@@ -1,6 +1,7 @@
 import { Metric } from "@/components/metric"
 import { formatOptionalPercent } from "@/lib/format"
 import type { BenchmarkComparison } from "../loader"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Portfolio against benchmark, time-weighted on both sides.
@@ -10,7 +11,8 @@ import type { BenchmarkComparison } from "../loader"
  * another currency. Both are handled upstream and both are stated here rather than hidden: a null
  * difference always comes with the sentence explaining it.
  */
-export function BenchmarkPanel({ comparison }: { comparison: BenchmarkComparison | null }) {
+export async function BenchmarkPanel({ comparison }: { comparison: BenchmarkComparison | null }) {
+  const t = await getTranslations("intelligence")
   if (!comparison) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
@@ -24,7 +26,7 @@ export function BenchmarkPanel({ comparison }: { comparison: BenchmarkComparison
     <div className="space-y-3">
       <dl className="grid gap-4 sm:grid-cols-3">
         <Metric
-          label="Portfolio"
+          label={t("benchmark.portfolio")}
           value={formatOptionalPercent(comparison.portfolioReturnPct)}
           hint={`Time-weighted${comparison.currencyMismatch ? `, in ${comparison.currencyMismatch.portfolio}` : ""}`}
         />
@@ -38,7 +40,7 @@ export function BenchmarkPanel({ comparison }: { comparison: BenchmarkComparison
           }
         />
         <Metric
-          label="Difference"
+          label={t("benchmark.difference")}
           value={
             comparison.differencePct === null ? (
               <span className="text-muted-foreground">N/A</span>

@@ -23,6 +23,7 @@ import type { Holding } from "@/domain/types"
 import { formatCurrency, formatCurrencyWithCode, formatPercent, formatQuantity } from "@/lib/format"
 import { DataLabel } from "./assumptions"
 import { NumberField } from "./inputs"
+import { useTranslations } from "next-intl"
 
 /**
  * Portfolio what-if.
@@ -49,6 +50,8 @@ export function WhatIfSimulator({
   /** Holdings valued at cost because no quote was available. */
   staleCount: number
 }) {
+  const t = useTranslations("simulations")
+  const tc = useTranslations("common")
   const [cashDelta, setCashDelta] = useState("0")
   const [shockPct, setShockPct] = useState("0")
   const [prices, setPrices] = useState<Record<string, string>>({})
@@ -136,28 +139,24 @@ export function WhatIfSimulator({
 
   if (holdings.length === 0) {
     return (
-      <p className="text-muted-foreground py-8 text-center text-sm">
-        No open positions to model. Record a transaction first.
-      </p>
+      <p className="text-muted-foreground py-8 text-center text-sm">{t("whatIf.empty")}</p>
     )
   }
 
   return (
     <div className="space-y-6">
       <Section
-        title="Scenario inputs"
-        description="Nothing here touches your portfolio. Reset discards the whole scenario."
+        title={t("inputs.title")}
+        description={t("whatIf.hint")}
         action={
           <Button variant="outline" size="sm" className="gap-1.5" onClick={reset} disabled={!touched}>
-            <RotateCcw className="size-3.5" aria-hidden />
-            Reset
-          </Button>
+            <RotateCcw className="size-3.5" aria-hidden />{tc("actions.reset")}</Button>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NumberField
             id="whatif-cash"
-            label="Add cash"
+            label={t("whatIf.addCash")}
             suffix={baseCurrency}
             value={cashDelta}
             onChange={setCashDelta}
@@ -165,7 +164,7 @@ export function WhatIfSimulator({
           />
           <NumberField
             id="whatif-shock"
-            label="Move every price"
+            label={t("whatIf.moveEveryPrice")}
             suffix="%"
             value={shockPct}
             onChange={setShockPct}
@@ -183,7 +182,7 @@ export function WhatIfSimulator({
                 step="any"
                 min={0}
                 className="tabular"
-                placeholder="today's rate"
+                placeholder={t("whatIf.todaysRate")}
                 value={fx[currency] ?? ""}
                 onChange={(event) => setFx((p) => ({ ...p, [currency]: event.target.value }))}
               />
@@ -196,13 +195,13 @@ export function WhatIfSimulator({
       </Section>
 
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-semibold">Scenario portfolio</h2>
+        <h2 className="text-sm font-semibold">{t("whatIf.scenarioPortfolio")}</h2>
         <DataLabel kind="SCENARIO" />
       </div>
 
       <StatGrid>
         <StatCard
-          label="Portfolio today"
+          label={t("whatIf.portfolioToday")}
           value={formatCurrencyWithCode(result.currentTotal, baseCurrency)}
           emphasis
           hint={
@@ -213,12 +212,12 @@ export function WhatIfSimulator({
           }
         />
         <StatCard
-          label="Scenario portfolio"
+          label={t("whatIf.scenarioPortfolio")}
           value={formatCurrencyWithCode(result.scenarioTotal, baseCurrency)}
           emphasis
         />
         <StatCard
-          label="Difference"
+          label={t("whatIf.difference")}
           value={formatCurrency(result.difference, baseCurrency)}
           emphasis
           hint={
@@ -228,7 +227,7 @@ export function WhatIfSimulator({
           }
         />
         <StatCard
-          label="Scenario cash"
+          label={t("whatIf.scenarioCash")}
           value={formatCurrency(result.scenarioCash, baseCurrency)}
           emphasis
           hint={
@@ -252,13 +251,13 @@ export function WhatIfSimulator({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Position</TableHead>
-              <TableHead className="text-right">Price move (%)</TableHead>
+              <TableHead>{t("whatIf.position")}</TableHead>
+              <TableHead className="text-right">{t("whatIf.priceMovePct")}</TableHead>
               <TableHead className="text-right">Add ({baseCurrency})</TableHead>
-              <TableHead className="text-right">Reduce (%)</TableHead>
-              <TableHead className="text-right">Scenario price</TableHead>
-              <TableHead className="text-right">Scenario value</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
+              <TableHead className="text-right">{t("whatIf.reducePct")}</TableHead>
+              <TableHead className="text-right">{t("whatIf.scenarioPrice")}</TableHead>
+              <TableHead className="text-right">{t("whatIf.scenarioValue")}</TableHead>
+              <TableHead className="text-right">{t("whatIf.weight")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -364,7 +363,7 @@ export function WhatIfSimulator({
 
       <div className="bg-muted/40 space-y-2 rounded-xl border p-4">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">What this is</h3>
+          <h3 className="text-sm font-semibold">{t("whatIf.whatThisIs")}</h3>
           <DataLabel kind="SCENARIO" />
         </div>
         <p className="text-muted-foreground text-xs">
@@ -374,13 +373,13 @@ export function WhatIfSimulator({
           price, shares removed release a proportional share of what you paid.
         </p>
         <dl className="grid gap-4 pt-1 sm:grid-cols-3">
-          <Metric label="Positions" value={String(result.holdings.length)} />
+          <Metric label={t("whatIf.positions")} value={String(result.holdings.length)} />
           <Metric
-            label="Excluded for want of a rate"
+            label={t("whatIf.excludedNoRate")}
             value={String(result.untranslatedCount)}
             hint="Never counted at a made-up rate"
           />
-          <Metric label="Currency" value={baseCurrency} />
+          <Metric label={t("inputs.currency")} value={baseCurrency} />
         </dl>
       </div>
     </div>

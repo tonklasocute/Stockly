@@ -1,1 +1,36 @@
-{}
+{
+  "title": "Dividends",
+  "record": "Record dividend",
+  "empty": {
+    "title": "No dividends yet",
+    "body": "Record a payment and Stockly works out your income, yield on cost and yield on current value."
+  },
+  "noMatches": "No matches",
+  "deleted": "Dividend deleted.",
+  "search": { "placeholder": "Search symbol or notes", "label": "Search dividends" },
+  "columns": {
+    "date": "Date",
+    "symbol": "Symbol",
+    "shares": "Shares",
+    "perShare": "Per share",
+    "gross": "Gross",
+    "tax": "Tax",
+    "fee": "Fee",
+    "net": "Net"
+  },
+  "form": {
+    "hint": "Net dividends are added to your cash balance and drive both yield figures.",
+    "paymentDate": "Payment date",
+    "notes": "Notes",
+    "perShare": "Dividend / share"
+  },
+  "summary": {
+    "totalReceived": "Total received",
+    "thisYear": "This year",
+    "last12Months": "Last 12 months",
+    "yieldOnValue": "Yield on value",
+    "income": "Dividend income"
+  },
+  "byStock": { "title": "By stock", "hint": "Which holdings actually pay you." },
+  "chartEmpty": "Nothing to chart yet."
+}

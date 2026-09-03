@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import type { Quote } from "@/services/market-data/types"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 const STATUS_LABEL: Record<Quote["status"], string> = {
   open: "Market open",
@@ -35,6 +36,7 @@ export function LiveQuote({
   initialQuote: Quote | null
   currency?: string
 }) {
+  const t = useTranslations("stocks")
   const locale = useAppLocale()
   const { data, isFetching, refetch, isError } = useQuery({
     queryKey: ["quote", market, symbol],
@@ -52,9 +54,7 @@ export function LiveQuote({
 
   if (!quote) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Unable to load market data. Please try again later.
-      </p>
+      <p className="text-muted-foreground text-sm">{t("marketDataError")}</p>
     )
   }
 
@@ -97,7 +97,7 @@ export function LiveQuote({
           size="icon-xs"
           onClick={() => refetch()}
           disabled={isFetching}
-          aria-label="Refresh price"
+          aria-label={t("quote.refresh")}
         >
           <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} aria-hidden />
         </Button>

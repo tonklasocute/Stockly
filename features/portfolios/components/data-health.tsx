@@ -6,6 +6,7 @@ import type { MarketStatus } from "@/services/market-data/types"
 import { formatFxRate, formatTime } from "@/lib/format"
 import type { Locale } from "@/domain/locale"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Where every number on the site comes from, and how old it is.
@@ -77,6 +78,7 @@ export async function DataHealth({
   fx: FxTable
   now?: Date
 }) {
+  const t = await getTranslations("portfolios")
   const locale = await appLocale()
   const rows: Health[] = [
     ...MARKETS.map((market) => marketRow(market, statuses[market], now)),
@@ -88,7 +90,7 @@ export async function DataHealth({
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold">Data health</h2>
+        <h2 className="text-sm font-semibold">{t("dataHealth")}</h2>
         <p className="text-muted-foreground text-xs">
           Prices, exchange rates and trading calendars, as Stockly currently sees them. Anything it
           cannot confirm says so rather than defaulting to a number.

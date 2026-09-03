@@ -1,1 +1,12 @@
-{}
+{
+  "title": "Data quality",
+  "hint": "Computed from the portfolio as it stands, every time this page loads — so an issue cannot linger after the thing that caused it was fixed.",
+  "clean": "Every holding is priced, every currency has a rate, and no import needs attention.",
+  "scheduled": "Scheduled refresh",
+  "scheduledHint": "Quotes and exchange rates are warmed on a schedule so your first page load of the day is not the request that pays for them.",
+  "lastRun": "Last run",
+  "refreshed": "Refreshed",
+  "failures": "Failures",
+  "never": "Never",
+  "settings": "Settings"
+}

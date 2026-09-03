@@ -1,8 +1,19 @@
+import { getTranslations } from "next-intl/server"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import { Delta, Percent } from "@/components/value"
-import { METRIC_REGISTRY, type MetricId } from "@/domain/personalization"
+import { type MetricId } from "@/domain/personalization"
 import { formatCurrency, formatCurrencyWithCode, formatPercent } from "@/lib/format"
 import type { Currency } from "@/domain/market"
+
+/**
+ * The translator, passed down rather than reached for.
+ *
+ * `renderValue` and `renderHint` are plain functions, not components, so they cannot call a hook
+ * and cannot await anything. Handing them `t` keeps them pure and keeps the whole file readable as
+ * "look up a figure, format it, label it" — which is the property this component exists to have.
+ */
+type T = Awaited<ReturnType<typeof getTranslations<"personalization">>>
+type Tc = Awaited<ReturnType<typeof getTranslations<"common">>>
 
 /**
  * The summary tiles, showing the metrics the user chose.
@@ -33,29 +44,41 @@ export type MetricSource = {
   largestWeightPct: number | null
 }
 
+/* "N/A" is the same two letters in both languages — see `common.state.notApplicable`. */
 const NA = <span className="text-muted-foreground text-lg">N/A</span>
 
-export function MetricTiles({ metrics, source }: { metrics: readonly MetricId[]; source: MetricSource }) {
+export async function MetricTiles({
+  metrics,
+  source,
+}: {
+  metrics: readonly MetricId[]
+  source: MetricSource
+}) {
+  const [t, tc] = await Promise.all([
+    getTranslations("personalization"),
+    getTranslations("common"),
+  ])
+
   return (
     <StatGrid>
-      {metrics.map((id) => {
-        const definition = METRIC_REGISTRY[id]
-        return (
-          <StatCard
-            key={id}
-            label={definition.label}
-            emphasis
-            // The definition is on the tile itself, as a title, so "Yield on cost" and "Yield on
-            // current value" are distinguishable without leaving the page.
-            value={<span title={definition.definition}>{renderValue(id, source)}</span>}
-            hint={renderHint(id, source)}
-          />
-        )
-      })}
+      {metrics.map((id) => (
+        <StatCard
+          key={id}
+          label={t(`metrics.${id}.label`)}
+          emphasis
+          // The definition is on the tile itself, as a title, so "Yield on cost" and "Yield on
+          // current value" are distinguishable without leaving the page.
+          value={
+            <span title={t(`metrics.${id}.definition`)}>{renderValue(id, source)}</span>
+          }
+          hint={renderHint(id, source, t, tc)}
+        />
+      ))}
     </StatGrid>
   )
 }
 
+/** Formats a figure and nothing else — no words, so no translator. */
 function renderValue(id: MetricId, s: MetricSource): React.ReactNode {
   switch (id) {
     case "totalValue":
@@ -93,29 +116,33 @@ function renderValue(id: MetricId, s: MetricSource): React.ReactNode {
   }
 }
 
-function renderHint(id: MetricId, s: MetricSource): React.ReactNode {
+function renderHint(id: MetricId, s: MetricSource, t: T, tc: Tc): React.ReactNode {
   switch (id) {
     case "totalValue":
       return (
         <span className="text-muted-foreground">
-          {formatCurrency(s.marketValue, s.currency)} stocks · {formatCurrency(s.cashBalance, s.currency)} cash
+          {tc("terms.stocksAndCash", {
+            stocks: formatCurrency(s.marketValue, s.currency),
+            cash: formatCurrency(s.cashBalance, s.currency),
+          })}
         </span>
       )
     case "todayChange":
       return s.todayReturnPct === null ? (
-        <span className="text-muted-foreground">No previous close</span>
+        <span className="text-muted-foreground">{tc("state.noPreviousClose")}</span>
       ) : (
         <Percent value={s.todayReturnPct} />
       )
     case "unrealizedPnl":
       return <Percent value={s.returnPct} />
     case "realizedPnl":
+      // ICU, not a ternary: Thai has one plural form and English has two.
       return (
         <span className="text-muted-foreground">
-          {s.holdingsCount} holding{s.holdingsCount === 1 ? "" : "s"}
+          {tc("terms.holdingCount", { count: s.holdingsCount })}
         </span>
       )
     default:
-      return <span className="text-muted-foreground text-xs">{METRIC_REGISTRY[id].definition}</span>
+      return <span className="text-muted-foreground text-xs">{t(`metrics.${id}.definition`)}</span>
   }
 }

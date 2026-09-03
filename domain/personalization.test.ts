@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest"
+import EN from "@/locales/en/personalization.json"
+import TH from "@/locales/th/personalization.json"
 import {
   applyView,
   canDismiss,
@@ -59,10 +61,19 @@ describe("the default dashboard", () => {
     expect(DEFAULT_LAYOUT.map((w) => w.id).sort()).toEqual([...WIDGETS].sort())
   })
 
-  it("has a definition for every widget", () => {
+  /*
+   * The words moved to `locales/<code>/personalization.json` in phase 21 — this module holds
+   * structure and no prose. The rule they carried has not moved: every widget still needs a name
+   * and a sentence, and now it needs them in **both** languages, which is a stronger claim than
+   * the one this test used to make.
+   */
+  it("has a name and a description for every widget, in both languages", () => {
     for (const id of WIDGETS) {
-      expect(WIDGET_REGISTRY[id].label.length).toBeGreaterThan(0)
-      expect(WIDGET_REGISTRY[id].description.length).toBeGreaterThan(0)
+      expect(WIDGET_REGISTRY[id].id).toBe(id)
+      for (const messages of [EN, TH]) {
+        expect(messages.widgets[id]?.label?.length, `${id}`).toBeGreaterThan(0)
+        expect(messages.widgets[id]?.description?.length, `${id}`).toBeGreaterThan(0)
+      }
     }
   })
 })
@@ -181,17 +192,25 @@ describe("customising the layout", () => {
 
 describe("metrics", () => {
   it("names every one unambiguously", () => {
-    // "Profit", "Return" and "Yield" are each two different numbers in a portfolio tracker.
+    // "Profit", "Return" and "Yield" are each two different numbers in a portfolio tracker, so a
+    // bare one is never a metric name. Checked in both languages: "ผลตอบแทน" alone is exactly as
+    // ambiguous in Thai as "Return" is in English.
     for (const id of METRICS) {
-      const label = METRIC_REGISTRY[id].label
-      expect(["Profit", "Return", "Yield", "Gain"]).not.toContain(label)
-      expect(METRIC_REGISTRY[id].definition.length).toBeGreaterThan(20)
+      expect(METRIC_REGISTRY[id].unit).toBeTruthy()
+      expect(["Profit", "Return", "Yield", "Gain"]).not.toContain(EN.metrics[id].label)
+      expect(["กำไร", "ผลตอบแทน", "อัตราผลตอบแทน"]).not.toContain(TH.metrics[id].label)
+      expect(EN.metrics[id].definition.length).toBeGreaterThan(20)
+      expect(TH.metrics[id].definition.length).toBeGreaterThan(10)
     }
   })
 
-  it("distinguishes the two yields by name", () => {
-    expect(METRIC_REGISTRY.yieldOnCost.label).toBe("Yield on cost")
-    expect(METRIC_REGISTRY.yieldOnValue.label).toBe("Yield on current value")
+  it("distinguishes the two yields by name, in both languages", () => {
+    expect(EN.metrics.yieldOnCost.label).toBe("Yield on cost")
+    expect(EN.metrics.yieldOnValue.label).toBe("Yield on current value")
+    expect(TH.metrics.yieldOnCost.label).not.toBe(TH.metrics.yieldOnValue.label)
+    // Each says which denominator it uses, rather than both being "อัตราผลตอบแทน".
+    expect(TH.metrics.yieldOnCost.label).toContain("ต้นทุน")
+    expect(TH.metrics.yieldOnValue.label).toContain("มูลค่าปัจจุบัน")
   })
 
   it("falls back to the default when nothing is chosen", () => {

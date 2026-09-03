@@ -8,13 +8,18 @@ import { History } from "lucide-react"
 import { AttributionPanel } from "@/features/history/components/attribution-panel"
 import { loadHistory } from "@/features/history/loader"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
-import { HISTORY_PERIODS, PERIOD_LABELS, type HistoryPeriod } from "@/domain/history"
-import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
+import { HISTORY_PERIODS, type HistoryPeriod } from "@/domain/history"
+import { describeDrawdown } from "@/domain/drawdown-history"
 import { formatCurrency, formatDate, formatOptionalPercent } from "@/lib/format"
 import { NoPortfolio } from "../../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "History" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("history") }
+}
 
 /** The nonce-based CSP needs a server-rendered response; a prerendered page carries no nonce. */
 export const dynamic = "force-dynamic"
@@ -31,6 +36,9 @@ export default async function HistoryPage({
 }: {
   searchParams: Promise<{ p?: string; period?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const tEnum = await getTranslations("enums")
+  const t = await getTranslations("history")
   const locale = await appLocale()
   const { p, period: requested } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -47,10 +55,10 @@ export default async function HistoryPage({
     <div className="mx-auto max-w-5xl space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">History</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("history")}</h1>
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
-        <nav aria-label="Period" className="flex flex-wrap gap-1">
+        <nav aria-label={t("period")} className="flex flex-wrap gap-1">
           {HISTORY_PERIODS.map((option) => (
             <Link
               key={option}
@@ -70,15 +78,15 @@ export default async function HistoryPage({
         <div className="rounded-xl border">
           <EmptyState
             icon={History}
-            title="No history yet for this period"
-            description="Stockly records a valuation each day the portfolio is open or the market closes. A few days of those and this page fills in."
+            title={t("empty.title")}
+            description={t("empty.body")}
           />
         </div>
       ) : (
         <>
           <Section
-            title="Return and value"
-            description={`${PERIOD_LABELS[period]} · ${history.coverage.snapshots} readings`}
+            title={t("returnAndValue")}
+            description={`${tEnum(`historyPeriod.${period}`)} · ${history.coverage.snapshots} readings`}
           >
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {/*
@@ -86,17 +94,17 @@ export default async function HistoryPage({
                 change includes money paid in; the returns do not.
               */}
               <Metric
-                label="Time-weighted return"
+                label={t("twr")}
                 value={formatOptionalPercent(history.timeWeightedReturnPct)}
                 hint="Capital flows removed"
               />
               <Metric
-                label="Money-weighted return"
+                label={t("mwr")}
                 value={formatOptionalPercent(history.moneyWeightedReturnPct)}
                 hint="What this investor earned"
               />
               <Metric
-                label="Value change"
+                label={t("valueChange")}
                 value={
                   history.valueChange === null ? (
                     <span className="text-muted-foreground">N/A</span>
@@ -107,7 +115,7 @@ export default async function HistoryPage({
                 hint="Not a return — includes money paid in"
               />
               <Metric
-                label="Net capital flow"
+                label={t("netCapitalFlow")}
                 value={<Delta value={history.netFlow} currency={currency} />}
                 hint={`${history.flows.length} movement${history.flows.length === 1 ? "" : "s"}`}
               />
@@ -131,9 +139,9 @@ export default async function HistoryPage({
           />
 
           <Section
-            title="Drawdowns"
+            title={t("drawdowns")}
             description={
-              history.regime ? REGIME_LABELS[history.regime] : "Not enough history to measure"
+              history.regime ? tEnum(`regime.${history.regime}`) : "Not enough history to measure"
             }
           >
             {history.drawdowns === null ? (
@@ -146,7 +154,7 @@ export default async function HistoryPage({
               <>
                 <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   <Metric
-                    label="Deepest fall"
+                    label={t("deepestFall")}
                     value={
                       history.drawdowns.worst
                         ? `${history.drawdowns.worst.depthPct.toFixed(1)}%`
@@ -154,10 +162,10 @@ export default async function HistoryPage({
                     }
                   />
                   <Metric
-                    label="Currently below high"
+                    label={t("currentlyBelowHigh")}
                     value={`${history.drawdowns.currentDepthPct.toFixed(1)}%`}
                   />
-                  <Metric label="Observations" value={String(history.drawdowns.observations)} />
+                  <Metric label={t("observations")} value={String(history.drawdowns.observations)} />
                 </dl>
 
                 {history.drawdowns.events.length > 0 && (
@@ -168,7 +176,7 @@ export default async function HistoryPage({
                         className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm"
                       >
                         <span>{describeDrawdown(event)}</span>
-                        {event.ongoing ? <Badge variant="secondary">Ongoing</Badge> : null}
+                        {event.ongoing ? <Badge variant="secondary">{t("ongoing")}</Badge> : null}
                       </li>
                     ))}
                   </ul>
@@ -177,7 +185,7 @@ export default async function HistoryPage({
             )}
           </Section>
 
-          <Section title="By month" description="Capital flows removed from every return.">
+          <Section title={t("byMonth")} description={t("flowsRemoved")}>
             {/* A table above `sm`, a list below: twelve columns do not belong on a phone. */}
             <ul className="divide-y">
               {history.monthly.map((row) => (
@@ -193,7 +201,7 @@ export default async function HistoryPage({
                     )}
                     <span className="w-16 text-right">
                       {row.returnPct === null ? (
-                        <span title="No valuation recorded for this month">N/A</span>
+                        <span title={t("noValuationThisMonth")}>N/A</span>
                       ) : (
                         <Percent value={row.returnPct} />
                       )}
@@ -204,21 +212,21 @@ export default async function HistoryPage({
             </ul>
           </Section>
 
-          <Section title="Activity and costs">
+          <Section title={t("activityAndCosts")}>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Metric
-                label="Bought"
+                label={t("bought")}
                 value={formatCurrency(history.turnover.buyVolume, currency)}
                 hint={`${history.turnover.orderCount} orders`}
               />
-              <Metric label="Sold" value={formatCurrency(history.turnover.sellVolume, currency)} />
+              <Metric label={t("sold")} value={formatCurrency(history.turnover.sellVolume, currency)} />
               <Metric
-                label="Turnover"
+                label={t("turnover")}
                 value={formatOptionalPercent(history.turnover.ratio, { signed: false })}
                 hint="Of average portfolio value"
               />
               <Metric
-                label="Fees"
+                label={t("fees")}
                 value={formatCurrency(history.fees.total, currency)}
                 hint={
                   history.fees.ofTradingVolume === null

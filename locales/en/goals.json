@@ -1,1 +1,21 @@
-{}
+{
+  "baseScenario": "Base scenario",
+  "empty": "No goals yet",
+  "emptyBody": "Set a target and Stockly measures progress against it from your own transactions — portfolio value, invested capital, dividend income or total return.",
+  "add": "Add goal",
+  "set": "Set a goal",
+  "removed": "Goal removed.",
+  "why": "Why this target",
+  "measure": "What to measure",
+  "currency": "Currency",
+  "targetDate": "Target date",
+  "note": "Note",
+  "baseCaseOutlook": "Base-case outlook",
+  "target": "Target",
+  "scenarioValue": "Scenario value",
+  "projectedGap": "Projected gap",
+  "contributionNeeded": "Contribution needed",
+  "planScenario": "Plan a scenario",
+  "changeAssumptions": "Change assumptions",
+  "notPredictions": "These are not predictions."
+}

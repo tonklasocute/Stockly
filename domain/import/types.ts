@@ -66,18 +66,11 @@ export const REQUIRED_FIELDS: readonly ImportField[] = [
   "price",
 ]
 
-export const FIELD_LABELS: Record<ImportField, string> = {
-  tradeDate: "Trade date",
-  symbol: "Symbol",
-  market: "Market",
-  side: "Side",
-  quantity: "Quantity",
-  price: "Price",
-  fee: "Fee",
-  currency: "Currency",
-  notes: "Notes",
-  reference: "Broker reference",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export const FIELD_HELP: Record<ImportField, string> = {
   tradeDate: "The date the trade happened. Required.",

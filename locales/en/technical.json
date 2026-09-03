@@ -1,1 +1,18 @@
-{}
+{
+  "rsi": "RSI (14)",
+  "adx": "ADX (14)",
+  "relativeVolume": "Relative volume",
+  "ema50": "EMA 50",
+  "ema200": "EMA 200",
+  "ema20": "EMA 20",
+  "atrPct": "ATR % of price",
+  "avgVolume20": "Avg volume (20)",
+  "notEnoughHistory": "Not enough price history to compute technical indicators for this stock.",
+  "trend": "Trend",
+  "stage": "Stage",
+  "score": "Technical score",
+  "currentConditions": "Current conditions",
+  "unavailable": "Technical data unavailable",
+  "unavailableBody": "Indicators need a year of price history, which could not be loaded for this stock.",
+  "delayed": "Technical data may be delayed — last calculated {at}. The price above is live; these indicators are not."
+}

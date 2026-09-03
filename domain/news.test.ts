@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
+import EN_ENUMS from "@/locales/en/enums.json"
+import TH_ENUMS from "@/locales/th/enums.json"
+import EN_NEWS from "@/locales/en/news.json"
+import TH_NEWS from "@/locales/th/news.json"
 import {
   ageOf,
   canonicalUrl,
-  CATEGORY_LABELS,
   classifyCategory,
   classifySentiment,
   dedupeArticles,
@@ -19,7 +22,6 @@ import {
   relevanceOf,
   RELEVANCE_WEIGHTS,
   SENTIMENT_DISCLAIMER,
-  SENTIMENT_LABELS,
   SENTIMENTS,
   sortArticles,
   type NewsArticle,
@@ -196,8 +198,11 @@ describe("categories", () => {
     expect(classifyCategory("A headline about nothing in particular", null)).toBe("OTHER")
   })
 
-  it("has a label for every category", () => {
-    for (const category of NEWS_CATEGORIES) expect(CATEGORY_LABELS[category].length).toBeGreaterThan(0)
+  it("has a name for every category, in both languages", () => {
+    for (const category of NEWS_CATEGORIES) {
+      expect(EN_ENUMS.newsCategory[category]?.length, `en ${category}`).toBeGreaterThan(0)
+      expect(TH_ENUMS.newsCategory[category]?.length, `th ${category}`).toBeGreaterThan(0)
+    }
   })
 })
 
@@ -231,9 +236,12 @@ describe("sentiment", () => {
     expect(classifySentiment("Analysts recommend selling", null).sentiment).toBe("UNKNOWN")
   })
 
-  it("labels tone as tone, and says so", () => {
+  it("labels tone as tone, and says so, in both languages", () => {
+    // "Positive" alone reads as a prediction. Every label names what it describes — the *prose* —
+    // and both languages have to keep doing that, not just the one the rule was written in.
     for (const sentiment of SENTIMENTS) {
-      expect(SENTIMENT_LABELS[sentiment].toLowerCase()).toContain("tone")
+      expect(EN_ENUMS.sentiment[sentiment].toLowerCase(), sentiment).toContain("tone")
+      expect(TH_ENUMS.sentiment[sentiment], sentiment).toContain("โทน")
     }
     expect(SENTIMENT_DISCLAIMER).toContain("not what a price will do")
   })
@@ -372,14 +380,25 @@ describe("linking an article to a corporate event", () => {
 })
 
 describe("notifications carry no portfolio figure", () => {
-  it("names the symbol and the category, and nothing else", () => {
-    const text = newsNotificationText(article({ symbols: ["US:NVDA"], category: "EARNINGS" }))
-    expect(text).toBe("New NVDA news is available (earnings).")
-    expect(text).not.toMatch(/\$|฿|position|worth|gained|portfolio/i)
+  /*
+   * Since phase 21 this returns the *facts* a notification is built from, and the sentence is
+   * composed in the reader's own language where the recipient is known. The guarantee is unchanged
+   * and is now stronger: the shape has only a symbol and a category, so there is nowhere for a
+   * figure to be, and both languages' messages are checked for one.
+   */
+  it("names the symbol and the category, and has nowhere to put anything else", () => {
+    const facts = newsNotificationText(article({ symbols: ["US:NVDA"], category: "EARNINGS" }))
+    expect(facts).toEqual({ kind: "SYMBOL", symbol: "NVDA", category: "EARNINGS" })
+
+    for (const message of [...Object.values(EN_NEWS.notification), ...Object.values(TH_NEWS.notification)]) {
+      expect(message).not.toMatch(/\$|฿|position|worth|gained|portfolio/i)
+    }
   })
 
-  it("falls back to a generic sentence with no symbol", () => {
-    expect(newsNotificationText(article({ symbols: [] }))).toBe("New market news is available.")
+  it("falls back to a market-wide notification with no symbol", () => {
+    expect(newsNotificationText(article({ symbols: [] }))).toEqual({ kind: "MARKET" })
+    expect(EN_NEWS.notification.market).toBe("New market news is available.")
+    expect(TH_NEWS.notification.market.length).toBeGreaterThan(4)
   })
 })
 
@@ -388,9 +407,14 @@ describe("nothing in this layer advises", () => {
     const sentences = [
       NEWS_DISCLAIMER,
       SENTIMENT_DISCLAIMER,
-      ...Object.values(SENTIMENT_LABELS),
-      ...Object.values(CATEGORY_LABELS),
-      newsNotificationText(article()),
+      // The words live in `enums` now, and the rule is checked in both languages: a translation
+      // that smuggles in advice the English never had is the failure a bilingual app adds.
+      ...Object.values(EN_ENUMS.sentiment),
+      ...Object.values(TH_ENUMS.sentiment),
+      ...Object.values(EN_ENUMS.newsCategory),
+      ...Object.values(TH_ENUMS.newsCategory),
+      ...Object.values(EN_NEWS.notification),
+      ...Object.values(TH_NEWS.notification),
     ]
     for (const sentence of sentences) {
       for (const pattern of FORBIDDEN_INSIGHT_PATTERNS) {

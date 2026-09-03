@@ -34,6 +34,7 @@ import {
   type PortfolioFormValues,
   type PortfolioInput,
 } from "../schema"
+import { useTranslations } from "next-intl"
 
 export function PortfolioDialog({
   open,
@@ -45,6 +46,8 @@ export function PortfolioDialog({
   /** Present when editing; absent when creating. */
   portfolio?: PortfolioRow
 }) {
+  const t = useTranslations("portfolios")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(portfolio)
 
@@ -97,10 +100,10 @@ export function PortfolioDialog({
 
           <div className="grid gap-4 py-5">
             <div className="space-y-2">
-              <Label htmlFor="portfolio-name">Name</Label>
+              <Label htmlFor="portfolio-name">{t("name")}</Label>
               <Input
                 id="portfolio-name"
-                placeholder="My Portfolio"
+                placeholder={t("namePlaceholder")}
                 autoFocus
                 aria-invalid={!!form.formState.errors.name}
                 {...form.register("name")}
@@ -111,7 +114,7 @@ export function PortfolioDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="portfolio-currency">Currency</Label>
+              <Label htmlFor="portfolio-currency">{t("currency")}</Label>
               <Select
                 value={currency}
                 onValueChange={(value) => form.setValue("currency", value ?? "USD")}
@@ -135,9 +138,7 @@ export function PortfolioDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" className="max-sm:h-11" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="ghost" className="max-sm:h-11" onClick={() => onOpenChange(false)}>{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Create portfolio"}

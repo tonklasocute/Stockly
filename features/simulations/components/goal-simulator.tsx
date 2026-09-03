@@ -24,8 +24,6 @@ import {
 import { GOAL_DEFINITIONS, type GoalType } from "@/domain/goals"
 import type { Currency } from "@/domain/market"
 import {
-  FREQUENCY_LABELS,
-  SCENARIO_LABELS,
   planGoal,
   requiredContribution,
   scenarioMatrix,
@@ -35,8 +33,9 @@ import { formatCurrency, formatCurrencyWithCode, formatDate, formatPercent } fro
 import { AssumptionPanel, DataLabel } from "./assumptions"
 import { GrowthAreaChart } from "./lazy-charts"
 import { FrequencyField, NumberField, ScenarioPicker } from "./inputs"
-import { REASON_TEXT, toScenario, useScenarioState } from "./use-scenario"
+import { toScenario, useScenarioState } from "./use-scenario"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 /** A goal the user has already set, with the figures it is measured against. */
 export type PlannableGoal = {
@@ -67,6 +66,8 @@ export function GoalSimulator({
   suggestedContribution: number | null
   portfolioId: string
 }) {
+  const t = useTranslations("simulations")
+  const tEnum = useTranslations("enums")
   const locale = useAppLocale()
   const [selectedId, setSelectedId] = useState(goals[0]?.id ?? "")
   const goal = goals.find((g) => g.id === selectedId) ?? goals[0] ?? null
@@ -115,12 +116,8 @@ export function GoalSimulator({
   if (!goal) {
     return (
       <div className="space-y-3 rounded-xl border p-6 text-center">
-        <p className="text-muted-foreground text-sm">
-          No goals set yet. A goal gives a scenario something to be measured against.
-        </p>
-        <Button nativeButton={false} render={<Link href={`/goals?p=${portfolioId}`} />} size="sm">
-          Set a goal
-        </Button>
+        <p className="text-muted-foreground text-sm">{t("goal.noGoals")}</p>
+        <Button nativeButton={false} render={<Link href={`/goals?p=${portfolioId}`} />} size="sm">{t("goal.setGoal")}</Button>
       </div>
     )
   }
@@ -130,10 +127,10 @@ export function GoalSimulator({
 
   return (
     <div className="space-y-6">
-      <Section title="Goal and assumptions" description="Every figure below follows from these.">
+      <Section title={t("goal.title")} description={t("goal.hint")}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
-            <Label htmlFor="goal-select">Goal</Label>
+            <Label htmlFor="goal-select">{t("goal.goal")}</Label>
             <Select
               value={goal.id}
               onValueChange={(value) => {
@@ -153,7 +150,7 @@ export function GoalSimulator({
             >
               <SelectTrigger id="goal-select" className="w-full">
                 <SelectValue>
-                  {(value) => goals.find((g) => g.id === value)?.label ?? "Goal"}
+                  {(value) => goals.find((g) => g.id === value)?.label ?? t("goal.goal")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -169,7 +166,7 @@ export function GoalSimulator({
 
           <NumberField
             id="goal-current"
-            label="Starting from"
+            label={t("goal.startingFrom")}
             suffix={goal.unit === "percent" ? "%" : currency}
             value={state.initialValue}
             onChange={set("initialValue")}
@@ -178,7 +175,7 @@ export function GoalSimulator({
           />
           <NumberField
             id="goal-contribution"
-            label="Contribution"
+            label={t("inputs.contribution")}
             suffix={currency}
             value={state.contribution}
             onChange={set("contribution")}
@@ -188,26 +185,26 @@ export function GoalSimulator({
           <ScenarioPicker value={state.scenario} onChange={pickScenario} />
           <NumberField
             id="goal-return"
-            label="Annual return"
+            label={t("inputs.annualReturn")}
             suffix="%"
             value={state.annualReturnPct}
             onChange={set("annualReturnPct")}
           />
           <NumberField
             id="goal-years"
-            label="Duration"
+            label={t("inputs.duration")}
             suffix="years"
             value={state.years}
             onChange={set("years")}
             min={1}
             max={50}
             hint={
-              goal.targetDate ? `Target date ${formatDate(goal.targetDate, locale)}` : "No target date set"
+              goal.targetDate ? t("goal.targetDate", { date: formatDate(goal.targetDate, locale) }) : t("goal.noTargetDate")
             }
           />
           <NumberField
             id="goal-inflation"
-            label="Inflation"
+            label={t("inputs.inflation")}
             suffix="%"
             value={state.inflationPct}
             onChange={set("inflationPct")}
@@ -218,19 +215,19 @@ export function GoalSimulator({
 
       {!plan.ok ? (
         <p className="text-muted-foreground text-sm">
-          N/A — {REASON_TEXT[plan.reason] ?? "that scenario cannot be modelled."}
+          N/A — {reason(t, plan.reason)}
         </p>
       ) : (
         <>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Against the target</h2>
+            <h2 className="text-sm font-semibold">{t("goal.againstTarget")}</h2>
             <DataLabel kind="PROJECTED" />
           </div>
 
           <StatGrid>
-            <StatCard label="Target" value={money(targetValue)} emphasis />
+            <StatCard label={t("goal.target")} value={money(targetValue)} emphasis />
             <StatCard
-              label="Scenario value"
+              label={t("goal.scenarioValue")}
               value={formatCurrencyWithCode(plan.value.projectedValue, currency)}
               emphasis
               hint={
@@ -242,10 +239,10 @@ export function GoalSimulator({
               }
             />
             <StatCard
-              label="Projected gap"
+              label={t("goal.projectedGap")}
               value={
                 plan.value.projectedGap === 0 ? (
-                  <span className="text-gain">Target met</span>
+                  <span className="text-gain">{t("goal.targetMet")}</span>
                 ) : (
                   formatCurrency(plan.value.projectedGap, currency)
                 )
@@ -254,7 +251,7 @@ export function GoalSimulator({
               hint={
                 <span className="text-muted-foreground">
                   {plan.value.reachesTargetOn
-                    ? `Model crosses it ${formatDate(plan.value.reachesTargetOn, locale)}`
+                    ? t("goal.crossesOn", { date: formatDate(plan.value.reachesTargetOn, locale) })
                     : plan.value.alreadyReached
                       ? "Already at the target"
                       : "Not within this horizon"}
@@ -262,7 +259,7 @@ export function GoalSimulator({
               }
             />
             <StatCard
-              label="Contribution needed"
+              label={t("goal.contributionNeeded")}
               value={
                 required.ok ? (
                   formatCurrency(required.value, currency)
@@ -274,14 +271,14 @@ export function GoalSimulator({
               hint={
                 <span className="text-muted-foreground">
                   {required.ok
-                    ? `${FREQUENCY_LABELS[scenario.frequency].toLowerCase()}, to land on the target`
-                    : (REASON_TEXT[required.reason] ?? "cannot be computed")}
+                    ? t("goal.toLandOnTarget", { frequency: tEnum(`contributionFrequency.${scenario.frequency}`) })
+                    : (reason(t, required.reason, "NOT_COMPUTABLE"))}
                 </span>
               }
             />
           </StatGrid>
 
-          <Section title="Path to the target" description="The target is drawn as a reference line.">
+          <Section title={t("goal.path")} description={t("goal.pathHint")}>
             <GrowthAreaChart
               points={plan.value.growth.points}
               currency={currency}
@@ -290,25 +287,25 @@ export function GoalSimulator({
           </Section>
 
           <Section
-            title="Scenario matrix"
-            description="The same goal under each named assumption. Every cell comes from the engine."
+            title={t("goal.matrix")}
+            description={t("goal.matrixHint")}
           >
             <div className="overflow-hidden rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Scenario</TableHead>
-                    <TableHead className="text-right">Return</TableHead>
-                    <TableHead className="text-right">Contribution</TableHead>
-                    <TableHead className="text-right">Projected value</TableHead>
-                    <TableHead className="text-right">Projected gap</TableHead>
-                    <TableHead className="text-right">Needed</TableHead>
+                    <TableHead>{t("goal.scenario")}</TableHead>
+                    <TableHead className="text-right">{t("goal.return")}</TableHead>
+                    <TableHead className="text-right">{t("inputs.contribution")}</TableHead>
+                    <TableHead className="text-right">{t("goal.projectedValue")}</TableHead>
+                    <TableHead className="text-right">{t("goal.projectedGap")}</TableHead>
+                    <TableHead className="text-right">{t("goal.needed")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {matrix.map((row) => (
                     <TableRow key={row.name}>
-                      <TableCell className="font-medium">{SCENARIO_LABELS[row.name]}</TableCell>
+                      <TableCell className="font-medium">{tEnum(`scenarioName.${row.name}`)}</TableCell>
                       <TableCell className="tabular text-right">
                         {formatPercent(row.annualReturn * 100, { signed: false })}
                       </TableCell>
@@ -346,28 +343,45 @@ export function GoalSimulator({
           <AssumptionPanel
             method={plan.value.growth.method}
             assumptions={[
-              { label: "Goal", value: goal.label, hint: GOAL_DEFINITIONS[goal.type].label },
-              { label: "Target", value: money(targetValue) },
-              { label: "Starting from", value: money(scenario.initialValue) },
+              { label: t("goal.goal"), value: goal.label, hint: GOAL_DEFINITIONS[goal.type].label },
+              { label: t("goal.target"), value: money(targetValue) },
+              { label: t("goal.startingFrom"), value: money(scenario.initialValue) },
               {
-                label: "Contribution",
+                label: t("inputs.contribution"),
                 value: formatCurrency(scenario.contribution, currency),
-                hint: FREQUENCY_LABELS[scenario.frequency].toLowerCase() + ", at period end",
+                hint: t("inputs.atPeriodEnd", { frequency: tEnum(`contributionFrequency.${scenario.frequency}`) }),
               },
-              { label: "Annual return", value: formatPercent(scenario.annualReturn * 100) },
-              { label: "Duration", value: `${scenario.years} years` },
+              { label: t("inputs.annualReturn"), value: formatPercent(scenario.annualReturn * 100) },
+              { label: t("inputs.duration"), value: `${scenario.years} years` },
               {
-                label: "Inflation",
+                label: t("inputs.inflation"),
                 value:
                   scenario.inflationRate === null
                     ? "Not modelled"
                     : formatPercent(scenario.inflationRate * 100),
               },
-              { label: "Currency", value: currency },
+              { label: t("inputs.currency"), value: currency },
             ]}
           />
         </>
       )}
     </div>
   )
+}
+
+/**
+ * A refusal code becomes a sentence, with a fallback that is itself a message.
+ *
+ * The engine returns a reason for every scenario it will not model — never `NaN`, never
+ * `Infinity` — and an unrecognised one still has to say something in the reader's language, which
+ * is why the fallback is a key rather than an English string.
+ */
+function reason(
+  t: (key: string) => string,
+  code: string | undefined,
+  fallback: "UNKNOWN" | "NOT_COMPUTABLE" = "UNKNOWN",
+): string {
+  const known = ["INVALID_INITIAL_VALUE", "INVALID_CONTRIBUTION", "INVALID_RETURN", "INVALID_DURATION",
+    "INVALID_INFLATION", "NO_FX_RATE", "INSUFFICIENT_HISTORY", "TARGET_UNREACHABLE"]
+  return t(`reasons.${code && known.includes(code) ? code : fallback}`)
 }

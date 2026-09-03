@@ -18,11 +18,12 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CASH_FLOW_DIRECTION, CASH_FLOW_KINDS, CASH_FLOW_LABELS } from "@/domain/cash"
+import { CASH_FLOW_DIRECTION, CASH_FLOW_KINDS } from "@/domain/cash"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import type { CashTransactionRow } from "@/types/database"
 import { cashInputSchema, type CashFormValues, type CashInput } from "../schema"
+import { useTranslations } from "next-intl"
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -37,6 +38,9 @@ export function CashDialog({
   portfolioId: string
   transaction?: CashTransactionRow
 }) {
+  const tEnum = useTranslations("enums")
+  const t = useTranslations("cash")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(transaction)
 
@@ -95,7 +99,7 @@ export function CashDialog({
             <div
               className="grid grid-cols-2 gap-2 sm:grid-cols-3"
               role="radiogroup"
-              aria-label="Cash movement type"
+              aria-label={t("type")}
             >
               {CASH_FLOW_KINDS.map((value) => {
                 const inflow = CASH_FLOW_DIRECTION[value] === 1
@@ -116,7 +120,7 @@ export function CashDialog({
                     )}
                   >
                     <span aria-hidden>{inflow ? "+" : "−"}</span>
-                    {CASH_FLOW_LABELS[value]}
+                    {tEnum(`cashFlow.${value}`)}
                   </button>
                 )
               })}
@@ -124,7 +128,7 @@ export function CashDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="cash-amount">Amount</Label>
+                <Label htmlFor="cash-amount">{t("amount")}</Label>
                 <Input
                   id="cash-amount"
                   type="number"
@@ -138,7 +142,7 @@ export function CashDialog({
                 {errors.amount && <p className="text-destructive text-sm">{errors.amount.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cash-date">Date</Label>
+                <Label htmlFor="cash-date">{t("date")}</Label>
                 <Input
                   id="cash-date"
                   type="date"
@@ -153,10 +157,9 @@ export function CashDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cash-notes">
-                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              <Label htmlFor="cash-notes">{t("notes")}<span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
-              <Input id="cash-notes" placeholder="Monthly contribution" {...form.register("notes")} />
+              <Input id="cash-notes" placeholder={t("monthlyContribution")} {...form.register("notes")} />
             </div>
 
             {errors.root && <p className="text-destructive text-sm">{errors.root.message}</p>}
@@ -168,9 +171,7 @@ export function CashDialog({
               variant="ghost"
               className="max-sm:h-11"
               onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+            >{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Record"}

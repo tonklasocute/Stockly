@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
+/** The event sentences only — the empty state says "what you hold", which is about a list. */
+const EVENT_SHAPES = ["EARNINGS", "EX_DIVIDEND", "DIVIDEND_AMOUNT", "DIVIDEND", "RATIO", "GENERIC"] as const
+import EN_FUNDAMENTALS from "@/locales/en/fundamentals.json"
+import TH_FUNDAMENTALS from "@/locales/th/fundamentals.json"
 import { buildPortfolio, replayPortfolio } from "./holdings"
 import { computeCash } from "./cash"
 import {
@@ -13,9 +17,7 @@ import {
 import { computeValuation, valuationContext, VALUATION_DISCLAIMER } from "./valuation"
 import {
   dedupeEvents,
-  describeEvent,
   dividendFundamentals,
-  EVENT_TYPES,
   relevantEvents,
   upcoming,
   type CorporateEvent,
@@ -287,7 +289,8 @@ describe("nothing in this layer advises", () => {
     const sentences = [
       FUNDAMENTALS_DISCLAIMER,
       VALUATION_DISCLAIMER,
-      ...EVENT_TYPES.map((type) => describeEvent({ ...dividendEvent, type })),
+      // The event sentences themselves, in both languages — `describeEvent` returns facts now.
+      ...EVENT_SHAPES.flatMap((shape) => [EN_FUNDAMENTALS.events[shape], TH_FUNDAMENTALS.events[shape]]),
       valuationContext(15, [18, 20, 22, 19, 25, 21, 23, 20, 24, 19], "P/E").description!,
       computeGrowth(statement(2026, 1), statement(2025)).unavailableReason!,
     ]

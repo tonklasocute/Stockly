@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { AI_INTENTS } from "@/domain/ai"
 import { screenerDefinitionSchema } from "@/features/screener/schema"
 
 /**

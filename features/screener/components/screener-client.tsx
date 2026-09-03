@@ -36,8 +36,6 @@ import { EmptyState } from "@/components/empty-state"
 import { NaturalLanguageScreener } from "@/features/ai/components/nl-screener"
 import {
   CROSSABLE_METRICS,
-  METRIC_LABELS,
-  OPERATOR_LABELS,
   RELATIVE_METRICS,
   SCREENER_METRICS,
   SCREENER_OPERATORS,
@@ -52,6 +50,7 @@ import { formatCurrency, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { SavedScreenRow } from "@/types/database"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 type Row = {
   symbol: string
@@ -106,6 +105,9 @@ export function ScreenerClient({
   savedScreens: SavedScreenRow[]
   aiEnabled?: boolean
 }) {
+  const t = useTranslations("screener")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const [definition, setDefinition] = useState<ScreenerDefinition>(
     SCREENER_PRESETS[0]?.definition ?? EMPTY,
@@ -135,7 +137,7 @@ export function ScreenerClient({
         body: JSON.stringify({ name: saveName, definition }),
       }),
     onSuccess: () => {
-      toast.success("Screen saved.")
+      toast.success(t("saved"))
       setSaveOpen(false)
       setSaveName("")
     },
@@ -144,7 +146,7 @@ export function ScreenerClient({
 
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/screener/saved/${id}`, { method: "DELETE" }),
-    onSuccess: () => toast.success("Screen deleted."),
+    onSuccess: () => toast.success(t("deleted")),
     onError: (error: Error) => toast.error(error.message),
   })
 
@@ -165,22 +167,22 @@ export function ScreenerClient({
   const filterEditor = (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm">Match</span>
+        <span className="text-muted-foreground text-sm">{t("match")}</span>
         <Select
           value={definition.logic}
           onValueChange={(value) =>
             setDefinition((c) => ({ ...c, logic: (value as "AND" | "OR") ?? "AND" }))
           }
         >
-          <SelectTrigger aria-label="Match all or any" className="w-28">
-            <SelectValue>{(v) => (v === "OR" ? "any of" : "all of")}</SelectValue>
+          <SelectTrigger aria-label={t("matchAllAny")} className="w-28">
+            <SelectValue>{(v) => (v === "OR" ? t("anyOf") : t("allOf"))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="AND">all of</SelectItem>
-            <SelectItem value="OR">any of</SelectItem>
+            <SelectItem value="AND">{t("allOf")}</SelectItem>
+            <SelectItem value="OR">{t("anyOf")}</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-muted-foreground text-sm">these conditions</span>
+        <span className="text-muted-foreground text-sm">{t("theseConditions")}</span>
       </div>
 
       <ul className="space-y-2">
@@ -196,13 +198,13 @@ export function ScreenerClient({
                   updateFilter(index, { metric, value: defaultValueFor(metric) })
                 }}
               >
-                <SelectTrigger aria-label="Metric" className="w-full">
-                  <SelectValue>{(v) => METRIC_LABELS[v as ScreenerMetric]}</SelectValue>
+                <SelectTrigger aria-label={t("metric")} className="w-full">
+                  <SelectValue>{(v) => tEnum(`screenerMetric.${v as ScreenerMetric}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {SCREENER_METRICS.map((metric) => (
                     <SelectItem key={metric} value={metric}>
-                      {METRIC_LABELS[metric]}
+                      {tEnum(`screenerMetric.${metric}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -214,15 +216,15 @@ export function ScreenerClient({
                   updateFilter(index, { operator: (value as ScreenerOperator) ?? "GT" })
                 }
               >
-                <SelectTrigger aria-label="Operator" className="sm:w-44">
-                  <SelectValue>{(v) => OPERATOR_LABELS[v as ScreenerOperator]}</SelectValue>
+                <SelectTrigger aria-label={t("operator")} className="sm:w-44">
+                  <SelectValue>{(v) => tEnum(`screenerOperator.${v as ScreenerOperator}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {SCREENER_OPERATORS.filter(
                     (op) => crossable || (op !== "CROSS_ABOVE" && op !== "CROSS_BELOW"),
                   ).map((op) => (
                     <SelectItem key={op} value={op}>
-                      {OPERATOR_LABELS[op]}
+                      {tEnum(`screenerOperator.${op}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -233,7 +235,7 @@ export function ScreenerClient({
                   value={String(filter.value)}
                   onValueChange={(value) => updateFilter(index, { value: (value as never) ?? "bullish" })}
                 >
-                  <SelectTrigger aria-label="Trend" className="sm:w-32">
+                  <SelectTrigger aria-label={t("trend")} className="sm:w-32">
                     <SelectValue>{(v) => String(v)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -245,14 +247,14 @@ export function ScreenerClient({
                   </SelectContent>
                 </Select>
               ) : isCross ? (
-                <span className="text-muted-foreground text-sm sm:w-32">on the latest bar</span>
+                <span className="text-muted-foreground text-sm sm:w-32">{t("onLatestBar")}</span>
               ) : (
                 <div className="relative sm:w-32">
                   <Input
                     type="number"
                     inputMode="decimal"
                     step="any"
-                    aria-label={`${METRIC_LABELS[filter.metric]} value`}
+                    aria-label={`${tEnum(`screenerMetric.${filter.metric}`)} value`}
                     className="tabular pr-7"
                     value={String(filter.value)}
                     onChange={(event) => updateFilter(index, { value: Number(event.target.value) })}
@@ -266,7 +268,7 @@ export function ScreenerClient({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Remove this condition"
+                aria-label={t("removeCondition")}
                 onClick={() =>
                   setDefinition((c) => ({ ...c, filters: c.filters.filter((_, i) => i !== index) }))
                 }
@@ -280,17 +282,13 @@ export function ScreenerClient({
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" className="gap-2" onClick={addFilter} disabled={definition.filters.length >= 10}>
-          <Plus className="size-4" aria-hidden />
-          Add condition
-        </Button>
+          <Plus className="size-4" aria-hidden />{t("addCondition")}</Button>
         <Button size="sm" className="gap-2" disabled={run.isPending} onClick={() => run.mutate(1)}>
           {run.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />}
           Run screener
         </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setSaveOpen(true)}>
-          <Save className="size-4" aria-hidden />
-          Save
-        </Button>
+          <Save className="size-4" aria-hidden />{tc("actions.save")}</Button>
       </div>
     </div>
   )
@@ -302,7 +300,7 @@ export function ScreenerClient({
       <NaturalLanguageScreener enabled={aiEnabled} onApply={setDefinition} />
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold">Presets</h2>
+        <h2 className="text-sm font-semibold">{t("presets")}</h2>
         <p className="text-muted-foreground text-xs">
           Every preset is an ordinary set of conditions — select one to see and edit exactly what it
           screens for.
@@ -325,7 +323,7 @@ export function ScreenerClient({
 
       {savedScreens.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">My screens</h2>
+          <h2 className="text-sm font-semibold">{t("myScreens")}</h2>
           <ul className="flex flex-wrap gap-2">
             {savedScreens.map((screen) => (
               <li key={screen.id} className="flex items-center gap-1">
@@ -362,8 +360,8 @@ export function ScreenerClient({
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Filters</DialogTitle>
-            <DialogDescription>Every condition is checked against the latest snapshot.</DialogDescription>
+            <DialogTitle>{t("filters")}</DialogTitle>
+            <DialogDescription>{t("filtersHint")}</DialogDescription>
           </DialogHeader>
           <div className="py-4">{filterEditor}</div>
         </DialogContent>
@@ -374,15 +372,15 @@ export function ScreenerClient({
           <div className="rounded-xl border">
             <EmptyState
               icon={Search}
-              title="Run a screen"
-              description="Choose a preset or build your own conditions, then run it against the tracked universe."
+              title={t("run")}
+              description={t("runHint")}
             />
           </div>
         ) : result.rows.length === 0 ? (
           <div className="rounded-xl border">
             <EmptyState
               icon={Search}
-              title="No matches"
+              title={t("noMatches")}
               description={`None of the ${result.evaluable} stocks with enough history met those conditions.`}
             />
           </div>
@@ -430,7 +428,7 @@ export function ScreenerClient({
                       </dd>
                     </div>
                     <div>
-                      <dt>Score</dt>
+                      <dt>{t("score")}</dt>
                       <dd className="tabular text-foreground">{row.score ?? "N/A"}</dd>
                     </div>
                   </dl>
@@ -442,13 +440,13 @@ export function ScreenerClient({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Symbol</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead>{t("symbol")}</TableHead>
+                    <TableHead className="text-right">{t("price")}</TableHead>
                     <TableHead className="text-right">RSI</TableHead>
                     <TableHead className="text-right">ADX</TableHead>
-                    <TableHead className="text-right">Rel volume</TableHead>
-                    <TableHead className="text-right">Score</TableHead>
-                    <TableHead>Trend</TableHead>
+                    <TableHead className="text-right">{t("relVolume")}</TableHead>
+                    <TableHead className="text-right">{t("score")}</TableHead>
+                    <TableHead>{t("trend")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -498,17 +496,13 @@ export function ScreenerClient({
                     size="sm"
                     disabled={result.page <= 1 || run.isPending}
                     onClick={() => run.mutate(result.page - 1)}
-                  >
-                    Previous
-                  </Button>
+                  >{tc("actions.previous")}</Button>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={result.page >= result.pageCount || run.isPending}
                     onClick={() => run.mutate(result.page + 1)}
-                  >
-                    Next
-                  </Button>
+                  >{tc("actions.next")}</Button>
                 </div>
               </div>
             )}
@@ -519,24 +513,20 @@ export function ScreenerClient({
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Save this screen</DialogTitle>
-            <DialogDescription>
-              The conditions are stored as structured data, so you can reopen and edit them.
-            </DialogDescription>
+            <DialogTitle>{t("save")}</DialogTitle>
+            <DialogDescription>{t("saveHint")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
-            <Label htmlFor="screen-name">Name</Label>
+            <Label htmlFor="screen-name">{t("name")}</Label>
             <Input
               id="screen-name"
               value={saveName}
               onChange={(event) => setSaveName(event.target.value)}
-              placeholder="Oversold growth"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setSaveOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="ghost" onClick={() => setSaveOpen(false)}>{tc("actions.cancel")}</Button>
             <Button disabled={!saveName.trim() || save.isPending} onClick={() => save.mutate()}>
               {save.isPending && <Loader2 className="size-4 animate-spin" aria-hidden />}
               Save

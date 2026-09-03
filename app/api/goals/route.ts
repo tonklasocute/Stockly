@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server"
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.", "portfolioRequired")
     // Rows only. Progress is derived from the calculation engine on the page that renders it, so
     // an endpoint returning a stored "progress" figure could never exist to go stale.
     return ok({ goals: await listGoals(portfolioId) })
@@ -35,10 +35,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "This portfolio already has a goal of that type.")
+      throw new ApiError("CONFLICT", "This portfolio already has a goal of that type.", "duplicateGoalType")
     }
     if (error?.code === "23514" || error?.code === "23503") {
-      throw new ApiError("VALIDATION_ERROR", "That goal violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That goal violates a data rule.", "dataRuleGoal")
     }
     if (error) throw error
 

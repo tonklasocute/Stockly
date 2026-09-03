@@ -17,6 +17,6 @@ export async function GET(request: Request) {
 
     if (entityId) return ok({ events: await auditFor(entityId) })
     if (portfolioId) return ok(await auditForPortfolio(portfolioId, toPage(params.get("page"))))
-    throw new ApiError("VALIDATION_ERROR", "Pass entityId or portfolioId.")
+    throw new ApiError("VALIDATION_ERROR", "Pass entityId or portfolioId.", "entityOrPortfolioRequired")
   })
 }

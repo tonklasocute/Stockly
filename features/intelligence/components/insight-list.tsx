@@ -1,6 +1,7 @@
 import { CircleAlert, Info, TriangleAlert } from "lucide-react"
 import type { Insight, InsightSeverity } from "@/domain/insights"
 import { cn } from "@/lib/utils"
+import { getTranslations } from "next-intl/server"
 
 const ICONS: Record<InsightSeverity, typeof Info> = {
   WARNING: TriangleAlert,
@@ -19,7 +20,7 @@ const TONE: Record<InsightSeverity, string> = {
   INFO: "text-muted-foreground",
 }
 
-export function InsightList({
+export async function InsightList({
   insights,
   limit,
   className,
@@ -28,13 +29,12 @@ export function InsightList({
   limit?: number
   className?: string
 }) {
+  const t = await getTranslations("intelligence")
   const visible = limit ? insights.slice(0, limit) : insights
 
   if (visible.length === 0) {
     return (
-      <p className={cn("text-muted-foreground py-6 text-center text-sm", className)}>
-        Nothing to flag. Insights appear as a portfolio accumulates positions and history.
-      </p>
+      <p className={cn("text-muted-foreground py-6 text-center text-sm", className)}>{t("insights.empty")}</p>
     )
   }
 

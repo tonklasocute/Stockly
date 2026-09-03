@@ -8,14 +8,21 @@ import { listAlerts, listAlertEvents } from "@/features/alerts/queries"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatTime } from "@/lib/format"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Alerts" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("alerts") }
+}
 
 export default async function AlertsPage({
   searchParams,
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("alerts")
   const locale = await appLocale()
   const { p } = await searchParams
   const [alerts, events, { active }] = await Promise.all([
@@ -30,7 +37,7 @@ export default async function AlertsPage({
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Alerts</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("alerts")}</h1>
           <p className="text-muted-foreground text-sm">
             {activeCount} active · evaluated on the server every few minutes
           </p>
@@ -40,17 +47,15 @@ export default async function AlertsPage({
           render={<Link href="/settings/notifications" />}
           variant="outline"
           size="sm"
-        >
-          Notification settings
-        </Button>
+        >{t("notificationSettings")}</Button>
       </div>
 
       <AlertList alerts={alerts} portfolioId={active?.id} />
 
       {events.length > 0 && (
         <Section
-          title="Trigger history"
-          description="Every time one of your alerts fired, and at what value."
+          title={t("history")}
+          description={t("historyHint")}
         >
           <ul className="divide-y">
             {events.slice(0, 15).map((event) => (

@@ -6,8 +6,9 @@ import { Loader2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { METRIC_LABELS, OPERATOR_LABELS, type ScreenerDefinition } from "@/domain/screener"
+import { type ScreenerDefinition } from "@/domain/screener"
 import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
 
 /**
  * Natural language into screener filters.
@@ -25,6 +26,8 @@ export function NaturalLanguageScreener({
   enabled: boolean
   onApply: (definition: ScreenerDefinition) => void
 }) {
+  const t = useTranslations("ai")
+  const tEnum = useTranslations("enums")
   const [query, setQuery] = useState("")
   const [proposal, setProposal] = useState<Proposed | null>(null)
 
@@ -42,10 +45,8 @@ export function NaturalLanguageScreener({
   return (
     <section className="space-y-3 rounded-xl border p-4">
       <div className="space-y-1">
-        <h2 className="text-sm font-semibold">Describe what you are looking for</h2>
-        <p className="text-muted-foreground text-xs">
-          Stockly AI turns a sentence into filters. You review them before anything runs.
-        </p>
+        <h2 className="text-sm font-semibold">{t("screener.describe")}</h2>
+        <p className="text-muted-foreground text-xs">{t("screener.hint")}</p>
       </div>
 
       <form
@@ -56,15 +57,13 @@ export function NaturalLanguageScreener({
         }}
       >
         <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="nl-screen" className="sr-only">
-            Describe the screen
-          </Label>
+          <Label htmlFor="nl-screen" className="sr-only">{t("screener.label")}</Label>
           <Input
             id="nl-screen"
             value={query}
             maxLength={1000}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Strong momentum, high volume and price above the 200 EMA"
+            placeholder={t("screener.placeholder")}
           />
         </div>
         <Button type="submit" className="gap-2" disabled={!query.trim() || translate.isPending}>
@@ -90,7 +89,7 @@ export function NaturalLanguageScreener({
                 <span className="text-muted-foreground text-xs">
                   {index === 0 ? "" : `${proposal.definition.logic} `}
                 </span>
-                {METRIC_LABELS[filter.metric]} {OPERATOR_LABELS[filter.operator]}{" "}
+                {tEnum(`screenerMetric.${filter.metric}`)} {tEnum(`screenerOperator.${filter.operator}`)}{" "}
                 <span className="tabular font-medium">{String(filter.value)}</span>
               </li>
             ))}
@@ -102,16 +101,10 @@ export function NaturalLanguageScreener({
                 onApply(proposal.definition)
                 setProposal(null)
               }}
-            >
-              Use these filters
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setProposal(null)}>
-              Discard
-            </Button>
+            >{t("screener.use")}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setProposal(null)}>{t("screener.discard")}</Button>
           </div>
-          <p className="text-muted-foreground text-xs">
-            These are suggested conditions, not a recommendation to buy or sell anything.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("screener.disclaimer")}</p>
         </div>
       )}
     </section>

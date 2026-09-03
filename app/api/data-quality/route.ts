@@ -12,7 +12,7 @@ import { loadDataQuality } from "@/features/data-quality/loader"
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.", "portfolioRequired")
     return ok(await loadDataQuality(portfolioId))
   })
 }

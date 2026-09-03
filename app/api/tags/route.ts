@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     // The unique index is case-insensitive, so "Growth" and "growth" cannot both exist and quietly
     // split a group in two.
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a tag with that name.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a tag with that name.", "duplicateTagName")
     if (error) throw error
 
     invalidatePersonalization()

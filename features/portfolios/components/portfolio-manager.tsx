@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
 import type { PortfolioRow } from "@/types/database"
 import { PortfolioDialog } from "./portfolio-dialog"
+import { useTranslations } from "next-intl"
 
 export function PortfolioManager({ portfolios }: { portfolios: PortfolioRow[] }) {
+  const t = useTranslations("portfolios")
   const router = useRouter()
   const [editing, setEditing] = useState<PortfolioRow | undefined>()
   const [open, setOpen] = useState(false)
@@ -18,7 +20,7 @@ export function PortfolioManager({ portfolios }: { portfolios: PortfolioRow[] })
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/portfolios/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Portfolio deleted.")
+      toast.success(t("deleted"))
       router.push("/dashboard")
       router.refresh()
     },
@@ -29,10 +31,8 @@ export function PortfolioManager({ portfolios }: { portfolios: PortfolioRow[] })
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold">Portfolios</h2>
-          <p className="text-muted-foreground text-sm">
-            Deleting a portfolio deletes its transactions too.
-          </p>
+          <h2 className="text-sm font-semibold">{t("title")}</h2>
+          <p className="text-muted-foreground text-sm">{t("deleteWarning")}</p>
         </div>
         <Button
           size="sm"
@@ -42,9 +42,7 @@ export function PortfolioManager({ portfolios }: { portfolios: PortfolioRow[] })
             setOpen(true)
           }}
         >
-          <Plus className="size-4" aria-hidden />
-          New
-        </Button>
+          <Plus className="size-4" aria-hidden />{t("new")}</Button>
       </div>
 
       <ul className="divide-y overflow-hidden rounded-xl border">

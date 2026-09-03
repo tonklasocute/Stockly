@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     // Applying a tag twice is not an error; it is the same state.
     if (error && error.code !== "23505") {
-      if (error.code === "23503") throw new ApiError("NOT_FOUND", "That portfolio or tag does not exist.")
+      if (error.code === "23503") throw new ApiError("NOT_FOUND", "That portfolio or tag does not exist.", "tagMissing")
       throw error
     }
 

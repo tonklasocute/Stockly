@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { REVIEW_RANGES, type ReviewRange } from "../range"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /**
  * The review period, kept in the URL so a link to a review is a link to *that* review.
@@ -18,6 +19,7 @@ export function RangeTabs({
   current: ReviewRange
   portfolioId: string
 }) {
+  const t = useTranslations("intelligence")
   const pathname = usePathname()
   const params = useSearchParams()
 
@@ -29,7 +31,7 @@ export function RangeTabs({
   }
 
   return (
-    <nav aria-label="Review period" className="bg-muted/60 flex gap-0.5 rounded-lg p-0.5">
+    <nav aria-label={t("review.period")} className="bg-muted/60 flex gap-0.5 rounded-lg p-0.5">
       {REVIEW_RANGES.map((range) => (
         <Link
           key={range}

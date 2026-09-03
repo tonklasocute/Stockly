@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { ERROR_CODES } from "@/lib/api-codes"
+import { ERROR_CODES, ERROR_DETAILS } from "@/lib/api-codes"
 import { isApiClientError } from "@/lib/api-client"
 
 /**
@@ -28,8 +28,19 @@ export function useErrorMessage() {
   return function describe(error: unknown): string {
     if (!isApiClientError(error)) return t("generic")
 
-    const known = error.code in ERROR_CODES
-    const message = known ? t(`code.${error.code}`) : error.message || t("generic")
+    /*
+     * The detail first, because it is the sentence a person can act on: "you already have a
+     * portfolio with that name" rather than "that conflicts with something already recorded".
+     * The status code is the fallback, and the server's English `message` is the last resort —
+     * shown only when a newer server sends a code this client has never heard of, where a specific
+     * English sentence beats a generic sentence in the right language.
+     */
+    const message =
+      error.detail && (ERROR_DETAILS as readonly string[]).includes(error.detail)
+        ? t(`detail.${error.detail}`)
+        : error.code in ERROR_CODES
+          ? t(`code.${error.code}`)
+          : error.message || t("generic")
 
     return error.requestId ? `${message} (${t("requestId", { id: error.requestId })})` : message
   }

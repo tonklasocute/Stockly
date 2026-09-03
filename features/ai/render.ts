@@ -1,6 +1,15 @@
+/*
+ * The prompt is English, deliberately, and reads the English messages directly.
+ *
+ * The model is asked to name a metric and an operator; the words it is given must be the words the
+ * system prompt was written around, and they must not change when a user switches language — an
+ * English prompt with Thai vocabulary in the middle of it is a worse prompt, and a *translated*
+ * prompt is a different prompt whose behaviour nobody has checked. So this imports `locales/en`
+ * rather than calling a translator: one source for the words, and an explicit statement that this
+ * particular consumer always wants the English ones. See `docs/AI.md`.
+ */
+import EN_ENUMS from "@/locales/en/enums.json"
 import {
-  METRIC_LABELS,
-  OPERATOR_LABELS,
   SCREENER_METRICS,
   SCREENER_OPERATORS,
 } from "@/domain/screener"
@@ -186,9 +195,9 @@ export function renderScreen(s: ScreenExplanation): string {
 export function renderScreenerVocabulary(): string {
   return [
     "### Allowed screener metrics",
-    ...SCREENER_METRICS.map((m) => `  - ${m} (${METRIC_LABELS[m]})`),
+    ...SCREENER_METRICS.map((m) => `  - ${m} (${EN_ENUMS.screenerMetric[m]})`),
     "### Allowed operators",
-    ...SCREENER_OPERATORS.map((o) => `  - ${o} (${OPERATOR_LABELS[o]})`),
+    ...SCREENER_OPERATORS.map((o) => `  - ${o} (${EN_ENUMS.screenerOperator[o]})`),
     "CROSS_ABOVE and CROSS_BELOW are valid only for MACD_HISTOGRAM and EMA50_VS_EMA200.",
     "TREND takes bullish, bearish or neutral. Every other metric takes a number.",
   ].join("\n")

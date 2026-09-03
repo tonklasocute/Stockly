@@ -38,19 +38,11 @@ export type DataQualityCategory = (typeof DATA_QUALITY_CATEGORIES)[number]
 export const DATA_QUALITY_SEVERITIES = ["INFO", "NOTICE", "WARNING", "ERROR"] as const
 export type DataQualitySeverity = (typeof DATA_QUALITY_SEVERITIES)[number]
 
-export const CATEGORY_LABELS: Record<DataQualityCategory, string> = {
-  MISSING_PRICE: "Missing market price",
-  STALE_PRICE: "Delayed market price",
-  MISSING_FX: "Missing exchange rate",
-  STALE_FX: "Delayed exchange rate",
-  MISSING_METADATA: "Missing instrument metadata",
-  IMPORT_UNRESOLVED: "Unresolved import rows",
-  IMPORT_CONFLICT: "Import conflicts",
-  CALENDAR_UNVERIFIED: "Unverified trading calendar",
-  RECONCILIATION_UNRESOLVED: "Unresolved reconciliation findings",
-  RECONCILIATION_STALE: "Reconciliation is out of date",
-  RECONCILIATION_NEVER_RUN: "Never reconciled",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export type DataQualityIssue = {
   category: DataQualityCategory

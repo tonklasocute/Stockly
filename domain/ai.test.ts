@@ -106,24 +106,25 @@ describe("findAdviceLanguage", () => {
 
 describe("assessCompleteness", () => {
   it("reports coverage and names what is missing", () => {
+    // Codes, not words, since phase 21: these are rendered on screen and so must be translatable.
     const result = assessCompleteness([
-      { label: "Price", available: true },
-      { label: "Indicators", available: true },
-      { label: "Market cap", available: false },
-      { label: "Volume", available: true },
+      { ref: { code: "price", symbol: "NVDA" }, available: true },
+      { ref: { code: "indicators", symbol: "NVDA" }, available: true },
+      { ref: { code: "score", symbol: "NVDA" }, available: false },
+      { ref: { code: "volume", symbol: "NVDA" }, available: true },
     ])
     expect(result.coveragePct).toBe(75)
     expect(result.level).toBe("partial")
-    expect(result.missing).toEqual(["Market cap"])
+    expect(result.missing).toEqual([{ code: "score", symbol: "NVDA" }])
   })
 
   it("is high only when nearly everything arrived", () => {
-    expect(assessCompleteness([{ label: "a", available: true }]).level).toBe("high")
+    expect(assessCompleteness([{ ref: { code: "price" }, available: true }]).level).toBe("high")
     expect(
       assessCompleteness([
-        { label: "a", available: true },
-        { label: "b", available: false },
-        { label: "c", available: false },
+        { ref: { code: "price" }, available: true },
+        { ref: { code: "volume" }, available: false },
+        { ref: { code: "score" }, available: false },
       ]).level,
     ).toBe("low")
   })

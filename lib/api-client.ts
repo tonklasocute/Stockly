@@ -1,5 +1,5 @@
 import type { ApiResponse } from "./api"
-import type { ErrorCode } from "./api-codes"
+import type { ErrorCode, ErrorDetail } from "./api-codes"
 
 /**
  * A failure the server described, with its code intact.
@@ -16,6 +16,8 @@ import type { ErrorCode } from "./api-codes"
  */
 export class ApiClientError extends Error {
   readonly code: ErrorCode
+  /** The specific reason, when the status code alone does not identify it. */
+  readonly detail?: ErrorDetail
   readonly details?: Record<string, string[]>
   /** Echoed by `guarded()`, so a user can quote one string and it can be found in the logs. */
   readonly requestId?: string
@@ -23,11 +25,12 @@ export class ApiClientError extends Error {
   constructor(
     code: ErrorCode,
     message: string,
-    options?: { details?: Record<string, string[]>; requestId?: string },
+    options?: { detail?: ErrorDetail; details?: Record<string, string[]>; requestId?: string },
   ) {
     super(message)
     this.name = "ApiClientError"
     this.code = code
+    this.detail = options?.detail
     this.details = options?.details
     this.requestId = options?.requestId
   }
@@ -58,6 +61,7 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   }
   if (!payload.success) {
     throw new ApiClientError(payload.error.code, payload.error.message, {
+      detail: payload.error.detail,
       details: payload.error.details,
       requestId: payload.requestId,
     })

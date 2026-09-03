@@ -1,1 +1,60 @@
-{}
+{
+  "review": {
+    "title": "Portfolio review",
+    "period": "Review period",
+    "portfolioValue": "Portfolio value",
+    "twr": "Time-weighted return",
+    "mwr": "Money-weighted return",
+    "twrShort": "Time-weighted",
+    "mwrShort": "Money-weighted",
+    "irrHint": "Annualised IRR, all history",
+    "currentDrawdown": "Current drawdown",
+    "insights": "Insights",
+    "insightsHint": "Rules applied to your own figures. Deterministic, and never advice.",
+    "benchmark": "Benchmark",
+    "benchmarkHint": "Your time-weighted return against an index over the same period.",
+    "risk": "Risk",
+    "riskHint": "Measured on flow-adjusted returns. A metric with too little data says so.",
+    "concentration": "Concentration",
+    "concentrationHint": "How weight is spread across positions.",
+    "largestPosition": "Largest position",
+    "top3": "Top 3",
+    "top5": "Top 5",
+    "positions": "Positions",
+    "sectorExposure": "Sector exposure",
+    "sectorHint": "From your market-data provider. Never inferred from a symbol.",
+    "noPricedPositions": "N/A — no priced positions.",
+    "noSectorMetadata": "N/A — your provider has no sector metadata for these holdings.",
+    "goals": "Goals",
+    "goalsHint": "Progress derived from the same figures as the dashboard.",
+    "noGoals": "No goals set.",
+    "theses": "Theses",
+    "thesesHint": "Your reasoning, with the status you set — never one Stockly decided.",
+    "noTheses": "No open theses. Write one from a position page.",
+    "costsAndIncome": "Costs and income",
+    "feesPaid": "Fees paid",
+    "dividends12m": "Dividends (12m)",
+    "cashBalance": "Cash balance",
+    "winRate": "Win rate",
+    "manage": "Manage",
+    "journal": "Journal"
+  },
+  "insights": {
+    "empty": "Nothing to flag. Insights appear as a portfolio accumulates positions and history."
+  },
+  "risk": {
+    "volatility": "Volatility (annualised)",
+    "sharpe": "Sharpe ratio",
+    "maxDrawdown": "Maximum drawdown",
+    "currentDrawdown": "Current drawdown",
+    "beta": "Beta",
+    "effectivePositions": "Effective positions"
+  },
+  "benchmark": {
+    "label": "Benchmark",
+    "none": "No benchmark",
+    "updated": "Benchmark updated.",
+    "portfolio": "Portfolio",
+    "difference": "Difference"
+  }
+}

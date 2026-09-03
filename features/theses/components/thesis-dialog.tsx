@@ -31,37 +31,25 @@ import {
   MAX_CONVICTION,
   MIN_CONVICTION,
   THESIS_STATUSES,
-  THESIS_STATUS_LABELS,
   type ThesisStatus,
 } from "@/domain/research"
 import { apiFetch } from "@/lib/api-client"
 import type { ThesisRow } from "@/types/database"
 import { thesisInputSchema, type ThesisFormValues, type ThesisInput } from "../schema"
+import { useTranslations } from "next-intl"
 
-/** The five prose fields, with the question each one is actually answering. */
+/**
+ * The five prose fields, with the question each one is actually answering.
+ *
+ * `name` is the form field; `key` is the translation key for both its label and its placeholder —
+ * one word, so a field cannot end up labelled as one thing and prompted as another.
+ */
 const FIELDS = [
-  {
-    name: "whyBought",
-    label: "Why I bought this",
-    placeholder: "The reasoning at the time, in your own words.",
-  },
-  {
-    name: "expectations",
-    label: "What I expect",
-    placeholder: "What has to happen for this to work out.",
-  },
-  {
-    name: "catalysts",
-    label: "Catalysts",
-    placeholder: "Events that would move the thesis forward.",
-  },
-  { name: "risks", label: "Risks", placeholder: "What could go wrong." },
-  {
-    name: "invalidationCriteria",
-    label: "What would change my mind",
-    placeholder:
-      "Decided in advance, while you are calm. Stockly will show this back to you — it never judges whether it has happened.",
-  },
+  { name: "whyBought", key: "whyBought" },
+  { name: "expectations", key: "expect" },
+  { name: "catalysts", key: "catalysts" },
+  { name: "risks", key: "risks" },
+  { name: "invalidationCriteria", key: "changeMind" },
 ] as const
 
 export function ThesisDialog({
@@ -80,6 +68,9 @@ export function ThesisDialog({
   /** Present when editing. */
   thesis?: ThesisRow
 }) {
+  const t = useTranslations("theses")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(thesis)
 
@@ -136,7 +127,7 @@ export function ThesisDialog({
 
           <div className="grid gap-4 py-5">
             <div className="space-y-2">
-              <Label htmlFor="thesis-title">Title</Label>
+              <Label htmlFor="thesis-title">{t("title")}</Label>
               <Input
                 id="thesis-title"
                 aria-invalid={!!errors.title}
@@ -147,11 +138,11 @@ export function ThesisDialog({
 
             {FIELDS.map((field) => (
               <div key={field.name} className="space-y-2">
-                <Label htmlFor={`thesis-${field.name}`}>{field.label}</Label>
+                <Label htmlFor={`thesis-${field.name}`}>{t(field.key)}</Label>
                 <Textarea
                   id={`thesis-${field.name}`}
                   rows={3}
-                  placeholder={field.placeholder}
+                  placeholder={t(`placeholders.${field.key}`)}
                   {...form.register(field.name)}
                 />
               </div>
@@ -159,7 +150,7 @@ export function ThesisDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="thesis-conviction">Conviction · {conviction}/10</Label>
+                <Label htmlFor="thesis-conviction">{t("conviction", { value: conviction })}</Label>
                 <Input
                   id="thesis-conviction"
                   type="range"
@@ -175,7 +166,7 @@ export function ThesisDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="thesis-status">Status</Label>
+                <Label htmlFor="thesis-status">{t("status")}</Label>
                 <Select
                   value={(form.watch("status") as string) ?? "ACTIVE"}
                   onValueChange={(value) => form.setValue("status", value as ThesisStatus)}
@@ -186,7 +177,7 @@ export function ThesisDialog({
                   <SelectContent>
                     {THESIS_STATUSES.map((status) => (
                       <SelectItem key={status} value={status}>
-                        {THESIS_STATUS_LABELS[status]}
+                        {tEnum(`thesisStatus.${status}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -203,9 +194,7 @@ export function ThesisDialog({
               variant="ghost"
               className="max-sm:h-11"
               onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+            >{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Save thesis"}

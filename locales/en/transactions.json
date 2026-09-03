@@ -1,1 +1,42 @@
-{}
+{
+  "title": "Transactions",
+  "add": "Add transaction",
+  "edit": "Edit transaction",
+  "empty": {
+    "title": "No transactions yet",
+    "body": "Record your first buy and Stockly will work out your holdings, cost basis and profit and loss."
+  },
+  "noMatches": {
+    "title": "No matches",
+    "body": "No transaction matches those filters. Try clearing the search or the type filter."
+  },
+  "search": {
+    "placeholder": "Search symbol or notes",
+    "label": "Search transactions",
+    "filterType": "Filter by type",
+    "filterSymbol": "Filter by symbol",
+    "sort": "Sort transactions",
+    "allTypes": "All types",
+    "allSymbols": "All symbols"
+  },
+  "sort": { "newest": "Newest", "oldest": "Oldest", "largest": "Largest" },
+  "columns": {
+    "date": "Date",
+    "type": "Type",
+    "symbol": "Symbol",
+    "quantity": "Quantity",
+    "price": "Price",
+    "fee": "Fee",
+    "total": "Total"
+  },
+  "form": {
+    "type": "Transaction type",
+    "notes": "Notes",
+    "notesHint": "Why you made this trade",
+    "recalcHint": "Holdings and profit and loss are recalculated from your transactions."
+  },
+  "rowActions": { "correct": "Correct with a reason", "delete": "Delete" },
+  "deleted": "Transaction deleted.",
+  "created": "Transaction recorded.",
+  "updated": "Transaction updated."
+}

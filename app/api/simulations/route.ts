@@ -49,10 +49,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "You already have a scenario with that name.")
+      throw new ApiError("CONFLICT", "You already have a scenario with that name.", "duplicateScenarioName")
     }
     if (error?.code === "23514" || error?.code === "23503") {
-      throw new ApiError("VALIDATION_ERROR", "That scenario violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That scenario violates a data rule.", "dataRuleScenario")
     }
     if (error) throw error
 

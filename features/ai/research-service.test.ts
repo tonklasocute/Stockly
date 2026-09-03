@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import EN_AI from "@/locales/en/ai.json"
+import TH_AI from "@/locales/th/ai.json"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 import type { AIContext } from "./context"
@@ -28,7 +30,7 @@ const context: AIContext = {
   intent: "STOCK_ANALYSIS",
   symbols: ["NVDA"],
   grounded,
-  completeness: { coveragePct: 100, level: "high", available: ["Price"], missing: [] },
+  completeness: { coveragePct: 100, level: "high", available: [{ code: "price", symbol: "NVDA" }], missing: [] },
   dataAsOf: "2026-09-01T10:30:00Z",
   delayed: false,
   text: "### NVDA\nRSI (14): 58.4\nTechnical score: 78/100 (v1)",
@@ -163,9 +165,17 @@ describe("runResearch", () => {
 
     const result = await runResearch({ supabase, userId: "u1", question: "analyse NVDA" })
 
+    /*
+     * `safetyFiltered` is the whole of the claim, and the narrative is *empty* rather than a
+     * replacement sentence — phase 21 moved the withheld wording into the `ai` namespace so it
+     * exists in both languages. What must never happen is the model's non-compliant text surviving,
+     * and that is what the emptiness guarantees.
+     */
     expect(result.safetyFiltered).toBe(true)
-    expect(result.narrative.summary).not.toContain("strong buy")
-    expect(result.narrative.summary).toMatch(/withheld/i)
+    expect(result.narrative.summary).toBe("")
+    expect(JSON.stringify(result.narrative)).not.toContain("strong buy")
+    expect(EN_AI.notCompliant).toMatch(/withheld/i)
+    expect(TH_AI.notCompliant.length).toBeGreaterThan(20)
     expect(result.grounded).toBe(grounded)
   })
 

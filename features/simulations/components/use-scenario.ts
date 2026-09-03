@@ -85,13 +85,10 @@ export function toScenario(state: ScenarioState, currency: Currency): GrowthScen
 }
 
 /** What a refused simulation should say, keyed by the reason the engine gave. */
-export const REASON_TEXT: Record<string, string> = {
-  INVALID_INITIAL_VALUE: "Enter a starting value of zero or more.",
-  INVALID_CONTRIBUTION: "Enter a contribution of zero or more.",
-  INVALID_RETURN: "Enter an annual return between −100% and 1000%.",
-  INVALID_DURATION: "Enter a duration between 1 and 50 years.",
-  INVALID_INFLATION: "Enter an inflation rate above −100%.",
-  NO_FX_RATE: "No exchange rate is available for this currency.",
-  INSUFFICIENT_HISTORY: "There is not enough history to base this assumption on.",
-  TARGET_UNREACHABLE: "Enter a target above 0.",
-}
+/*
+ * A reason is a **code**, and the sentence for it lives in `simulations.reasons`.
+ *
+ * The engine already returns codes — `INVALID_RETURN`, `NO_FX_RATE` — and this map only ever
+ * turned them into English. Keeping it would have made this file the copy Thai drifts from, so the
+ * codes go straight to `t()` at the call site instead.
+ */

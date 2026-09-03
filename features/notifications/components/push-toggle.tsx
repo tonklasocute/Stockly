@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
 import { notifyPushPermissionChanged, usePushPermission } from "@/features/pwa/use-pwa"
+import { useTranslations } from "next-intl"
 
 /**
  * VAPID keys travel as base64url; the subscription API wants raw bytes backed by a plain
@@ -33,6 +34,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
  * browsers), default, granted, denied. A denied permission is never re-requested.
  */
 export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
+  const t = useTranslations("notifications")
   const permission = usePushPermission()
   const [subscribed, setSubscribed] = useState(false)
 
@@ -50,7 +52,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
     mutationFn: async () => {
       const result = await Notification.requestPermission()
       notifyPushPermissionChanged()
-      if (result !== "granted") throw new Error("Notifications were not allowed.")
+      if (result !== "granted") throw new Error(t("push.denied"))
 
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.subscribe({
@@ -70,7 +72,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
     },
     onSuccess: () => {
       setSubscribed(true)
-      toast.success("Push notifications enabled on this device.")
+      toast.success(t("push.enabled"))
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -88,16 +90,14 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
     },
     onSuccess: () => {
       setSubscribed(false)
-      toast.success("Push notifications disabled on this device.")
+      toast.success(t("push.disabled"))
     },
     onError: (error: Error) => toast.error(error.message),
   })
 
   if (!vapidPublicKey) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Push notifications are not configured on this deployment. In-app notifications still work.
-      </p>
+      <p className="text-muted-foreground text-sm">{t("push.notConfigured")}</p>
     )
   }
 

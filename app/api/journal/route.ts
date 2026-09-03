@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       to: url.searchParams.get("to") ?? undefined,
       q: url.searchParams.get("q") ?? undefined,
     })
-    if (!parsed.success) throw new ApiError("VALIDATION_ERROR", "Invalid journal filter.")
+    if (!parsed.success) throw new ApiError("VALIDATION_ERROR", "Invalid journal filter.", "filterInvalid")
 
     const page = await listJournalPage(parsed.data, toPage(url.searchParams.get("page")))
     return ok({ entries: page.rows, meta: page })
@@ -55,10 +55,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "That trade already has a sell review. Edit it instead.")
+      throw new ApiError("CONFLICT", "That trade already has a sell review. Edit it instead.", "duplicateSellReview")
     }
     if (error?.code === "23514" || error?.code === "23503") {
-      throw new ApiError("VALIDATION_ERROR", "That entry violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That entry violates a data rule.", "dataRuleJournal")
     }
     if (error) throw error
 

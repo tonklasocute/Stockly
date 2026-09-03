@@ -17,6 +17,7 @@ import {
 import type { DividendYear } from "@/domain/simulation"
 import type { GrowthPoint } from "@/domain/simulation"
 import { formatCurrency } from "@/lib/format"
+import { useTranslations } from "next-intl"
 
 const TOOLTIP = {
   background: "var(--popover)",
@@ -122,9 +123,10 @@ export function ScenarioComparisonChart({
   currency: string
   targetValue?: number | null
 }) {
+  const t = useTranslations("simulations")
   const data = rows.filter((row) => row.value !== null)
   if (data.length === 0) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">N/A — nothing to compare.</p>
+    return <p className="text-muted-foreground py-8 text-center text-sm">{t("whatIf.chartEmpty")}</p>
   }
 
   return (

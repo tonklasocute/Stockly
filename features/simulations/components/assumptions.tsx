@@ -2,6 +2,7 @@
 
 import { Metric } from "@/components/metric"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /**
  * The label that separates what happened from what was calculated.
@@ -53,10 +54,11 @@ export function AssumptionPanel({
   method: string
   className?: string
 }) {
+  const t = useTranslations("simulations")
   return (
     <div className={cn("bg-muted/40 space-y-3 rounded-xl border p-4", className)}>
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Scenario assumptions</h3>
+        <h3 className="text-sm font-semibold">{t("assumptions.title")}</h3>
         <DataLabel kind="ASSUMPTION" />
       </div>
 
@@ -74,7 +76,7 @@ export function AssumptionPanel({
       <p className="text-muted-foreground border-t pt-3 text-xs">{method}</p>
 
       <p className="text-muted-foreground text-xs">
-        <strong className="text-foreground font-medium">These are not predictions.</strong> Scenario
+        <strong className="text-foreground font-medium">{t("assumptions.notPredictions")}</strong> Scenario
         results are arithmetic on the assumptions above, which you chose. They are not forecasts, not
         guarantees and not investment advice. Real returns vary year to year and may differ
         substantially — including being negative.

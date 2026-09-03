@@ -161,12 +161,11 @@ export function describeDrawdown(event: DrawdownEvent): string {
 export const REGIMES = ["GROWING", "FLAT", "DRAWDOWN", "RECOVERING"] as const
 export type Regime = (typeof REGIMES)[number]
 
-export const REGIME_LABELS: Record<Regime, string> = {
-  GROWING: "At or near its high",
-  FLAT: "Little changed",
-  DRAWDOWN: "Below its high",
-  RECOVERING: "Recovering",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** Below this the index is treated as unchanged rather than as a trend. */
 export const FLAT_BAND_PCT = 1

@@ -8,35 +8,32 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useTranslations } from "next-intl"
 
-const DATASETS = [
-  { key: "summary", label: "Portfolio summary" },
-  { key: "transactions", label: "Transactions" },
-  { key: "dividends", label: "Dividends" },
-  { key: "cash", label: "Cash transactions" },
-] as const
+/** `key` is both the route parameter and the translation key — one word, one meaning. */
+const DATASETS = ["summary", "transactions", "dividends", "cash"] as const
 
 /** Plain links to the export route: the browser downloads the response, no client-side blob needed. */
 export function ExportMenu({ portfolioId }: { portfolioId: string }) {
+  const t = useTranslations("analytics")
+  const tc = useTranslations("common")
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-2" />}>
-        <Download className="size-4" aria-hidden />
-        Export
-      </DropdownMenuTrigger>
+        <Download className="size-4" aria-hidden />{tc("actions.export")}</DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {DATASETS.map((dataset) => (
           <DropdownMenuItem
-            key={dataset.key}
+            key={dataset}
             nativeButton={false}
             render={
               <a
-                href={`/api/analytics/export?portfolioId=${portfolioId}&dataset=${dataset.key}`}
+                href={`/api/analytics/export?portfolioId=${portfolioId}&dataset=${dataset}`}
                 download
               />
             }
           >
-            {dataset.label} (CSV)
+            {t(`export.${dataset}`)} (CSV)
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

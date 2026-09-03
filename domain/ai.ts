@@ -28,17 +28,11 @@ export const AI_INTENTS = [
 
 export type AIIntent = (typeof AI_INTENTS)[number]
 
-export const INTENT_LABELS: Record<AIIntent, string> = {
-  STOCK_ANALYSIS: "Stock analysis",
-  STOCK_COMPARISON: "Stock comparison",
-  TECHNICAL_EXPLANATION: "Technical explanation",
-  PORTFOLIO_ANALYSIS: "Portfolio analysis",
-  WATCHLIST_ANALYSIS: "Watchlist analysis",
-  SCREENER_EXPLANATION: "Screener explanation",
-  MARKET_SUMMARY: "Market summary",
-  INDICATOR_EXPLANATION: "Indicator explanation",
-  GENERAL_RESEARCH: "General research",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /**
  * Which indicators a question is asking about. Used both to route to an explanation and to decide
@@ -188,7 +182,7 @@ export function findAdviceLanguage(text: string): string[] {
 
 // ---------------------------------------------------------------- data completeness
 
-export type DataPoint = { label: string; available: boolean }
+export type DataPoint = { ref: DataPointRef; available: boolean }
 
 export type DataCompleteness = {
   /** Percentage of the expected data points that were actually retrieved. */
@@ -198,16 +192,25 @@ export type DataCompleteness = {
    * conviction level, or an opinion about where a price is going. The UI says so in words.
    */
   level: "high" | "partial" | "low"
-  available: string[]
-  missing: string[]
+  available: DataPointRef[]
+  missing: DataPointRef[]
 }
+
+/**
+ * What a coverage point *is*, rather than what it is called.
+ *
+ * Phase 21: these labels are rendered on screen ("unavailable: NVDA price, Watchlist"), so an
+ * English string here would be an English string in a Thai answer. `code` picks the message and
+ * `symbol` fills its placeholder — the same facts-not-prose split the rest of the domain uses.
+ */
+export type DataPointRef = { code: string; symbol?: string }
 
 export function assessCompleteness(points: readonly DataPoint[]): DataCompleteness {
   if (points.length === 0) {
     return { coveragePct: 0, level: "low", available: [], missing: [] }
   }
-  const available = points.filter((p) => p.available).map((p) => p.label)
-  const missing = points.filter((p) => !p.available).map((p) => p.label)
+  const available = points.filter((p) => p.available).map((p) => p.ref)
+  const missing = points.filter((p) => !p.available).map((p) => p.ref)
   const coveragePct = Math.round((available.length / points.length) * 100)
   const level = coveragePct >= 80 ? "high" : coveragePct >= 50 ? "partial" : "low"
   return { coveragePct, level, available, missing }

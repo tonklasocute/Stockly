@@ -14,12 +14,19 @@ import { baseCurrencyOf } from "@/domain/market"
 import { formatCurrency, formatOptional, formatPercent } from "@/lib/format"
 import { toPage } from "@/lib/pagination"
 import { NoPortfolio } from "../_no-portfolio"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Dividends" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("dividends") }
+}
 
 type Props = { searchParams: Promise<{ p?: string; page?: string; group?: string }> }
 
 export default async function DividendsPage({ searchParams }: Props) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("dividends")
   const { p, page: pageParam, group } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -36,7 +43,7 @@ export default async function DividendsPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Dividends</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("dividends")}</h1>
         <p className="text-muted-foreground text-sm">{active.name}</p>
       </div>
 
@@ -48,7 +55,7 @@ export default async function DividendsPage({ searchParams }: Props) {
 
       <StatGrid>
         <StatCard
-          label="Total received"
+          label={t("summary.totalReceived")}
           value={formatCurrency(summary.totalNet, currency)}
           emphasis
           hint={
@@ -58,7 +65,7 @@ export default async function DividendsPage({ searchParams }: Props) {
           }
         />
         <StatCard
-          label="This year"
+          label={t("summary.thisYear")}
           value={formatCurrency(summary.thisYear, currency)}
           emphasis
           hint={
@@ -68,7 +75,7 @@ export default async function DividendsPage({ searchParams }: Props) {
           }
         />
         <StatCard
-          label="Last 12 months"
+          label={t("summary.last12Months")}
           value={formatCurrency(summary.trailingTwelveMonths, currency)}
           emphasis
           hint={
@@ -81,7 +88,7 @@ export default async function DividendsPage({ searchParams }: Props) {
         />
         {/* Two yields, two denominators, two labels — never both called "dividend yield". */}
         <StatCard
-          label="Yield on value"
+          label={t("summary.yieldOnValue")}
           value={formatOptional(yieldOnValue, (v) => formatPercent(v, { signed: false }))}
           emphasis
           hint={
@@ -95,17 +102,17 @@ export default async function DividendsPage({ searchParams }: Props) {
       {summary.count > 0 && (
         <>
           <Section
-            title="Dividend income"
+            title={t("summary.income")}
             description={`Net dividends received, by ${grouping}. The last 12 months is the basis for both yields above.`}
           >
             {byPeriod.length > 0 ? (
               <DividendBars periods={byPeriod} currency={currency} />
             ) : (
-              <p className="text-muted-foreground py-8 text-center text-sm">Nothing to chart yet.</p>
+              <p className="text-muted-foreground py-8 text-center text-sm">{t("chartEmpty")}</p>
             )}
           </Section>
 
-          <Section title="By stock" description="Which holdings actually pay you.">
+          <Section title={t("byStock.title")} description={t("byStock.hint")}>
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {bySymbol.slice(0, 9).map((row) => (
                 <Metric
@@ -124,8 +131,8 @@ export default async function DividendsPage({ searchParams }: Props) {
         <div className="rounded-xl border">
           <EmptyState
             icon={Coins}
-            title="No dividends yet"
-            description="Record a payment and Stockly works out your income, yield on cost and yield on current value."
+            title={t("empty.title")}
+            description={t("empty.body")}
           />
         </div>
       )}

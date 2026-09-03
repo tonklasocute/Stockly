@@ -96,10 +96,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "You already have this exact alert.")
+      throw new ApiError("CONFLICT", "You already have this exact alert.", "duplicateAlert")
     }
     if (error?.code === "23514") {
-      throw new ApiError("VALIDATION_ERROR", "That alert violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That alert violates a data rule.", "dataRuleAlert")
     }
     if (error) throw error
 

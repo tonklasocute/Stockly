@@ -1,1 +1,57 @@
-{}
+{
+  "search": "Search stocks",
+  "searchPlaceholder": "Search by symbol or company name",
+  "searchShort": "Search stocks…",
+  "searchMinChars": "Type at least two characters to search.",
+  "marketDataError": "Unable to load market data. Please try again later.",
+  "marketDataUnavailable": "Market data is unavailable.",
+  "profile": {
+    "website": "Website",
+    "exchange": "Exchange",
+    "sector": "Sector",
+    "industry": "Industry",
+    "country": "Country",
+    "marketCap": "Market cap",
+    "employees": "Employees"
+  },
+  "quote": {
+    "previousClose": "Previous close",
+    "open": "Open",
+    "dayHigh": "Day high",
+    "dayLow": "Day low",
+    "high52": "52 week high",
+    "low52": "52 week low",
+    "volume": "Volume",
+    "avgVolume": "Avg volume",
+    "refresh": "Refresh price",
+    "asOf": "As of {at}",
+    "mayBeStale": "Price may be out of date"
+  },
+  "chart": {
+    "range": "Chart range",
+    "errorTitle": "Unable to load market data",
+    "errorBody": "The price history could not be loaded. Please try again later.",
+    "unavailable": "Historical data is unavailable",
+    "bollinger": "Bollinger",
+    "volume": "Volume"
+  },
+  "page": {
+    "overview": "Overview",
+    "priceHistory": "Price history",
+    "technicalOverview": "Technical overview",
+    "thesis": "Investment thesis",
+    "thesisHint": "Why you own this, and what would change your mind. Only you set the status.",
+    "journal": "Journal",
+    "ai": "Stockly AI",
+    "alerts": "Alerts",
+    "alertsHint": "Checked on the server every few minutes, so they fire whether or not Stockly is open.",
+    "news": "News",
+    "position": "Your position",
+    "shares": "Shares",
+    "averageCost": "Average cost",
+    "marketValue": "Market value",
+    "unrealizedPnl": "Unrealized P&L",
+    "notOwned": "You don't own this stock.",
+    "recordTransaction": "Record a transaction"
+  }
+}

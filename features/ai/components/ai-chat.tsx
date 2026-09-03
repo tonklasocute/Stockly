@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-client"
 import { MAX_QUESTION_LENGTH } from "@/features/ai/schema"
 import type { AIConversationRow } from "@/types/database"
 import { AIAnswerView, type AIAnswer } from "./ai-answer"
+import { useTranslations } from "next-intl"
 
 /**
  * The research chat.
@@ -67,6 +68,8 @@ export function AIChat({
   conversations: AIConversationRow[]
   aiEnabled: boolean
 }) {
+  const t = useTranslations("ai")
+  const tc = useTranslations("common")
   const [turns, setTurns] = useState<Turn[]>([])
   const [question, setQuestion] = useState("")
   const [conversationId, setConversationId] = useState<string | undefined>()
@@ -104,7 +107,7 @@ export function AIChat({
         setConversationId(undefined)
         setTurns([])
       }
-      toast.success("Conversation deleted.")
+      toast.success(t("conversationDeleted"))
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -125,16 +128,17 @@ export function AIChat({
     <div className="space-y-5">
       {!aiEnabled && (
         <p className="rounded-xl border border-dashed px-4 py-3 text-sm">
-          Stockly AI is turned off for this deployment. Everything else — your portfolio, prices,
-          watchlist, screener and alerts — works exactly as it does with AI on. Set{" "}
-          <code className="text-xs">AI_ENABLED=true</code> and a provider in <code className="text-xs">.env.local</code>{" "}
-          to switch it on.
+          {t("disabled")}{" "}
+          {t.rich("enableWith", {
+            flag: () => <code className="text-xs">AI_ENABLED=true</code>,
+            file: () => <code className="text-xs">.env.local</code>,
+          })}
         </p>
       )}
 
       {history.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Recent research</h2>
+          <h2 className="text-sm font-semibold">{t("recent")}</h2>
           <ul className="flex flex-wrap gap-2">
             {history.map((conversation) => (
               <li key={conversation.id} className="flex items-center gap-1">
@@ -161,8 +165,8 @@ export function AIChat({
           <div className="rounded-xl border">
             <EmptyState
               icon={Sparkles}
-              title="Ask anything about your stocks"
-              description="Stockly AI answers from your own portfolio, watchlist and technical data. It explains and compares — it never gives investment advice."
+              title={t("ask")}
+              description={t("askHint")}
             />
           </div>
         )}
@@ -176,9 +180,7 @@ export function AIChat({
             {turn.error ? (
               <div className="space-y-2 rounded-xl border border-dashed p-3.5">
                 <p className="text-sm">{turn.error}</p>
-                <Button variant="outline" size="sm" onClick={() => submit(turn.question)}>
-                  Try again
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => submit(turn.question)}>{tc("actions.retry")}</Button>
               </div>
             ) : turn.answer ? (
               <div className="bg-card rounded-xl border p-3.5 sm:p-4">
@@ -217,9 +219,7 @@ export function AIChat({
           }}
           className="flex items-end gap-2"
         >
-          <label htmlFor="ai-question" className="sr-only">
-            Ask Stockly AI
-          </label>
+          <label htmlFor="ai-question" className="sr-only">{t("askButton")}</label>
           <textarea
             id="ai-question"
             rows={1}
@@ -235,13 +235,13 @@ export function AIChat({
                 submit(question)
               }
             }}
-            placeholder="Analyse NVDA, compare AMD and NVDA, explain my watchlist…"
+            placeholder={t("placeholder")}
             className="border-input bg-background focus-visible:ring-ring/50 max-h-40 min-h-11 w-full resize-y rounded-xl border px-3 py-2.5 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:opacity-50"
           />
           <Button
             type="submit"
             size="icon"
-            aria-label="Ask Stockly AI"
+            aria-label={t("askButton")}
             disabled={!question.trim() || ask.isPending || !aiEnabled}
             className="size-11 shrink-0"
           >

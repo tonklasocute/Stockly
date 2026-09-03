@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import type { NotificationPreferencesRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 type Preferences = {
   price: boolean
@@ -18,12 +19,8 @@ type Preferences = {
   push: boolean
 }
 
-const CATEGORIES = [
-  { key: "price", label: "Price alerts", hint: "When a stock crosses a price or percentage target." },
-  { key: "portfolio", label: "Portfolio alerts", hint: "Daily change, total return and position size." },
-  { key: "dividend", label: "Dividend alerts", hint: "When a dividend is recorded." },
-  { key: "system", label: "System notices", hint: "Occasional messages about Stockly itself." },
-] as const
+/** `key` is the preference column and, with a suffix, its label and hint in the namespace. */
+const CATEGORIES = ["price", "portfolio", "dividend", "system"] as const
 
 /** A switch with a visible on/off word — state never rests on colour or position alone. */
 function Toggle({
@@ -67,6 +64,7 @@ function Toggle({
 }
 
 export function PreferencesForm({ initial }: { initial: NotificationPreferencesRow | null }) {
+  const t = useTranslations("notifications")
   const router = useRouter()
   const [preferences, setPreferences] = useState<Preferences>({
     price: initial?.price ?? true,
@@ -80,7 +78,7 @@ export function PreferencesForm({ initial }: { initial: NotificationPreferencesR
     mutationFn: (next: Preferences) =>
       apiFetch("/api/notifications/preferences", { method: "PUT", body: JSON.stringify(next) }),
     onSuccess: () => {
-      toast.success("Notification preferences saved.")
+      toast.success(t("prefs.saved"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -95,19 +93,19 @@ export function PreferencesForm({ initial }: { initial: NotificationPreferencesR
       <div className="divide-y">
         {CATEGORIES.map((category) => (
           <Toggle
-            key={category.key}
-            id={`pref-${category.key}`}
-            checked={preferences[category.key]}
-            onChange={(next) => set(category.key, next)}
-            label={category.label}
-            hint={category.hint}
+            key={category}
+            id={`pref-${category}`}
+            checked={preferences[category]}
+            onChange={(next) => set(category, next)}
+            label={t(`prefs.${category}`)}
+            hint={t(`prefs.${category}Hint`)}
           />
         ))}
         <Toggle
           id="pref-push"
           checked={preferences.push}
           onChange={(next) => set("push", next)}
-          label="Send as push notifications"
+          label={t("prefs.asPush")}
           hint="Turning this off keeps everything in the app only, on every device."
         />
       </div>

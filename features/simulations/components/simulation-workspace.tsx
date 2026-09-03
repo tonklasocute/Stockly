@@ -21,15 +21,17 @@ import { DividendSimulator } from "./dividend-simulator"
 import { WhatIfSimulator } from "./what-if-simulator"
 import type { ScenarioState } from "./use-scenario"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
+/** `value` is the tab id; `key` names it in the `simulations` namespace. */
 const TABS = [
-  { value: "growth", label: "Growth & DCA" },
-  { value: "goal", label: "Goal planning" },
-  { value: "dividend", label: "Dividends" },
-  { value: "whatif", label: "What-if" },
+  { value: "growth", key: "growth" },
+  { value: "goal", key: "goal" },
+  { value: "dividend", key: "dividends" },
+  { value: "whatif", key: "whatIf" },
   // Phase 20. Beside what-if because it is the same engine: a stress scenario is a what-if whose
   // assumptions are grouped by market, sector or currency rather than typed in per holding.
-  { value: "stress", label: "Stress test" },
+  { value: "stress", key: "stress" },
 ] as const
 
 /**
@@ -78,6 +80,7 @@ export function SimulationWorkspace({
   /** The portfolio's own return history, or null when there is too little of it. */
   drawdown: DrawdownHistory | null
 }) {
+  const t = useTranslations("simulations")
   const locale = useAppLocale()
   const router = useRouter()
   const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("growth")
@@ -114,7 +117,7 @@ export function SimulationWorkspace({
         }),
       }),
     onSuccess: () => {
-      toast.success("Scenario saved.")
+      toast.success(t("saved.saved"))
       setName("")
       router.refresh()
     },
@@ -124,7 +127,7 @@ export function SimulationWorkspace({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/simulations/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Scenario deleted.")
+      toast.success(t("saved.deleted"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -158,7 +161,7 @@ export function SimulationWorkspace({
         <TabsList className="w-full justify-start overflow-x-auto">
           {TABS.map((entry) => (
             <TabsTrigger key={entry.value} value={entry.value}>
-              {entry.label}
+              {t(`tabs.${entry.key}`)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -174,7 +177,7 @@ export function SimulationWorkspace({
           />
 
           <div className="bg-card space-y-3 rounded-xl border p-4">
-            <h3 className="text-sm font-semibold">Saved scenarios</h3>
+            <h3 className="text-sm font-semibold">{t("saved.title")}</h3>
             <p className="text-muted-foreground text-xs">
               A saved scenario keeps the assumptions you chose, not the numbers they produced —
               opening one recomputes it from scratch, so it can never go stale.
@@ -184,8 +187,8 @@ export function SimulationWorkspace({
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Name this scenario"
-                aria-label="Scenario name"
+                placeholder={t("saved.name")}
+                aria-label={t("saved.namePlaceholder")}
                 className="min-w-40 flex-1"
                 maxLength={60}
               />
@@ -204,7 +207,7 @@ export function SimulationWorkspace({
             </div>
 
             {saved.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nothing saved yet.</p>
+              <p className="text-muted-foreground text-sm">{t("saved.none")}</p>
             ) : (
               <ul className="divide-y">
                 {saved.map((row) => (
@@ -215,9 +218,7 @@ export function SimulationWorkspace({
                         Updated {formatTime(row.updated_at, locale)}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => load(row)}>
-                      Load
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => load(row)}>{t("saved.load")}</Button>
                     <Button
                       variant="ghost"
                       size="icon"

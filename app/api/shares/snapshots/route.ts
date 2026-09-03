@@ -7,7 +7,7 @@ import { createSnapshotSchema, MAX_SNAPSHOTS_PER_PORTFOLIO } from "@/features/sh
 export async function GET(request: Request) {
   return guarded(async () => {
     const portfolioId = new URL(request.url).searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.", "portfolioRequired")
     return ok({ snapshots: await listSnapshots(portfolioId) })
   })
 }

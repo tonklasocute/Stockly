@@ -7,5 +7,15 @@
     "snapshot": "ภาพนิ่งของพอร์ต",
     "defaultDescription": "พอร์ตการลงทุนที่แชร์ผ่าน Stockly",
     "describedBy": "พอร์ตการลงทุนที่แชร์ผ่าน Stockly โดย {name}"
+  },
+  "pages": {
+    "notificationSettings": "ตั้งค่าการแจ้งเตือน",
+    "importDetail": "รายละเอียดการนำเข้า",
+    "privacy": "นโยบายความเป็นส่วนตัว",
+    "disclaimer": "ข้อจำกัดความรับผิด",
+    "terms": "ข้อกำหนดการใช้งาน",
+    "createAccount": "สร้างบัญชี",
+    "signIn": "เข้าสู่ระบบ",
+    "offline": "ออฟไลน์"
   }
 }

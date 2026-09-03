@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest"
+import EN from "@/locales/en/analytics.json"
+import TH from "@/locales/th/analytics.json"
 import {
   activeReturn,
   attribute,
   ATTRIBUTION_BASIS,
+  ATTRIBUTION_UNAVAILABLE,
   describeContribution,
   rankContributors,
   residual,
-  UNAVAILABLE_REASONS,
   type HoldingPeriod,
 } from "./attribution"
 import { FORBIDDEN_INSIGHT_PATTERNS } from "./insights"
@@ -241,12 +243,17 @@ describe("what it refuses to compute", () => {
   it("never reports FX attribution, and says why", () => {
     const result = ok(attribute({ beginningValue: 1_000, endingValue: 1_100, netFlow: 0, holdings: [holding()] }))
     expect(result.fxGain).toBeNull()
-    expect(result.fxUnavailableReason).toBe(UNAVAILABLE_REASONS.NO_HISTORICAL_FX)
+    expect(result.fxUnavailableCode).toBe("NO_HISTORICAL_FX")
   })
 
-  it("gives every unavailable reason a sentence a user can read", () => {
-    for (const [code, sentence] of Object.entries(UNAVAILABLE_REASONS)) {
-      expect(sentence.length, code).toBeGreaterThan(30)
+  /*
+   * The sentences live in the translation files now, so the rule is checked there — and in **both**
+   * languages, which is a stronger claim than the one this made when there was only English.
+   */
+  it("gives every unavailable reason a sentence a user can read, in both languages", () => {
+    for (const code of ATTRIBUTION_UNAVAILABLE) {
+      expect(EN.attribution.unavailable[code]?.length, `en ${code}`).toBeGreaterThan(30)
+      expect(TH.attribution.unavailable[code]?.length, `th ${code}`).toBeGreaterThan(20)
     }
   })
 })
@@ -277,21 +284,30 @@ describe("ranking", () => {
 })
 
 describe("the sentences describe and never advise", () => {
-  it("states what a holding did, in the past tense", () => {
-    const sentence = describeContribution(
+  it("reports what a holding did, in the past tense, as facts rather than prose", () => {
+    const facts = describeContribution(
       { symbol: "TSLA", market: "US", gain: -140, contributionPct: -1.4, holdingReturnPct: -12, dividends: 0, incomplete: false },
       "USD",
     )
-    expect(sentence).toContain("TSLA removed 1.40 percentage points")
+    expect(facts).toEqual({
+      incomplete: false,
+      symbol: "TSLA",
+      direction: "removed",
+      points: "1.40",
+      amount: "140.00",
+      currency: "USD",
+    })
   })
 
-  it("uses none of the forbidden vocabulary", () => {
+  it("uses none of the forbidden vocabulary, in either language", () => {
     // The same list the insights engine is held to: no buy, sell, hold, rating, target or forecast.
+    // Applied to the messages themselves, so a translation cannot smuggle in advice the English
+    // never had — which is the failure mode a bilingual application adds.
     const sentences = [
-      describeContribution({ symbol: "A", market: "US", gain: 500, contributionPct: 5, holdingReturnPct: 10, dividends: 0, incomplete: false }, "USD"),
-      describeContribution({ symbol: "B", market: "US", gain: -500, contributionPct: -5, holdingReturnPct: -10, dividends: 0, incomplete: false }, "USD"),
-      describeContribution({ symbol: "C", market: "US", gain: 0, contributionPct: 0, holdingReturnPct: null, dividends: 0, incomplete: true }, "USD"),
-      ...Object.values(UNAVAILABLE_REASONS),
+      ...Object.values(EN.attribution.unavailable),
+      ...Object.values(TH.attribution.unavailable),
+      ...Object.values(EN.attribution.contribution),
+      ...Object.values(TH.attribution.contribution),
     ]
     for (const sentence of sentences) {
       for (const pattern of FORBIDDEN_INSIGHT_PATTERNS) {

@@ -25,10 +25,23 @@
   "timezoneNote": "เวลาจะแสดงตามเขตเวลาของอุปกรณ์คุณ ไม่ว่าจะเลือกภาษาใดก็ตาม",
   "defaultPortfolio": {
     "label": "พอร์ตเริ่มต้น",
-    "description": "พอร์ตที่ Stockly จะเปิดขึ้นมาเป็นอันดับแรก"
+    "description": "พอร์ตที่ Stockly จะเปิดขึ้นมาเป็นอันดับแรก",
+    "mostRecent": "ที่สร้างล่าสุด"
   },
   "account": {
     "title": "บัญชีผู้ใช้",
     "email": "อีเมล"
-  }
+  },
+  "managePortfolios": "จัดการพอร์ตการลงทุนของคุณ",
+  "about": "เกี่ยวกับ",
+  "portfoliosInSettings": "จัดการพอร์ตได้ที่หน้าตั้งค่า",
+  "push": {
+    "title": "การแจ้งเตือนแบบพุช",
+    "hint": "ตั้งค่าแยกตามอุปกรณ์ การเปิดบนโทรศัพท์ไม่ได้เปิดบนคอมพิวเตอร์ด้วย"
+  },
+  "whatToNotify": "เรื่องที่ต้องการให้แจ้งเตือน",
+  "appliesToBoth": "มีผลทั้งการแจ้งเตือนในแอปและแบบพุช",
+  "notificationsHint": "เลือกว่าจะให้ Stockly แจ้งเรื่องอะไร และแจ้งอย่างไร",
+  "setupRequired": "ยังไม่ได้ตั้งค่า Supabase",
+  "setupRequiredBody": "คัดลอก .env.example เป็น .env.local กรอก NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_ANON_KEY รัน supabase/migrations แล้วรีสตาร์ท dev server"
 }

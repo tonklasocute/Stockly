@@ -5,6 +5,7 @@ import { Loader2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
 import { AIAnswerView, type AIAnswer } from "./ai-answer"
+import { useTranslations } from "next-intl"
 
 /**
  * "Analyse with Stockly AI" on a stock page.
@@ -13,6 +14,8 @@ import { AIAnswerView, type AIAnswer } from "./ai-answer"
  * trigger one — a user who never presses the button never spends a token.
  */
 export function StockAIPanel({ symbol, enabled }: { symbol: string; enabled: boolean }) {
+  const t = useTranslations("ai")
+  const tc = useTranslations("common")
   const analyze = useMutation({
     mutationFn: () =>
       apiFetch<AIAnswer>("/api/ai/analyze", {
@@ -23,9 +26,7 @@ export function StockAIPanel({ symbol, enabled }: { symbol: string; enabled: boo
 
   if (!enabled) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Stockly AI is turned off for this deployment. The technical data above is unaffected.
-      </p>
+      <p className="text-muted-foreground text-sm">{t("disabledOnStock")}</p>
     )
   }
 
@@ -54,9 +55,7 @@ export function StockAIPanel({ symbol, enabled }: { symbol: string; enabled: boo
       {analyze.isError && (
         <div className="space-y-2 rounded-xl border border-dashed p-3.5">
           <p className="text-sm">{(analyze.error as Error).message}</p>
-          <Button variant="outline" size="sm" onClick={() => analyze.mutate()}>
-            Try again
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => analyze.mutate()}>{tc("actions.retry")}</Button>
         </div>
       )}
 

@@ -16,10 +16,10 @@ export async function GET(request: Request) {
   return guarded(async (userId) => {
     const params = new URL(request.url).searchParams
     const raw = params.get("symbol")
-    if (!raw) throw new ApiError("VALIDATION_ERROR", "A symbol is required.")
+    if (!raw) throw new ApiError("VALIDATION_ERROR", "A symbol is required.", "symbolRequired")
 
     const market = toMarket(params.get("market") ?? undefined)
-    if (!isValidSymbol(raw, market)) throw new ApiError("VALIDATION_ERROR", "That symbol is not valid.")
+    if (!isValidSymbol(raw, market)) throw new ApiError("VALIDATION_ERROR", "That symbol is not valid.", "symbolInvalid")
 
     // A provider call per request, so this is the money brake rather than a loop brake.
     enforceRateLimit(`fundamentals:${userId}`, 30, 60)

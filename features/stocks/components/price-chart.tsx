@@ -21,6 +21,8 @@ import { apiFetch } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { Candle, Range } from "@/services/market-data/types"
+import { useTranslations } from "next-intl"
+import { useIntlTag } from "@/lib/i18n/locale"
 
 const RANGES: Range[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]
 
@@ -28,17 +30,22 @@ const RANGES: Range[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]
  * Overlays sit on the price axis; panels get their own. Toggled individually because rendering all
  * of them at once is both unreadable and, on a phone, several thousand extra SVG segments.
  */
+/*
+ * `label` is an indicator's *name*, not prose: "EMA 20", "RSI" and "MACD" are the same in every
+ * language and are written that way on every chart in the world. Only the two that are English
+ * words — "Bollinger" and "Volume" — take a translation key, in `messageKey`.
+ */
 const OVERLAYS = [
   { key: "ema20", label: "EMA 20", colour: "var(--chart-1)" },
   { key: "ema50", label: "EMA 50", colour: "var(--chart-3)" },
   { key: "ema200", label: "EMA 200", colour: "var(--chart-4)" },
-  { key: "bb", label: "Bollinger", colour: "var(--chart-2)" },
+  { key: "bb", messageKey: "chart.bollinger", colour: "var(--chart-2)" },
 ] as const
 
 const PANELS = [
   { key: "rsi", label: "RSI" },
   { key: "macd", label: "MACD" },
-  { key: "volume", label: "Volume" },
+  { key: "volume", messageKey: "chart.volume" },
 ] as const
 
 type OverlayKey = (typeof OVERLAYS)[number]["key"]
@@ -59,11 +66,12 @@ function downsample(candles: Candle[], maxPoints: number): Candle[] {
   return out
 }
 
-function labelFor(date: string, range: Range): string {
+/** `intlTag` rather than a hardcoded locale: an axis label is text a reader reads. */
+function labelFor(date: string, range: Range, tag: string): string {
   const parsed = new Date(date.includes("T") || date.includes(" ") ? date : `${date}T00:00:00Z`)
   if (Number.isNaN(parsed.getTime())) return date
   const intraday = range === "1D" || range === "1W"
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(tag, {
     timeZone: "UTC",
     ...(intraday
       ? { hour: "numeric", minute: "2-digit", ...(range === "1W" ? { weekday: "short" } : {}) }
@@ -80,6 +88,8 @@ export function PriceChart({
   currency?: string
   market?: string
 }) {
+  const t = useTranslations("stocks")
+  const intlTag = useIntlTag()
   const [range, setRange] = useState<Range>("1M")
   // Defaults chosen to be legible rather than complete: two moving averages and nothing else.
   const [overlays, setOverlays] = useState<Set<OverlayKey>>(() => new Set<OverlayKey>(["ema50", "ema200"]))
@@ -95,13 +105,18 @@ export function PriceChart({
     retry: false,
   })
 
-  const raw = data?.candles ?? []
-  // Measured once per render rather than on resize: the difference between 150 and 250 points is
-  // invisible, so re-downsampling as the window changes would be work for nothing.
+  /*
+   * Measured once per render rather than on resize: the difference between 150 and 250 points is
+   * invisible, so re-downsampling as the window changes would be work for nothing.
+   *
+   * `?? []` is inside the memo, not outside it. Outside, it allocated a fresh array on every render
+   * whenever `data` was undefined, which made the dependency change every time and defeated the
+   * memo entirely — the thing it exists to avoid.
+   */
   const candles = useMemo(() => {
     const width = typeof window === "undefined" ? 1024 : window.innerWidth
-    return downsample(raw, width < 640 ? 160 : width < 1024 ? 240 : 400)
-  }, [raw])
+    return downsample(data?.candles ?? [], width < 640 ? 160 : width < 1024 ? 240 : 400)
+  }, [data?.candles])
   const closes = candles.map((c) => c.close)
 
   /**
@@ -145,7 +160,7 @@ export function PriceChart({
       <div
         className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist"
-        aria-label="Chart range"
+        aria-label={t("chart.range")}
       >
         {RANGES.map((value) => (
           <button
@@ -194,7 +209,7 @@ export function PriceChart({
                 style={{ background: overlay.colour, opacity: on ? 1 : 0.35 }}
                 aria-hidden
               />
-              {overlay.label}
+              {"label" in overlay ? overlay.label : t(overlay.messageKey)}
             </button>
           )
         })}
@@ -209,7 +224,7 @@ export function PriceChart({
               panel === option.key ? "border-foreground/25" : "text-muted-foreground",
             )}
           >
-            {option.label}
+            {"label" in option ? option.label : t(option.messageKey)}
           </button>
         ))}
       </div>
@@ -221,13 +236,13 @@ export function PriceChart({
         ) : isError ? (
           <EmptyState
             icon={LineChart}
-            title="Unable to load market data"
-            description="The price history could not be loaded. Please try again later."
+            title={t("chart.errorTitle")}
+            description={t("chart.errorBody")}
           />
         ) : candles.length === 0 ? (
           <EmptyState
             icon={LineChart}
-            title="Historical data is unavailable"
+            title={t("chart.unavailable")}
             description={`The provider has no ${range} price history for ${symbol}.`}
           />
         ) : (
@@ -241,7 +256,7 @@ export function PriceChart({
               </defs>
               <XAxis
                 dataKey="date"
-                tickFormatter={(value: string) => labelFor(value, range)}
+                tickFormatter={(value: string) => labelFor(value, range, intlTag)}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 axisLine={false}
                 tickLine={false}
@@ -263,7 +278,7 @@ export function PriceChart({
                   color: "var(--popover-foreground)",
                   fontSize: "0.8125rem",
                 }}
-                labelFormatter={(value) => labelFor(String(value), range)}
+                labelFormatter={(value) => labelFor(String(value), range, intlTag)}
                 formatter={(value) => [formatCurrency(Number(value), currency), "Close"]}
               />
               <Area
@@ -319,7 +334,7 @@ export function PriceChart({
                   color: "var(--popover-foreground)",
                   fontSize: "0.8125rem",
                 }}
-                labelFormatter={(value) => labelFor(String(value), range)}
+                labelFormatter={(value) => labelFor(String(value), range, intlTag)}
               />
               {panel === "rsi" && (
                 <>
@@ -348,6 +363,11 @@ export function PriceChart({
   )
 }
 
+/*
+ * Compact notation is identical in both languages — `4.4T`, `38M` — measured in
+ * `domain/locale-boundary.test.ts`, so this stays on one tag rather than taking a locale that
+ * would change nothing.
+ */
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)
 }

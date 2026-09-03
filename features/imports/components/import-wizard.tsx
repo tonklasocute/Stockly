@@ -18,7 +18,6 @@ import {
 import { Metric } from "@/components/metric"
 import {
   FIELD_HELP,
-  FIELD_LABELS,
   IMPORT_FIELDS,
   REQUIRED_FIELDS,
   type ColumnMapping,
@@ -30,6 +29,7 @@ import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { MAX_IMPORT_BYTES } from "../schema"
 import { PreviewTable } from "./preview-table"
+import { useTranslations } from "next-intl"
 
 type ParsedResponse = {
   format: ImportFormat
@@ -44,11 +44,12 @@ type ParsedResponse = {
 
 type Step = "upload" | "map" | "review" | "done"
 
-const STEPS: Array<{ id: Step; label: string }> = [
-  { id: "upload", label: "Upload" },
-  { id: "map", label: "Map columns" },
-  { id: "review", label: "Review" },
-  { id: "done", label: "Done" },
+/** `id` is the step and, with one exception, its translation key. */
+const STEPS: Array<{ id: Step; key: string }> = [
+  { id: "upload", key: "upload" },
+  { id: "map", key: "mapColumns" },
+  { id: "review", key: "review" },
+  { id: "done", key: "done" },
 ]
 
 /**
@@ -66,6 +67,8 @@ export function ImportWizard({
   portfolioId: string
   portfolioName: string
 }) {
+  const t = useTranslations("imports")
+  const tEnum = useTranslations("enums")
   const router = useRouter()
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -180,7 +183,7 @@ export function ImportWizard({
 
   return (
     <div className="space-y-6">
-      <ol className="flex flex-wrap gap-1.5" aria-label="Import steps">
+      <ol className="flex flex-wrap gap-1.5" aria-label={t("steps")}>
         {STEPS.map((entry, index) => {
           const position = STEPS.findIndex((s) => s.id === step)
           const state = index < position ? "done" : index === position ? "current" : "todo"
@@ -196,7 +199,7 @@ export function ImportWizard({
               )}
             >
               <span className="text-muted-foreground mr-1.5">{index + 1}</span>
-              {entry.label}
+              {t(entry.key)}
             </li>
           )
         })}
@@ -264,7 +267,7 @@ export function ImportWizard({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="import-header-row">Header row</Label>
+              <Label htmlFor="import-header-row">{t("headerRow")}</Label>
               <Select
                 value={String(headerRow)}
                 onValueChange={(value) => {
@@ -288,7 +291,7 @@ export function ImportWizard({
 
           <div className="bg-card space-y-4 rounded-xl border p-4">
             <div>
-              <h2 className="text-sm font-semibold">Map your columns</h2>
+              <h2 className="text-sm font-semibold">{t("mapYourColumns")}</h2>
               <p className="text-muted-foreground text-xs">
                 Suggested from the header row. Check them — a wrong column here is a wrong
                 transaction, so nothing is applied on a guess.
@@ -302,7 +305,7 @@ export function ImportWizard({
                 return (
                   <div key={field} className="space-y-2">
                     <Label htmlFor={`map-${field}`}>
-                      {FIELD_LABELS[field]}
+                      {tEnum(`importField.${field}`)}
                       {required ? (
                         <span className="text-loss ml-1" aria-label="required">
                           *
@@ -323,13 +326,13 @@ export function ImportWizard({
                         <SelectValue>
                           {(value) =>
                             value === "__none"
-                              ? "Not in this file"
+                              ? t("notInFile")
                               : (header[Number(value)] || `Column ${Number(value) + 1}`)
                           }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none">Not in this file</SelectItem>
+                        <SelectItem value="__none">{t("notInFile")}</SelectItem>
                         {header.map((name, index) => (
                           <SelectItem key={index} value={String(index)}>
                             {name || `Column ${index + 1}`}
@@ -347,16 +350,15 @@ export function ImportWizard({
           {missingRequired.length > 0 && (
             <Alert>
               <AlertDescription>
-                Map {missingRequired.map((field) => FIELD_LABELS[field]).join(", ")} before
-                continuing.
+                {t("mapBefore", {
+                  fields: missingRequired.map((field) => tEnum(`importField.${field}`)).join(", "),
+                })}
               </AlertDescription>
             </Alert>
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" className="max-sm:h-11" onClick={reset}>
-              Start over
-            </Button>
+            <Button variant="ghost" className="max-sm:h-11" onClick={reset}>{t("startOver")}</Button>
             <Button
               className="gap-2 max-sm:h-11"
               disabled={missingRequired.length > 0 || validate.isPending}
@@ -374,10 +376,10 @@ export function ImportWizard({
         <div className="space-y-4">
           <dl className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-xl border sm:grid-cols-4">
             {[
-              { label: "Rows read", value: preview.totalRows },
-              { label: "Will be created", value: preview.createCount },
-              { label: "Already imported", value: preview.duplicateCount },
-              { label: "Rejected", value: preview.rejectCount },
+              { label: t("rowsRead"), value: preview.totalRows },
+              { label: t("willBeCreated"), value: preview.createCount },
+              { label: t("alreadyImported"), value: preview.duplicateCount },
+              { label: t("rejected"), value: preview.rejectCount },
             ].map((entry) => (
               <div key={entry.label} className="bg-card space-y-0.5 p-4">
                 <dt className="text-muted-foreground text-xs">{entry.label}</dt>
@@ -420,9 +422,7 @@ export function ImportWizard({
           <PreviewTable preview={preview} />
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" className="max-sm:h-11" onClick={() => setStep("map")}>
-              Back to mapping
-            </Button>
+            <Button variant="ghost" className="max-sm:h-11" onClick={() => setStep("map")}>{t("backToMapping")}</Button>
             <Button
               className="gap-2 max-sm:h-11"
               disabled={
@@ -461,19 +461,17 @@ export function ImportWizard({
           </div>
 
           <dl className="grid gap-4 sm:grid-cols-3">
-            <Metric label="Created" value={String(result.created)} />
+            <Metric label={t("created")} value={String(result.created)} />
             <Metric
-              label="Skipped as duplicates"
+              label={t("skippedDuplicates")}
               value={String(result.duplicates)}
               hint="Importing this file again would create nothing"
             />
-            <Metric label="Rejected" value={String(result.rejected)} />
+            <Metric label={t("rejected")} value={String(result.rejected)} />
           </dl>
 
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            <Button className="max-sm:h-11" onClick={reset}>
-              Import another file
-            </Button>
+            <Button className="max-sm:h-11" onClick={reset}>{t("importAnother")}</Button>
           </div>
         </div>
       )}

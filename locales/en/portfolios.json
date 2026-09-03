@@ -1,1 +1,44 @@
-{}
+{
+  "title": "Portfolios",
+  "new": "New",
+  "namePlaceholder": "My Portfolio",
+  "name": "Name",
+  "currency": "Currency",
+  "deleteWarning": "Deleting a portfolio deletes its transactions too.",
+  "deleted": "Portfolio deleted.",
+  "created": "Portfolio created.",
+  "dataHealth": "Data health",
+  "summary": {
+    "value": "Portfolio value",
+    "invested": "Invested",
+    "unrealizedPnl": "Unrealized P&L",
+    "today": "Today"
+  },
+  "holdings": {
+    "empty": "No open positions",
+    "emptyBody": "Once you record a buy, your holdings and their cost basis appear here.",
+    "search": "Search holdings",
+    "group": "Group holdings",
+    "sort": "Sort holdings",
+    "noMatches": "No matches",
+    "symbol": "Symbol",
+    "quantityShort": "Qty",
+    "quantity": "Quantity",
+    "averageCost": "Avg cost",
+    "price": "Price",
+    "marketValue": "Market value",
+    "nativeValue": "Value (native)",
+    "weight": "Weight",
+    "pnl": "P&L",
+    "pnlLong": "Profit & loss",
+    "pnlUnavailable": "P&L N/A",
+    "return": "Return",
+    "returnPct": "Return %",
+    "tags": "Tags",
+    "nothingMatches": "Nothing matches “{query}”."
+  },
+  "createFirst": "Create your first portfolio",
+  "createFirstBody": "A portfolio holds your transactions. Group them by broker, strategy or market — you can have as many as you like.",
+  "newPortfolio": "New portfolio",
+  "whatIf": "What-if"
+}

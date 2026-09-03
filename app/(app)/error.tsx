@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/empty-state"
+import { useTranslations } from "next-intl"
 
 export default function AppError({
   error,
@@ -12,6 +13,8 @@ export default function AppError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const t = useTranslations("errors")
+  const tc = useTranslations("common")
   useEffect(() => {
     // Browser console, deliberately: this runs in the user's tab, where `lib/log.ts` would emit
     // JSON nobody reads and the server has already logged the failure against its request id.
@@ -23,10 +26,10 @@ export default function AppError({
       <div className="rounded-xl border">
         <EmptyState
           icon={TriangleAlert}
-          title="Something went wrong"
+          title={t("page.title")}
           /* The real message stays in the logs; the user gets something actionable instead. */
-          description="We could not load this page. Try again — if it keeps happening, check your connection."
-          action={<Button onClick={reset}>Try again</Button>}
+          description={t("page.body")}
+          action={<Button onClick={reset}>{tc("actions.retry")}</Button>}
         />
       </div>
     </div>

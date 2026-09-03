@@ -16,8 +16,13 @@ import { Section } from "@/components/metric"
 import { SITE_URL } from "@/lib/site"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Sharing" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("sharing") }
+}
 
 /** The nonce-based CSP needs a server-rendered response; a prerendered page has no nonce. */
 export const dynamic = "force-dynamic"
@@ -39,6 +44,8 @@ export default async function SharingPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("sharing")
   const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -60,7 +67,7 @@ export default async function SharingPage({
   return (
     <div className="space-y-4">
       <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Sharing</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{tNav("sharing")}</h1>
         <p className="text-muted-foreground text-sm">
           Share {active.name} without sharing everything. Your transactions, journal, theses and
           notes are never included.
@@ -77,7 +84,7 @@ export default async function SharingPage({
       />
 
       <Section
-        title="Preview"
+        title={t("preview")}
         description={
           publishedIsStale
             ? "Your saved settings are newer than what visitors currently see. Save and publish to update them."

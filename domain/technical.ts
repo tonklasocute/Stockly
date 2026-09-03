@@ -86,30 +86,11 @@ export type SignalCode =
   | "HIGH_VOLATILITY"
   | "LOW_VOLATILITY"
 
-export const SIGNAL_LABELS: Record<SignalCode, string> = {
-  PRICE_ABOVE_EMA200: "Price above the 200 EMA",
-  PRICE_BELOW_EMA200: "Price below the 200 EMA",
-  PRICE_ABOVE_EMA50: "Price above the 50 EMA",
-  PRICE_BELOW_EMA50: "Price below the 50 EMA",
-  GOLDEN_CROSS: "50 EMA crossed above the 200 EMA",
-  DEATH_CROSS: "50 EMA crossed below the 200 EMA",
-  MACD_BULLISH: "MACD above its signal line",
-  MACD_BEARISH: "MACD below its signal line",
-  MACD_BULLISH_CROSS: "MACD crossed above its signal line",
-  MACD_BEARISH_CROSS: "MACD crossed below its signal line",
-  RSI_OVERSOLD: "RSI below 30",
-  RSI_OVERBOUGHT: "RSI above 70",
-  RSI_NEUTRAL: "RSI between 45 and 55",
-  STRONG_TREND: "ADX above 25",
-  WEAK_TREND: "ADX below 20",
-  HIGH_RELATIVE_VOLUME: "Volume above 1.5× its average",
-  VOLUME_SPIKE: "Volume above 2× its average",
-  LOW_RELATIVE_VOLUME: "Volume below its average",
-  ABOVE_UPPER_BAND: "Price above the upper Bollinger band",
-  BELOW_LOWER_BAND: "Price below the lower Bollinger band",
-  HIGH_VOLATILITY: "ATR above 4% of price",
-  LOW_VOLATILITY: "ATR below 2% of price",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** One component of the score, with the reason it was awarded. */
 export type ScoreComponent = {

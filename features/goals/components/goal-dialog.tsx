@@ -30,6 +30,7 @@ import { CURRENCIES, type Currency } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { PortfolioGoalRow } from "@/types/database"
 import { goalInputSchema, type GoalFormValues, type GoalInput } from "../schema"
+import { useTranslations } from "next-intl"
 
 export function GoalDialog({
   open,
@@ -48,6 +49,8 @@ export function GoalDialog({
   /** Types this portfolio already has, so the picker cannot create a duplicate it would 409 on. */
   takenTypes?: readonly GoalType[]
 }) {
+  const t = useTranslations("goals")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(goal)
 
@@ -112,7 +115,7 @@ export function GoalDialog({
 
           <div className="grid gap-4 py-5">
             <div className="space-y-2">
-              <Label htmlFor="goal-type">What to measure</Label>
+              <Label htmlFor="goal-type">{t("measure")}</Label>
               <Select
                 value={type}
                 onValueChange={(value) => {
@@ -161,7 +164,7 @@ export function GoalDialog({
 
               {!isPercent && (
                 <div className="space-y-2">
-                  <Label htmlFor="goal-currency">Currency</Label>
+                  <Label htmlFor="goal-currency">{t("currency")}</Label>
                   <Select
                     value={(form.watch("currency") as string) ?? baseCurrency}
                     onValueChange={(value) => form.setValue("currency", value as Currency)}
@@ -182,17 +185,15 @@ export function GoalDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="goal-date">
-                Target date <span className="text-muted-foreground font-normal">(optional)</span>
+              <Label htmlFor="goal-date">{t("targetDate")}<span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input id="goal-date" type="date" {...form.register("targetDate")} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="goal-note">
-                Note <span className="text-muted-foreground font-normal">(optional)</span>
+              <Label htmlFor="goal-note">{t("note")}<span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
-              <Input id="goal-note" placeholder="Why this target" {...form.register("note")} />
+              <Input id="goal-note" placeholder={t("why")} {...form.register("note")} />
             </div>
 
             {errors.root && <p className="text-destructive text-sm">{errors.root.message}</p>}
@@ -204,9 +205,7 @@ export function GoalDialog({
               variant="ghost"
               className="max-sm:h-11"
               onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+            >{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Set goal"}

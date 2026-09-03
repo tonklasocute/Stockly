@@ -1,11 +1,12 @@
 import Link from "next/link"
+import { getTranslations } from "next-intl/server"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
  * Server-rendered pagination: links, not buttons, so a page is bookmarkable and works without JS.
  */
-export function PaginationNav({
+export async function PaginationNav({
   page,
   pageCount,
   total,
@@ -21,6 +22,8 @@ export function PaginationNav({
 }) {
   if (pageCount <= 1) return null
 
+  const tc = await getTranslations("common")
+
   const href = (target: number) => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(baseParams)) if (value) params.set(key, value)
@@ -32,32 +35,32 @@ export function PaginationNav({
 
   return (
     <nav
-      aria-label={`${label} pagination`}
+      aria-label={tc("table.pagination", { label })}
       className="flex items-center justify-between gap-3 pt-1"
     >
       <p className="text-muted-foreground text-sm" aria-live="polite">
-        Page {page} of {pageCount} · {total} {label}
+        {tc("table.pageSummary", { page, pageCount, total, label })}
       </p>
       <div className="flex gap-2">
         {page > 1 ? (
           <Link href={href(page - 1)} className={linkClass} rel="prev">
             <ChevronLeft className="size-4" aria-hidden />
-            Previous
+            {tc("actions.previous")}
           </Link>
         ) : (
           <span className={cn(linkClass, "text-muted-foreground opacity-50")} aria-disabled>
             <ChevronLeft className="size-4" aria-hidden />
-            Previous
+            {tc("actions.previous")}
           </span>
         )}
         {page < pageCount ? (
           <Link href={href(page + 1)} className={linkClass} rel="next">
-            Next
+            {tc("actions.next")}
             <ChevronRight className="size-4" aria-hidden />
           </Link>
         ) : (
           <span className={cn(linkClass, "text-muted-foreground opacity-50")} aria-disabled>
-            Next
+            {tc("actions.next")}
             <ChevronRight className="size-4" aria-hidden />
           </span>
         )}

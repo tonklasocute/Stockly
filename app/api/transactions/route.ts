@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   return guarded(async () => {
     const url = new URL(request.url)
     const portfolioId = url.searchParams.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "portfolioId is required.", "portfolioRequired")
 
     const page = await listTransactionsPage(portfolioId, toPage(url.searchParams.get("page")))
     return ok({ transactions: page.rows, meta: page })
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       .single()
 
     if (error?.code === "23514") {
-      throw new ApiError("VALIDATION_ERROR", "That transaction violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That transaction violates a data rule.", "dataRuleTransaction")
     }
     if (error) throw error
 

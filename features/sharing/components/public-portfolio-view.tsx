@@ -3,7 +3,7 @@ import { Metric, Section } from "@/components/metric"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import { Percent } from "@/components/value"
 import { Badge } from "@/components/ui/badge"
-import { SHARE_DISCLAIMER, type PublicPortfolio } from "@/domain/sharing"
+import type { PublicPortfolio } from "@/domain/sharing"
 import {
   formatCurrency,
   formatOptionalPercent,
@@ -12,6 +12,7 @@ import {
   formatTime,
 } from "@/lib/format"
 import type { Locale } from "@/domain/locale"
+import { getTranslations } from "next-intl/server"
 
 /**
  * The shared page.
@@ -25,7 +26,7 @@ import type { Locale } from "@/domain/locale"
  * and none in the document. A section the owner withheld is not a hidden `<div>` — it is absent
  * from the data, and the markup for it is never produced.
  */
-export function PublicPortfolioView({
+export async function PublicPortfolioView({
   portfolio,
   asOf,
   frozen,
@@ -45,6 +46,15 @@ export function PublicPortfolioView({
    */
   locale: Locale
 }) {
+  /*
+   * The **visitor's** language, not the ambient request's.
+   *
+   * `locale` arrives as a prop from `?lang=`, and passing it explicitly here is what stops a
+   * shared page rendering in the owner's language for a stranger. `lib/i18n/request.ts` honours
+   * the explicit locale over the cookie for exactly this call.
+   */
+  const t = await getTranslations({ locale, namespace: "sharing" })
+
   const { sections, baseCurrency } = portfolio
   const money = (value: number) => formatCurrency(value, baseCurrency)
 
@@ -60,9 +70,13 @@ export function PublicPortfolioView({
             like a current one would be the single most misleading thing this feature could do.
           */}
           {frozen ? (
-            <Badge variant="secondary">Snapshot · {formatTime(frozen.takenAt, locale)}</Badge>
+            <Badge variant="secondary">
+              {t("public.snapshotBadge")} · {formatTime(frozen.takenAt, locale)}
+            </Badge>
           ) : (
-            <Badge variant="outline">Published {formatTime(asOf, locale)}</Badge>
+            <Badge variant="outline">
+              {t("public.publishedAt")} {formatTime(asOf, locale)}
+            </Badge>
           )}
         </div>
         {portfolio.description ? (
@@ -75,12 +89,12 @@ export function PublicPortfolioView({
         </p>
       </header>
 
-      <FreshnessNote portfolio={portfolio} />
+      <FreshnessNote portfolio={portfolio} locale={locale} />
 
       {sections.overview ? (
         <StatGrid>
           <StatCard
-            label="Total return"
+            label={t("public.totalReturn")}
             value={<Percent value={sections.overview.returnPct} />}
             emphasis
             hint={
@@ -90,39 +104,39 @@ export function PublicPortfolioView({
                 </span>
               ) : (
                 // Never 0. No previous close means today's change is unknown, not flat.
-                <span className="text-muted-foreground">Today N/A</span>
+                <span className="text-muted-foreground">{t("public.todayUnavailable")}</span>
               )
             }
           />
           {sections.overview.totalValue !== undefined ? (
-            <StatCard label="Portfolio value" value={money(sections.overview.totalValue)} />
+            <StatCard label={t("public.portfolioValue")} value={money(sections.overview.totalValue)} />
           ) : null}
           {sections.overview.investedValue !== undefined ? (
-            <StatCard label="Invested" value={money(sections.overview.investedValue)} />
+            <StatCard label={t("public.invested")} value={money(sections.overview.investedValue)} />
           ) : null}
-          <StatCard label="Positions" value={String(sections.overview.holdingsCount)} />
+          <StatCard label={t("public.positions")} value={String(sections.overview.holdingsCount)} />
           {sections.overview.unrealizedPnl !== undefined ? (
-            <StatCard label="Unrealised P&L" value={money(sections.overview.unrealizedPnl)} />
+            <StatCard label={t("public.unrealizedPnl")} value={money(sections.overview.unrealizedPnl)} />
           ) : null}
           {sections.overview.realizedPnl !== undefined ? (
-            <StatCard label="Realised P&L" value={money(sections.overview.realizedPnl)} />
+            <StatCard label={t("public.realizedPnl")} value={money(sections.overview.realizedPnl)} />
           ) : null}
           {sections.overview.cashValue !== undefined ? (
-            <StatCard label="Cash" value={money(sections.overview.cashValue)} />
+            <StatCard label={t("public.cash")} value={money(sections.overview.cashValue)} />
           ) : null}
         </StatGrid>
       ) : null}
 
       {sections.performance ? (
-        <Section title="Performance" description={`Time-weighted, ${sections.performance.range}`}>
+        <Section title={t("public.performance")} description={`Time-weighted, ${sections.performance.range}`}>
           <dl className="grid grid-cols-2 gap-4">
             <Metric
-              label="Time-weighted return"
+              label={t("public.twr")}
               value={formatOptionalPercent(sections.performance.timeWeightedReturnPct)}
               hint="Deposits and withdrawals removed"
             />
             <Metric
-              label="Money-weighted return"
+              label={t("public.mwr")}
               value={formatOptionalPercent(sections.performance.moneyWeightedReturnPct)}
               hint="What this investor earned"
             />
@@ -138,13 +152,13 @@ export function PublicPortfolioView({
       ) : null}
 
       {sections.benchmark ? (
-        <Section title="Benchmark" description={sections.benchmark.name}>
+        <Section title={t("public.benchmark")} description={sections.benchmark.name}>
           {sections.benchmark.unavailableReason ? (
             <p className="text-muted-foreground text-sm">{sections.benchmark.unavailableReason}</p>
           ) : (
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Metric
-                label="Portfolio"
+                label={t("public.portfolio")}
                 value={formatOptionalPercent(sections.benchmark.portfolioReturnPct)}
               />
               <Metric
@@ -152,7 +166,7 @@ export function PublicPortfolioView({
                 value={formatOptionalPercent(sections.benchmark.benchmarkReturnPct)}
               />
               <Metric
-                label="Difference"
+                label={t("public.difference")}
                 value={formatOptionalPercent(sections.benchmark.differencePct)}
                 hint={
                   sections.benchmark.differencePct === null
@@ -167,7 +181,7 @@ export function PublicPortfolioView({
 
       {sections.holdings ? (
         <Section
-          title="Holdings"
+          title={t("public.holdings")}
           description={
             sections.holdings.hiddenCount > 0
               ? `${sections.holdings.positions.length} of ${
@@ -213,36 +227,36 @@ export function PublicPortfolioView({
       ) : null}
 
       {sections.allocation ? (
-        <Section title="Allocation">
+        <Section title={t("public.allocation")}>
           <div className="grid gap-5 sm:grid-cols-3">
-            <AllocationList title="Positions" entries={sections.allocation.positions} />
-            <AllocationList title="Markets" entries={sections.allocation.markets} />
-            <AllocationList title="Currencies" entries={sections.allocation.currencies} />
+            <AllocationList title={t("public.positions")} entries={sections.allocation.positions} />
+            <AllocationList title={t("public.markets")} entries={sections.allocation.markets} />
+            <AllocationList title={t("public.currencies")} entries={sections.allocation.currencies} />
           </div>
         </Section>
       ) : null}
 
       {sections.risk ? (
         <Section
-          title="Risk"
+          title={t("public.risk")}
           description={`Measured over ${sections.risk.observations} observations`}
         >
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Metric label="Volatility" value={formatOptionalPercent(sections.risk.volatilityPct)} />
+            <Metric label={t("public.volatility")} value={formatOptionalPercent(sections.risk.volatilityPct)} />
             <Metric
-              label="Max drawdown"
+              label={t("public.maxDrawdown")}
               value={formatOptionalPercent(sections.risk.maxDrawdownPct)}
             />
             <Metric
-              label="Sharpe"
+              label={t("public.sharpe")}
               value={sections.risk.sharpe === null ? "N/A" : sections.risk.sharpe.toFixed(2)}
             />
             <Metric
-              label="Beta"
+              label={t("public.beta")}
               value={sections.risk.beta === null ? "N/A" : sections.risk.beta.toFixed(2)}
             />
             <Metric
-              label="Largest position"
+              label={t("public.largestPosition")}
               value={formatOptionalPercent(sections.risk.topWeightPct)}
             />
           </dl>
@@ -257,19 +271,19 @@ export function PublicPortfolioView({
       ) : null}
 
       {sections.income ? (
-        <Section title="Dividends">
+        <Section title={t("public.dividends")}>
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Metric
-              label="Yield on current value"
+              label={t("public.yieldOnValue")}
               value={formatOptionalPercent(sections.income.yieldOnValuePct)}
             />
             <Metric
-              label="Yield on cost"
+              label={t("public.yieldOnCost")}
               value={formatOptionalPercent(sections.income.yieldOnCostPct)}
             />
             {sections.income.trailingTwelveMonths !== undefined ? (
               <Metric
-                label="Last 12 months"
+                label={t("public.last12Months")}
                 value={
                   sections.income.trailingTwelveMonths === null
                     ? "N/A"
@@ -282,7 +296,7 @@ export function PublicPortfolioView({
       ) : null}
 
       {sections.goals && sections.goals.length > 0 ? (
-        <Section title="Goals">
+        <Section title={t("public.goals")}>
           <ul className="space-y-3">
             {sections.goals.map((goal, index) => (
               <li key={`${goal.label}-${index}`} className="space-y-1">
@@ -307,8 +321,8 @@ export function PublicPortfolioView({
 
       {sections.insights && sections.insights.length > 0 ? (
         <Section
-          title="Observations"
-          description="Generated by rules over this portfolio's own figures"
+          title={t("public.insights")}
+          description={t("public.insightsHint")}
         >
           <ul className="space-y-3">
             {sections.insights.map((insight) => (
@@ -322,18 +336,16 @@ export function PublicPortfolioView({
       ) : null}
 
       {Object.keys(sections).length === 0 ? (
-        <Section title="Nothing shared">
-          <p className="text-muted-foreground text-sm">
-            The owner has not chosen any sections to share yet.
-          </p>
+        <Section title={t("public.nothingShared")}>
+          <p className="text-muted-foreground text-sm">{t("public.nothingSharedBody")}</p>
         </Section>
       ) : null}
 
       <footer className="text-muted-foreground space-y-2 border-t pt-5 text-xs">
-        <p>{SHARE_DISCLAIMER}</p>
+        <p>{t("public.footer.disclaimer")}</p>
         <p>
-          Figures calculated {formatTime(portfolio.calculatedAt, locale)}.{" "}
-          {frozen ? "This page is a snapshot and does not update." : "Updates when the owner republishes."}
+          {t("public.footer.calculated", { at: formatTime(portfolio.calculatedAt, locale) })}{" "}
+          {frozen ? t("public.footer.snapshotNote") : t("public.footer.liveNote")}
         </p>
         <p>
           <Link href="/" className="underline-offset-4 hover:underline">
@@ -351,13 +363,24 @@ export function PublicPortfolioView({
  * Carried into the published document rather than recomputed here, so a snapshot taken during a
  * provider outage still says so months later.
  */
-function FreshnessNote({ portfolio }: { portfolio: PublicPortfolio }) {
+async function FreshnessNote({
+  portfolio,
+  locale,
+}: {
+  portfolio: PublicPortfolio
+  locale: Locale
+}) {
+  const t = await getTranslations({ locale, namespace: "sharing" })
   const { freshness } = portfolio
   const notes: string[] = []
-  if (freshness.marketDataStale) notes.push("Some prices were unavailable and cost was used instead.")
+  if (freshness.marketDataStale) notes.push(t("public.freshness.pricesStale"))
   if (freshness.untranslatedCount > 0) {
+    // ICU handles both the count and the verb that agrees with it; Thai needs neither and says so.
     notes.push(
-      `${freshness.untranslatedCount} holding${freshness.untranslatedCount === 1 ? "" : "s"} could not be converted to ${portfolio.baseCurrency} and ${freshness.untranslatedCount === 1 ? "is" : "are"} excluded from totals.`,
+      t("public.freshness.untranslated", {
+        count: freshness.untranslatedCount,
+        currency: portfolio.baseCurrency,
+      }),
     )
   }
   if (notes.length === 0) return null

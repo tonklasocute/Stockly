@@ -26,7 +26,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  ALERT_TYPE_LABELS,
   PERCENT_ALERT_TYPES,
   SYMBOL_ALERT_TYPES,
   type AlertType,
@@ -36,13 +35,14 @@ import { toMarket, type MarketId } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { AlertRow } from "@/types/database"
 import { alertInputSchema, type AlertFormValues, type AlertInput } from "../schema"
+import { useTranslations } from "next-intl"
 
-/** Grouped so the list reads as three decisions, not eleven options. */
-const TYPE_GROUPS: Array<{ label: string; types: AlertType[] }> = [
-  { label: "Price", types: ["PRICE_ABOVE", "PRICE_BELOW"] },
-  { label: "Daily move", types: ["PERCENT_CHANGE_ABOVE", "PERCENT_CHANGE_BELOW"] },
+/** Grouped so the list reads as three decisions, not eleven options. `key` names each group. */
+const TYPE_GROUPS: Array<{ key: string; types: AlertType[] }> = [
+  { key: "groupPrice", types: ["PRICE_ABOVE", "PRICE_BELOW"] },
+  { key: "groupDailyMove", types: ["PERCENT_CHANGE_ABOVE", "PERCENT_CHANGE_BELOW"] },
   {
-    label: "Portfolio",
+    key: "groupPortfolio",
     types: [
       "PORTFOLIO_DAILY_CHANGE_ABOVE",
       "PORTFOLIO_DAILY_CHANGE_BELOW",
@@ -52,16 +52,16 @@ const TYPE_GROUPS: Array<{ label: string; types: AlertType[] }> = [
       "POSITION_WEIGHT_BELOW",
     ],
   },
-  { label: "Dividend", types: ["DIVIDEND_RECEIVED"] },
+  { key: "groupDividend", types: ["DIVIDEND_RECEIVED"] },
 ]
 
 const COOLDOWNS = [
-  { value: "0", label: "No cooldown" },
-  { value: "15", label: "15 minutes" },
-  { value: "60", label: "1 hour" },
-  { value: "360", label: "6 hours" },
-  { value: "1440", label: "1 day" },
-]
+  { value: "0", key: "cooldownNone" },
+  { value: "15", key: "cooldown15m" },
+  { value: "60", key: "cooldown1h" },
+  { value: "360", key: "cooldown6h" },
+  { value: "1440", key: "cooldown1d" },
+] as const
 
 export function AlertDialog({
   open,
@@ -82,6 +82,9 @@ export function AlertDialog({
   defaultTarget?: number
   alert?: AlertRow
 }) {
+  const t = useTranslations("alerts")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const router = useRouter()
   const isEdit = Boolean(alert)
 
@@ -153,36 +156,34 @@ export function AlertDialog({
 
           <div className="grid gap-4 py-5">
             <div className="space-y-2">
-              <Label htmlFor="alert-type">Notify me when</Label>
+              <Label htmlFor="alert-type">{t("notifyWhen")}</Label>
               <Select
                 value={type}
                 onValueChange={(value) => form.setValue("type", (value as AlertType) ?? "PRICE_ABOVE")}
                 disabled={isEdit}
               >
                 <SelectTrigger id="alert-type" className="w-full">
-                  <SelectValue>{(value) => ALERT_TYPE_LABELS[value as AlertType]}</SelectValue>
+                  <SelectValue>{(value) => tEnum(`alertType.${value as AlertType}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TYPE_GROUPS.map((group) =>
                     group.types.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {ALERT_TYPE_LABELS[option]}
+                        {tEnum(`alertType.${option}`)}
                       </SelectItem>
                     )),
                   )}
                 </SelectContent>
               </Select>
               {isEdit && (
-                <p className="text-muted-foreground text-xs">
-                  The condition cannot be changed. Delete this alert and create another instead.
-                </p>
+                <p className="text-muted-foreground text-xs">{t("conditionLocked")}</p>
               )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {needsSymbol && (
                 <div className="space-y-2">
-                  <Label htmlFor="alert-symbol">Stock</Label>
+                  <Label htmlFor="alert-symbol">{t("stock")}</Label>
                   <Input
                     id="alert-symbol"
                     placeholder="NVDA"
@@ -210,7 +211,7 @@ export function AlertDialog({
 
               {!isDividend && (
                 <div className="space-y-2">
-                  <Label htmlFor="alert-target">{isPercent ? "Percent" : "Price"}</Label>
+                  <Label htmlFor="alert-target">{isPercent ? "Percent" : t("groupPrice")}</Label>
                   <div className="relative">
                     <Input
                       id="alert-target"
@@ -233,20 +234,23 @@ export function AlertDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="alert-cooldown">Quiet period after it fires</Label>
+              <Label htmlFor="alert-cooldown">{t("cooldown")}</Label>
               <Select
                 value={String(form.watch("cooldownMinutes") ?? 60)}
                 onValueChange={(value) => form.setValue("cooldownMinutes", Number(value ?? 60))}
               >
                 <SelectTrigger id="alert-cooldown" className="w-full">
                   <SelectValue>
-                    {(value) => COOLDOWNS.find((c) => c.value === String(value))?.label}
+                    {(value) => {
+                      const found = COOLDOWNS.find((c) => c.value === String(value))
+                      return found ? t(found.key) : ""
+                    }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {COOLDOWNS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.key)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -261,9 +265,7 @@ export function AlertDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{tc("actions.cancel")}</Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Create alert"}

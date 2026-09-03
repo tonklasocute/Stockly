@@ -12,12 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Currency } from "@/domain/market"
-import { FREQUENCY_LABELS, projectDividends } from "@/domain/simulation"
+import { projectDividends } from "@/domain/simulation"
 import { formatCurrency, formatCurrencyWithCode, formatPercent } from "@/lib/format"
 import { AssumptionPanel, DataLabel } from "./assumptions"
 import { DividendProjectionChart } from "./lazy-charts"
 import { FrequencyField, NumberField, ScenarioPicker } from "./inputs"
-import { REASON_TEXT, num, optionalNum, toScenario, useScenarioState } from "./use-scenario"
+import { num, optionalNum, toScenario, useScenarioState } from "./use-scenario"
+import { useTranslations } from "next-intl"
 
 /**
  * Dividend projection.
@@ -46,6 +47,8 @@ export function DividendSimulator({
   costBasis: number | null
   suggestedContribution: number | null
 }) {
+  const t = useTranslations("simulations")
+  const tEnum = useTranslations("enums")
   const { state, set, pickScenario } = useScenarioState({
     initialValue: String(Math.max(0, Math.round(portfolioValue))),
     contribution: String(Math.max(0, Math.round(suggestedContribution ?? 0))),
@@ -77,12 +80,12 @@ export function DividendSimulator({
   return (
     <div className="space-y-6">
       <Section
-        title="What the portfolio actually pays"
-        description="Recorded payments, net of tax and fees. Nothing on this row is projected."
+        title={t("dividend.actual")}
+        description={t("dividend.actualHint")}
       >
         <dl className="grid gap-4 sm:grid-cols-3">
           <Metric
-            label="Last twelve months"
+            label={t("dividend.last12Months")}
             value={
               <span className="flex items-center gap-2">
                 {formatCurrency(actualTrailingIncome, currency)}
@@ -92,7 +95,7 @@ export function DividendSimulator({
             hint="From your dividend records"
           />
           <Metric
-            label="Yield on current value"
+            label={t("dividend.yieldOnValue")}
             value={
               impliedYieldPct === null
                 ? "N/A"
@@ -101,7 +104,7 @@ export function DividendSimulator({
             hint="Trailing income ÷ portfolio value"
           />
           <Metric
-            label="Yield on cost"
+            label={t("dividend.yieldOnCost")}
             value={
               costBasis && costBasis > 0
                 ? formatPercent((actualTrailingIncome / costBasis) * 100, { signed: false })
@@ -112,11 +115,11 @@ export function DividendSimulator({
         </dl>
       </Section>
 
-      <Section title="Scenario inputs" description="Assumptions you choose, applied to the future.">
+      <Section title={t("inputs.title")} description={t("dividend.hint")}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NumberField
             id="dividend-initial"
-            label="Starting value"
+            label={t("inputs.startingValue")}
             suffix={currency}
             value={state.initialValue}
             onChange={set("initialValue")}
@@ -124,7 +127,7 @@ export function DividendSimulator({
           />
           <NumberField
             id="dividend-contribution"
-            label="Contribution"
+            label={t("inputs.contribution")}
             suffix={currency}
             value={state.contribution}
             onChange={set("contribution")}
@@ -133,7 +136,7 @@ export function DividendSimulator({
           <FrequencyField value={state.frequency} onChange={set("frequency")} />
           <NumberField
             id="dividend-years"
-            label="Duration"
+            label={t("inputs.duration")}
             suffix="years"
             value={state.years}
             onChange={set("years")}
@@ -143,7 +146,7 @@ export function DividendSimulator({
           <ScenarioPicker value={state.scenario} onChange={pickScenario} />
           <NumberField
             id="dividend-return"
-            label="Annual price return"
+            label={t("inputs.annualPriceReturn")}
             suffix="%"
             value={state.annualReturnPct}
             onChange={set("annualReturnPct")}
@@ -151,7 +154,7 @@ export function DividendSimulator({
           />
           <NumberField
             id="dividend-yield"
-            label="Assumed yield"
+            label={t("dividend.assumedYield")}
             suffix="%"
             value={yieldPct}
             onChange={setYieldPct}
@@ -164,13 +167,13 @@ export function DividendSimulator({
           />
           <NumberField
             id="dividend-yield-growth"
-            label="Yield growth"
+            label={t("dividend.yieldGrowth")}
             suffix="% a year"
             value={yieldGrowthPct}
             onChange={setYieldGrowthPct}
           />
           <div className="space-y-2">
-            <Label htmlFor="dividend-reinvest">Reinvest dividends</Label>
+            <Label htmlFor="dividend-reinvest">{t("dividend.reinvest")}</Label>
             <Select
               value={reinvest ? "yes" : "no"}
               onValueChange={(value) => setReinvest(value === "yes")}
@@ -179,14 +182,14 @@ export function DividendSimulator({
                 <SelectValue>{(value) => (value === "yes" ? "Yes" : "No")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no">No — take the income</SelectItem>
-                <SelectItem value="yes">Yes — reinvest it</SelectItem>
+                <SelectItem value="no">{t("dividend.reinvestNo")}</SelectItem>
+                <SelectItem value="yes">{t("dividend.reinvestYes")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <NumberField
             id="dividend-inflation"
-            label="Inflation"
+            label={t("inputs.inflation")}
             suffix="%"
             value={state.inflationPct}
             onChange={set("inflationPct")}
@@ -200,12 +203,12 @@ export function DividendSimulator({
           N/A —{" "}
           {projection.reason === "INSUFFICIENT_HISTORY"
             ? "enter an assumed yield. Stockly will not guess one for a portfolio with no dividend history."
-            : (REASON_TEXT[projection.reason] ?? "that scenario cannot be modelled.")}
+            : (reason(t, projection.reason))}
         </p>
       ) : (
         <>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Projected income</h2>
+            <h2 className="text-sm font-semibold">{t("dividend.projectedIncome")}</h2>
             <DataLabel kind="PROJECTED" />
           </div>
 
@@ -223,7 +226,7 @@ export function DividendSimulator({
               }
             />
             <StatCard
-              label="Cumulative income"
+              label={t("dividend.cumulativeIncome")}
               value={formatCurrency(projection.value.cumulativeIncome, currency)}
               emphasis
               hint={
@@ -233,7 +236,7 @@ export function DividendSimulator({
               }
             />
             <StatCard
-              label="Yield on current value"
+              label={t("dividend.yieldOnValue")}
               value={
                 projection.value.years.at(-1)?.yieldOnValuePct === null ||
                 projection.value.years.at(-1)?.yieldOnValuePct === undefined ? (
@@ -243,10 +246,10 @@ export function DividendSimulator({
                 )
               }
               emphasis
-              hint={<span className="text-muted-foreground">in the final modelled year</span>}
+              hint={<span className="text-muted-foreground">{t("dividend.finalYear")}</span>}
             />
             <StatCard
-              label="Yield on cost"
+              label={t("dividend.yieldOnCost")}
               value={
                 projection.value.years.at(-1)?.yieldOnCostPct == null ? (
                   <span className="text-muted-foreground text-lg">N/A</span>
@@ -263,33 +266,50 @@ export function DividendSimulator({
             />
           </StatGrid>
 
-          <Section title="Income by year" description="Projected, under the assumptions below.">
+          <Section title={t("dividend.incomeByYear")} description={t("dividend.incomeByYearHint")}>
             <DividendProjectionChart years={projection.value.years} currency={currency} />
           </Section>
 
           <AssumptionPanel
             method={projection.value.method}
             assumptions={[
-              { label: "Starting value", value: formatCurrency(growth.initialValue, currency) },
+              { label: t("inputs.startingValue"), value: formatCurrency(growth.initialValue, currency) },
               {
-                label: "Contribution",
+                label: t("inputs.contribution"),
                 value: formatCurrency(growth.contribution, currency),
-                hint: FREQUENCY_LABELS[growth.frequency].toLowerCase() + ", at period end",
+                hint: t("inputs.atPeriodEnd", { frequency: tEnum(`contributionFrequency.${growth.frequency}`) }),
               },
-              { label: "Annual price return", value: formatPercent(growth.annualReturn * 100) },
+              { label: t("inputs.annualPriceReturn"), value: formatPercent(growth.annualReturn * 100) },
               {
-                label: "Assumed yield",
+                label: t("dividend.assumedYield"),
                 value: assumedYield === null ? "N/A" : formatPercent(assumedYield, { signed: false }),
                 hint: impliedYieldPct === null ? "your figure" : "from your own trailing income",
               },
-              { label: "Yield growth", value: formatPercent(num(yieldGrowthPct)) },
-              { label: "Reinvestment", value: reinvest ? "On" : "Off" },
-              { label: "Duration", value: `${growth.years} years` },
-              { label: "Currency", value: currency },
+              { label: t("dividend.yieldGrowth"), value: formatPercent(num(yieldGrowthPct)) },
+              { label: t("dividend.reinvestment"), value: reinvest ? "On" : "Off" },
+              { label: t("inputs.duration"), value: `${growth.years} years` },
+              { label: t("inputs.currency"), value: currency },
             ]}
           />
         </>
       )}
     </div>
   )
+}
+
+/**
+ * A refusal code becomes a sentence, with a fallback that is itself a message.
+ *
+ * The engine returns a reason for every scenario it will not model — never `NaN`, never
+ * `Infinity` — and an unrecognised one still has to say something in the reader's language, which
+ * is why the fallback is a key rather than an English string.
+ */
+function reason(
+  t: (key: string) => string,
+  code: string | undefined,
+  fallback: "UNKNOWN" | "NOT_COMPUTABLE" = "UNKNOWN",
+): string {
+  const known = ["INVALID_INITIAL_VALUE", "INVALID_CONTRIBUTION", "INVALID_RETURN", "INVALID_DURATION",
+    "INVALID_INFLATION", "NO_FX_RATE", "INSUFFICIENT_HISTORY", "TARGET_UNREACHABLE"]
+  return t(`reasons.${code && known.includes(code) ? code : fallback}`)
 }

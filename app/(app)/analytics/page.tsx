@@ -20,8 +20,13 @@ import { formatCurrency, formatCurrencyWithCode, formatOptional, formatPercent }
 import { getUser } from "@/lib/supabase/server"
 import { NoPortfolio } from "../_no-portfolio"
 import { describeError, logger } from "@/lib/log"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Analytics" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("analytics") }
+}
 
 type Props = { searchParams: Promise<{ p?: string; range?: string }> }
 
@@ -32,6 +37,8 @@ const CONCENTRATION_TEXT: Record<string, string> = {
 }
 
 export default async function AnalyticsPage({ searchParams }: Props) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("analytics")
   const { p, range: rangeParam } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -79,20 +86,18 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   if (bundle.transactionCount === 0) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Analytics</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("analytics")}</h1>
         <div className="rounded-xl border">
           <EmptyState
             icon={BarChart3}
-            title="Nothing to analyse yet"
-            description="Record a transaction and this page fills in with allocation, performance, contribution and trade statistics."
+            title={t("empty.title")}
+            description={t("empty.body")}
             action={
               <Button
                 nativeButton={false}
                 render={<Link href={`/transactions?p=${active.id}`} />}
                 className="max-sm:h-11"
-              >
-                Add a transaction
-              </Button>
+              >{t("empty.action")}</Button>
             }
           />
         </div>
@@ -104,7 +109,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Analytics</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("analytics")}</h1>
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
         <ExportMenu portfolioId={active.id} />
@@ -123,7 +128,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       {/* 1. The headline numbers. */}
       <StatGrid>
         <StatCard
-          label="Portfolio value"
+          label={t("summary.portfolioValue")}
           value={formatCurrencyWithCode(totalValue, currency)}
           emphasis
           hint={
@@ -134,13 +139,13 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           }
         />
         <StatCard
-          label="Total P&L"
+          label={t("summary.totalPnl")}
           value={<Delta value={totalPnl} currency={currency} />}
           emphasis
           hint={<Percent value={summary.returnPct} />}
         />
         <StatCard
-          label="Unrealized"
+          label={t("summary.unrealized")}
           value={<Delta value={summary.unrealizedPnl} currency={currency} />}
           emphasis
           hint={
@@ -150,7 +155,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           }
         />
         <StatCard
-          label="Realized"
+          label={t("summary.realized")}
           value={<Delta value={summary.realizedPnl} currency={currency} />}
           emphasis
           hint={
@@ -163,8 +168,8 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
       {/* 2. Performance over time. */}
       <Section
-        title="Performance"
-        description="Portfolio value against invested capital. Deposits raise both lines, so they never look like a return."
+        title={t("performance.title")}
+        description={t("performance.hint")}
         action={<RangeFilter current={range} />}
       >
         {performanceInRange.length > 1 ? (
@@ -183,30 +188,30 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
       {/* 3. Allocation and concentration. */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Allocation" description="Stocks and cash as a share of total value.">
+        <Section title={t("allocation.title")} description={t("allocation.hint")}>
           <AllocationDonut slices={allocation} currency={currency} />
         </Section>
 
         <Section
-          title="Concentration"
-          description="Informational only — Stockly describes your portfolio, it does not advise on it."
+          title={t("concentration.title")}
+          description={t("concentration.hint")}
         >
           <dl className="grid grid-cols-2 gap-3">
             <Metric
-              label="Largest position"
+              label={t("concentration.largestPosition")}
               value={
                 concentration.largest
                   ? `${concentration.largest.symbol} · ${formatPercent(concentration.largest.weight, { signed: false })}`
                   : "N/A"
               }
             />
-            <Metric label="Positions" value={String(concentration.positionCount)} />
+            <Metric label={t("concentration.positions")} value={String(concentration.positionCount)} />
             <Metric
-              label="Top 3"
+              label={t("concentration.top3")}
               value={formatPercent(concentration.top3Weight, { signed: false })}
             />
             <Metric
-              label="Top 5"
+              label={t("concentration.top5")}
               value={formatPercent(concentration.top5Weight, { signed: false })}
             />
           </dl>
@@ -221,50 +226,50 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       {(hasSectorData || hasIndustryData) && (
         <div className="grid gap-4 lg:grid-cols-2">
           {hasSectorData && (
-            <Section title="By sector" description="Grouped from company profiles.">
-              <AllocationTable slices={sectors} currency={currency} label="Sector" />
+            <Section title={t("allocation.bySector")} description={t("allocation.sectorHint")}>
+              <AllocationTable slices={sectors} currency={currency} label={t("allocation.sector")} />
             </Section>
           )}
           {hasIndustryData && (
-            <Section title="By industry">
-              <AllocationTable slices={industries} currency={currency} label="Industry" />
+            <Section title={t("allocation.byIndustry")}>
+              <AllocationTable slices={industries} currency={currency} label={t("allocation.industry")} />
             </Section>
           )}
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="By country" description="Geographic exposure, from company profiles.">
-          <AllocationTable slices={countries} currency={currency} label="Country" />
+        <Section title={t("allocation.byCountry")} description={t("allocation.countryHint")}>
+          <AllocationTable slices={countries} currency={currency} label={t("allocation.country")} />
         </Section>
         <Section
-          title="Currency exposure"
+          title={t("allocation.currencyExposure")}
           description={`Held value by currency, translated into ${currency} at today's rate.`}
         >
           {summary.exposures.length > 1 ? (
             <CurrencyExposure summary={summary} />
           ) : (
-            <AllocationTable slices={currencies} currency={currency} label="Currency" />
+            <AllocationTable slices={currencies} currency={currency} label={t("allocation.currency")} />
           )}
         </Section>
       </div>
 
       {/* 4. Winners and losers. */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Top gainers" description="By return since purchase.">
+        <Section title={t("movers.topGainers")} description={t("movers.sincePurchase")}>
           <MoverList movers={movers.gainers} tone="gain" />
         </Section>
-        <Section title="Top losers" description="By return since purchase.">
+        <Section title={t("movers.topLosers")} description={t("movers.sincePurchase")}>
           <MoverList movers={movers.losers} tone="loss" />
         </Section>
       </div>
 
       {today && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Section title="Today's gainers">
+          <Section title={t("movers.todayGainers")}>
             <MoverList movers={today.gainers} tone="gain" />
           </Section>
-          <Section title="Today's losers">
+          <Section title={t("movers.todayLosers")}>
             <MoverList movers={today.losers} tone="loss" />
           </Section>
         </div>
@@ -272,8 +277,8 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
       {/* 5. Attribution. */}
       <Section
-        title="P&L contribution"
-        description="What each holding contributed, split into booked and on-paper profit."
+        title={t("contribution.title")}
+        description={t("contribution.hint")}
       >
         <ul className="divide-y">
           {contribution.slice(0, 10).map((row) => (
@@ -297,31 +302,31 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       {/* 6. Trading statistics. */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Section
-          title="Realized P&L"
-          description="A trade is one sell. Break-even trades are excluded from the win rate."
+          title={t("contribution.realizedPnl")}
+          description={t("trades.hint")}
         >
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric
-              label="Win rate"
+              label={t("trades.winRate")}
               value={formatOptional(tradeStats.winRate, (v) => formatPercent(v, { signed: false }))}
               hint={`${tradeStats.winningTrades} of ${tradeStats.winningTrades + tradeStats.losingTrades} decided`}
             />
-            <Metric label="Winning trades" value={String(tradeStats.winningTrades)} />
-            <Metric label="Losing trades" value={String(tradeStats.losingTrades)} />
+            <Metric label={t("trades.winning")} value={String(tradeStats.winningTrades)} />
+            <Metric label={t("trades.losing")} value={String(tradeStats.losingTrades)} />
             <Metric
-              label="Average win"
+              label={t("trades.averageWin")}
               value={formatOptional(tradeStats.averageWin, (v) => formatCurrency(v, currency))}
             />
             <Metric
-              label="Average loss"
+              label={t("trades.averageLoss")}
               value={formatOptional(tradeStats.averageLoss, (v) => formatCurrency(v, currency))}
             />
             <Metric
-              label="Total realized"
+              label={t("trades.totalRealized")}
               value={formatCurrency(tradeStats.totalRealized, currency)}
             />
             <Metric
-              label="Best trade"
+              label={t("trades.bestTrade")}
               value={
                 tradeStats.best
                   ? `${tradeStats.best.symbol} ${formatCurrency(tradeStats.best.realizedPnl, currency)}`
@@ -329,7 +334,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
               }
             />
             <Metric
-              label="Worst trade"
+              label={t("trades.worstTrade")}
               value={
                 tradeStats.worst
                   ? `${tradeStats.worst.symbol} ${formatCurrency(tradeStats.worst.realizedPnl, currency)}`
@@ -337,7 +342,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
               }
             />
             <Metric
-              label="Average hold"
+              label={t("trades.averageHold")}
               value={
                 tradeStats.averageHoldDays === null
                   ? "N/A"
@@ -352,17 +357,17 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </dl>
         </Section>
 
-        <Section title="Fees" description="What trading has cost, in money rather than in feel.">
+        <Section title={t("fees.title")} description={t("fees.hint")}>
           <dl className="grid grid-cols-2 gap-3">
-            <Metric label="Total fees" value={formatCurrency(fees.total, currency)} />
+            <Metric label={t("fees.total")} value={formatCurrency(fees.total, currency)} />
             <Metric
-              label="Of turnover"
+              label={t("fees.ofTurnover")}
               value={formatOptional(fees.percentOfTurnover, (v) =>
                 formatPercent(v, { signed: false }),
               )}
             />
-            <Metric label="This month" value={formatCurrency(fees.thisMonth, currency)} />
-            <Metric label="This year" value={formatCurrency(fees.thisYear, currency)} />
+            <Metric label={t("fees.thisMonth")} value={formatCurrency(fees.thisMonth, currency)} />
+            <Metric label={t("fees.thisYear")} value={formatCurrency(fees.thisYear, currency)} />
           </dl>
           {fees.bySymbol.length > 0 && (
             <ul className="mt-4 space-y-1.5 border-t pt-3 text-sm">
@@ -381,35 +386,33 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
       {/* 7. Dividend summary, with the detail one click away. */}
       <Section
-        title="Dividend income"
-        description="Two yields with two denominators — they are not interchangeable."
+        title={t("dividends.title")}
+        description={t("dividends.hint")}
         action={
           <Button
             nativeButton={false}
             render={<Link href={`/dividends?p=${active.id}`} />}
             variant="outline"
             size="sm"
-          >
-            All dividends
-          </Button>
+          >{t("dividends.all")}</Button>
         }
       >
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric
-            label="Received (all time)"
+            label={t("dividends.receivedAllTime")}
             value={formatCurrency(dividends.summary.totalNet, currency)}
           />
           <Metric
-            label="Last 12 months"
+            label={t("dividends.last12Months")}
             value={formatCurrency(dividends.summary.trailingTwelveMonths, currency)}
           />
           <Metric
-            label="Yield on current value"
+            label={t("dividends.yieldOnValue")}
             value={formatOptional(dividends.yieldOnValue, (v) => formatPercent(v, { signed: false }))}
             hint="12m dividends ÷ market value"
           />
           <Metric
-            label="Yield on cost"
+            label={t("dividends.yieldOnCost")}
             value={formatOptional(dividends.yieldOnCost, (v) => formatPercent(v, { signed: false }))}
             hint="12m dividends ÷ cost basis"
           />

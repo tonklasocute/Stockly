@@ -3,23 +3,26 @@ import Link from "next/link"
 import { NewsList } from "@/features/news/components/news-list"
 import { loadNews, type FeedScope } from "@/features/news/loader"
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
-import { NEWS_CATEGORIES, CATEGORY_LABELS, NEWS_SORTS, type NewsCategory, type NewsSort } from "@/domain/news"
+import { NEWS_CATEGORIES, NEWS_SORTS, type NewsCategory, type NewsSort } from "@/domain/news"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "News" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("news") }
+}
 
 /** The nonce-based CSP needs a server-rendered response; a prerendered page carries no nonce. */
 export const dynamic = "force-dynamic"
 
-const SCOPES: Array<{ key: FeedScope; label: string }> = [
-  { key: "PORTFOLIO", label: "Portfolio" },
-  { key: "WATCHLIST", label: "Watchlist" },
-  { key: "MARKET", label: "Market" },
-]
+/** `key` is the feed scope and, lowercased, its translation key. */
+const SCOPES: FeedScope[] = ["PORTFOLIO", "WATCHLIST", "MARKET"]
 
-const SORT_LABELS: Record<NewsSort, string> = {
-  RELEVANCE: "Most relevant",
-  NEWEST: "Newest",
-  OLDEST: "Oldest",
+/** Keys into `news.sortBy`. */
+const SORT_KEYS: Record<NewsSort, string> = {
+  RELEVANCE: "mostRelevant",
+  NEWEST: "newest",
+  OLDEST: "oldest",
 }
 
 /**
@@ -34,10 +37,12 @@ export default async function NewsPage({
 }: {
   searchParams: Promise<{ p?: string; scope?: string; sort?: string; category?: string }>
 }) {
+  const t = await getTranslations("news")
+  const tEnum = await getTranslations("enums")
   const params = await searchParams
   const { active } = await resolveActivePortfolio(params.p)
 
-  const scope = (SCOPES.find((s) => s.key === params.scope)?.key ?? "PORTFOLIO") as FeedScope
+  const scope = (SCOPES.find((s) => s === params.scope) ?? "PORTFOLIO") as FeedScope
   const sort = (NEWS_SORTS as readonly string[]).includes(params.sort ?? "")
     ? (params.sort as NewsSort)
     : "RELEVANCE"
@@ -58,23 +63,21 @@ export default async function NewsPage({
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">News</h1>
-        <p className="text-muted-foreground text-sm">
-          Context around what you hold and watch. Stockly does not interpret it.
-        </p>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("hint")}</p>
       </header>
 
-      <nav aria-label="Feed" className="flex flex-wrap gap-1">
+      <nav aria-label={t("feed")} className="flex flex-wrap gap-1">
         {SCOPES.map((option) => (
           <Link
-            key={option.key}
-            href={href({ scope: option.key })}
-            aria-current={option.key === scope ? "page" : undefined}
+            key={option}
+            href={href({ scope: option })}
+            aria-current={option === scope ? "page" : undefined}
             className={`rounded-md border px-3 py-1 text-xs pointer-coarse:min-h-11 pointer-coarse:px-4 ${
-              option.key === scope ? "bg-foreground text-background" : "hover:bg-muted"
+              option === scope ? "bg-foreground text-background" : "hover:bg-muted"
             }`}
           >
-            {option.label}
+            {t(option.toLowerCase())}
           </Link>
         ))}
       </nav>
@@ -86,9 +89,7 @@ export default async function NewsPage({
           className={`rounded-md border px-2.5 py-1 text-xs pointer-coarse:min-h-11 pointer-coarse:px-3 ${
             category === undefined ? "bg-muted font-medium" : "hover:bg-muted"
           }`}
-        >
-          All
-        </Link>
+        >{t("all")}</Link>
         {NEWS_CATEGORIES.map((option) => (
           <Link
             key={option}
@@ -98,12 +99,12 @@ export default async function NewsPage({
               option === category ? "bg-muted font-medium" : "hover:bg-muted"
             }`}
           >
-            {CATEGORY_LABELS[option]}
+            {tEnum(`newsCategory.${option}`)}
           </Link>
         ))}
       </div>
 
-      <nav aria-label="Sort" className="text-muted-foreground flex flex-wrap gap-3 text-xs">
+      <nav aria-label={t("sort")} className="text-muted-foreground flex flex-wrap gap-3 text-xs">
         {NEWS_SORTS.map((option) => (
           <Link
             key={option}
@@ -111,14 +112,14 @@ export default async function NewsPage({
             aria-current={option === sort ? "true" : undefined}
             className={option === sort ? "text-foreground font-medium" : "hover:text-foreground"}
           >
-            {SORT_LABELS[option]}
+            {t(`sortBy.${SORT_KEYS[option]}`)}
           </Link>
         ))}
       </nav>
 
       <NewsList
         data={data}
-        title={SCOPES.find((s) => s.key === scope)?.label ?? "News"}
+        title={t(scope.toLowerCase())}
         description={active ? active.name : undefined}
       />
     </div>

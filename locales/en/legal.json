@@ -1,0 +1,134 @@
+{
+  "lastUpdated": "Last updated {date}",
+  "nav": {
+    "signIn": "Sign in",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "disclaimer": "Disclaimer"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "intro": "Stockly is a personal portfolio tracker. It stores the records you enter so it can compute your holdings and profit and loss, and nothing beyond that. It does not sell data, does not run advertising, and contains no third-party analytics or tracking scripts.",
+    "stored": {
+      "heading": "What is stored",
+      "items": [
+        "Your email address and password, held by Supabase Auth. Stockly never sees the password.",
+        "Portfolios, transactions, dividends and cash movements — the records you enter.",
+        "Your watchlist, price alerts and saved screens.",
+        "Notifications Stockly has generated for you, and any push subscription you enable.",
+        "If you use the research assistant: your questions, its answers, and a usage row per request recording the model, token counts and latency. The usage row contains no question text."
+      ]
+    },
+    "notStored": {
+      "heading": "What is not stored",
+      "items": [
+        "No payment details. Stockly takes no payments.",
+        "No brokerage credentials. Stockly does not connect to a broker and cannot trade.",
+        "No market prices. Those are fetched on demand and cached briefly, never in your account.",
+        "No portfolio data in your browser's cache. See the section on offline use below."
+      ]
+    },
+    "access": {
+      "heading": "Who can read it",
+      "body": "Every table holding your records is protected by row-level security in the database: a query runs as you, and rows belonging to another account are not returned. This is enforced by the database itself rather than by application code, so a bug in a page or an API route cannot expose someone else's portfolio."
+    },
+    "thirdParties": {
+      "heading": "Third parties",
+      "items": [
+        "Supabase hosts the database and handles authentication.",
+        "Vercel hosts the application and produces request logs.",
+        "A market data provider receives the stock symbols being priced. It receives no account information and cannot associate a symbol with you.",
+        "An AI provider, only if the research assistant is enabled and only when you ask it something. It receives your question and the specific figures needed to answer it. It receives no email address, no account identifier and no credentials, and it is given no ability to query the database.",
+        "A push service (Apple, Google or Mozilla, depending on your browser), only if you enable push notifications. Push messages contain a stock symbol and a price, never a portfolio value."
+      ]
+    },
+    "logs": {
+      "heading": "Logs",
+      "body": "Server logs record what happened, not what was said: a request identifier, the route, a status code and a duration. They never contain passwords, session tokens, API keys, the text of an AI question or answer, or any portfolio figure."
+    },
+    "offline": {
+      "heading": "Offline use",
+      "body": "Stockly installs as an app and works offline for navigation, but its service worker caches nothing that belongs to an account — no API response, no rendered page. Only the offline notice and the application's own static files are stored on your device. Signing out clears those caches. This is deliberate: a shared device must never replay one person's portfolio to the next."
+    },
+    "retention": {
+      "heading": "Retention and deletion",
+      "items": [
+        "Your records are kept for as long as your account exists.",
+        "AI conversations are deleted after 180 days, and you can delete any of them at any time.",
+        "AI usage rows, which contain no question text, are deleted after 365 days.",
+        "Deleting a portfolio deletes its transactions, dividends, cash movements and snapshots. Deleting your account removes everything associated with it."
+      ]
+    },
+    "contact": {
+      "heading": "Contact",
+      "body": "Stockly is a personal project. If you are running your own instance, you are the operator and the contact for anything on this page."
+    }
+  },
+  "terms": {
+    "title": "Terms of use",
+    "intro": "Stockly is a personal stock portfolio tracker and research tool. By using it you agree to what follows. If you do not, do not use it.",
+    "what": {
+      "heading": "What Stockly is",
+      "body": "A tool for recording your own transactions and seeing what they add up to, together with market data, technical analysis and an optional research assistant. It is informational software. It is not a broker, not an adviser, and not a regulated financial service.",
+      "link": "Read the disclaimer"
+    },
+    "account": {
+      "heading": "Your account",
+      "items": [
+        "You are responsible for keeping your credentials secure.",
+        "One person per account. Do not share an account with someone whose portfolio differs from yours.",
+        "You are responsible for the accuracy of everything you enter. Stockly computes from your records; it cannot verify them."
+      ]
+    },
+    "acceptableUse": {
+      "heading": "Acceptable use",
+      "items": [
+        "Do not attempt to access another account's data.",
+        "Do not automate requests beyond ordinary use, or work around the rate limits.",
+        "Do not resell or redistribute the market data Stockly displays; it is licensed from a provider under their terms, not yours.",
+        "Do not use the research assistant to generate content presented to others as professional financial advice."
+      ]
+    },
+    "availability": {
+      "heading": "Availability",
+      "body": "Stockly depends on third parties — a database host, a market data provider and, optionally, an AI provider. Any of them can be slow or unavailable, and Stockly is built to degrade rather than fail: prices fall back to your cost basis and say so, the assistant can be off without affecting anything else. No uptime is promised."
+    },
+    "marketData": {
+      "heading": "Market data",
+      "body": "Prices and indicators come from a third-party provider and may be delayed, incomplete or wrong. Where a figure is delayed, Stockly says so on screen. Never treat a number here as a confirmation of an execution or a settlement — your broker's records are the ones that count."
+    },
+    "liability": {
+      "heading": "No warranty, and the limit of liability",
+      "body": "Stockly is provided as is, without warranty of any kind. To the fullest extent the law allows, its authors are not liable for any loss arising from its use — including trading losses, missed opportunities, incorrect calculations, delayed data, or a missed or late alert. Alerts are a convenience, not a guarantee: they are evaluated on a schedule and can be delayed or missed entirely."
+    },
+    "changes": {
+      "heading": "Changes",
+      "body": "These terms may change as the software does. The date at the top is when they last did."
+    }
+  },
+  "disclaimer": {
+    "title": "Disclaimer",
+    "intro": "Stockly provides informational and analytical tools. Market data may be delayed or incomplete. Nothing on Stockly is personalised financial advice.",
+    "notAdvice": {
+      "heading": "Not advice",
+      "body": "Stockly does not know your circumstances, your objectives or your tax position, and it never tells anyone what to buy, sell or hold. Nothing it displays is a recommendation, a rating or a solicitation. Decisions about your money are yours, and a licensed adviser is the right person to discuss them with."
+    },
+    "technical": {
+      "heading": "Technical analysis describes; it does not predict",
+      "body": "Indicators such as RSI, MACD and ADX are arithmetic on past price and volume. The technical score is a weighted summary of those readings, shown with the exact rule that produced each component so you can judge it yourself. It is not a forecast, a probability, or an opinion about where a price is going. Past behaviour does not determine future performance."
+    },
+    "assistant": {
+      "heading": "The research assistant",
+      "body1": "When enabled, Stockly AI writes prose about figures Stockly has already computed. It is given no ability to produce a number of its own: every price, indicator and portfolio figure on screen is retrieved from Stockly's own engines and shown beside the text. Even so, a language model can misread or misdescribe what it is given. Check the figures, which are the authoritative part of any answer.",
+      "body2": "The assistant does not give investment advice, issue price targets, or predict prices. Where it would otherwise recommend, it describes."
+    },
+    "records": {
+      "heading": "Your numbers are only as good as your records",
+      "body": "Holdings, average cost and profit and loss are derived from the transactions you enter, using weighted average cost. They are not reconciled against a broker. If a transaction is missing or wrong, every figure downstream of it is wrong too. For tax purposes, use your broker's statements — Stockly's cost basis method may not match the one your jurisdiction requires."
+    },
+    "alerts": {
+      "heading": "Alerts",
+      "body": "Alerts are evaluated on a schedule against third-party data. They can be delayed, and a provider outage means none fire at all. Never rely on an alert as the only thing standing between you and a decision that matters."
+    }
+  }
+}

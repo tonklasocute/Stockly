@@ -1,1 +1,37 @@
-{}
+{
+  "describe": {
+    "portfolio": "Portfolio",
+    "anyDividend": "Any dividend is recorded",
+    "withTarget": "{subject} · {condition} {target}",
+    "withoutTarget": "{subject} · {condition}"
+  },
+  "title": "Alerts",
+  "search": "Search by symbol",
+  "searchLabel": "Search alerts",
+  "filter": "Filter alerts",
+  "empty": "No alerts yet",
+  "emptyBody": "Set a price target and Stockly watches it on the server — you will hear about it whether or not the app is open.",
+  "noMatches": "No matches",
+  "noMatchesBody": "No alert matches those filters.",
+  "new": "New alert",
+  "portfolio": "Portfolio",
+  "waitingToReset": "Waiting to reset",
+  "deleted": "Alert deleted.",
+  "notifyWhen": "Notify me when",
+  "conditionLocked": "The condition cannot be changed. Delete this alert and create another instead.",
+  "stock": "Stock",
+  "cooldown": "Quiet period after it fires",
+  "groupPrice": "Price",
+  "groupDailyMove": "Daily move",
+  "groupPortfolio": "Portfolio",
+  "groupDividend": "Dividend",
+  "cooldownNone": "No cooldown",
+  "cooldown15m": "15 minutes",
+  "cooldown1h": "1 hour",
+  "cooldown6h": "6 hours",
+  "cooldown1d": "1 day",
+  "history": "Trigger history",
+  "historyHint": "Every time one of your alerts fired, and at what value.",
+  "notificationSettings": "Notification settings",
+  "lastFired": "Last fired {at}"
+}

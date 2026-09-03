@@ -13,8 +13,13 @@ import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatCurrency, formatTime } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Reconciliation" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("reconciliation") }
+}
 
 /**
  * The CSP is nonce-based, so every route that renders a script must be server-rendered — a
@@ -43,6 +48,8 @@ export default async function OperationsPage({
 }: {
   searchParams: Promise<{ p?: string; run?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const to = await getTranslations("operations")
   const locale = await appLocale()
   const query = await searchParams
   const { active, portfolios } = await resolveActivePortfolio(query.p)
@@ -62,7 +69,7 @@ export default async function OperationsPage({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Reconciliation</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("reconciliation")}</h1>
         <p className="text-muted-foreground text-sm">
           {active.name} · compare a broker statement against these records. A difference is
           described, never applied — nothing here changes a transaction, a holding or a balance.
@@ -70,13 +77,11 @@ export default async function OperationsPage({
       </div>
 
       <Section
-        title="Cash by currency"
-        description="What this portfolio's ledger says, one currency at a time. Nothing is converted, so a statement can be compared against it directly."
+        title={to("cashByCurrency")}
+        description={to("cashByCurrencyHint")}
       >
         {analytics.cashByCurrency.length === 0 ? (
-          <p className="text-muted-foreground py-4 text-sm">
-            No cash movement recorded in any currency yet.
-          </p>
+          <p className="text-muted-foreground py-4 text-sm">{to("noCashYet")}</p>
         ) : (
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {analytics.cashByCurrency.map((balance) => (
@@ -92,8 +97,8 @@ export default async function OperationsPage({
       </Section>
 
       <Section
-        title="Compare a statement"
-        description="Paste what your broker reports. Running this twice produces the same result and changes nothing either time."
+        title={to("compare")}
+        description={to("compareHint")}
       >
         <ReconcileForm portfolioId={active.id} />
       </Section>
@@ -107,15 +112,15 @@ export default async function OperationsPage({
             }`}
           >
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Metric label="Positions compared" value={summary.positions.total} />
+              <Metric label={to("positionsCompared")} value={summary.positions.total} />
               <Metric
-                label="Position differences"
+                label={to("positionDifferences")}
                 value={summary.positions.differences}
                 hint={`${summary.positions.unresolved} to review`}
               />
-              <Metric label="Balances compared" value={summary.cash.total} />
+              <Metric label={to("balancesCompared")} value={summary.cash.total} />
               <Metric
-                label="Balance differences"
+                label={to("balanceDifferences")}
                 value={summary.cash.differences}
                 hint={`${summary.cash.unresolved} to review`}
               />
@@ -129,39 +134,39 @@ export default async function OperationsPage({
           </Section>
 
           <Section
-            title="Positions"
-            description="A difference does not mean these records are wrong. It means two records disagree."
+            title={to("positions")}
+            description={to("positionsHint")}
           >
             <Findings items={items.filter((item) => item.scope === "POSITIONS")} runId={selected.id} />
           </Section>
 
           <Section
-            title="Cash"
-            description="Each currency is compared against its own balance. A dollar balance is never weighed against a baht one."
+            title={to("cash")}
+            description={to("cashHint")}
           >
             <Findings items={items.filter((item) => item.scope === "CASH")} runId={selected.id} />
           </Section>
         </>
       ) : (
-        <Section title="Past comparisons">
+        <Section title={to("past")}>
           <EmptyState
             icon={Scale}
-            title="No reconciliation has been run yet"
-            description="Paste a statement above to compare it against this portfolio. It records what it finds and changes nothing."
+            title={to("neverRun")}
+            description={to("neverRunHint")}
           />
         </Section>
       )}
 
       <Section
-        title="Move holdings to another portfolio"
-        description="A transfer re-parents the transactions. Nothing is sold, so no profit or loss is created."
+        title={to("transfer")}
+        description={to("transferHint")}
       >
         <TransferPanel portfolios={portfolios} activeId={active.id} />
       </Section>
 
       <Section
-        title="Splits"
-        description="The one corporate action that changes a share count with no transaction behind it. Recording it here restates the history without rewriting a single trade."
+        title={to("splits")}
+        description={to("splitsHint")}
       >
         <AdjustmentsPanel
           portfolioId={active.id}

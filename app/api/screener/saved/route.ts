@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .select("*")
       .single()
 
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a screen with that name.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a screen with that name.", "duplicateScreenName")
     if (error) throw error
     return ok(data, 201)
   })

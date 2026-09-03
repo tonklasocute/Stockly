@@ -8,22 +8,30 @@ import {
 } from "@/components/ui/table"
 import type { AllocationSlice } from "@/domain/analytics"
 import { formatCurrency, formatPercent } from "@/lib/format"
+import { getTranslations } from "next-intl/server"
 
 /**
  * The table, not the donut, is the accessible representation of an allocation: it is readable by a
  * screen reader, sortable by eye, and works in greyscale. The chart sits beside it, not instead.
  */
-export function AllocationTable({
+export async function AllocationTable({
   slices,
   currency,
   label,
 }: {
   slices: AllocationSlice[]
   currency: string
+  /** Already translated by the caller — it names the dimension being allocated over. */
   label: string
 }) {
+  const t = await getTranslations("analytics")
+
   if (slices.length === 0) {
-    return <p className="text-muted-foreground py-6 text-center text-sm">No {label} data yet.</p>
+    return (
+      <p className="text-muted-foreground py-6 text-center text-sm">
+        {t("allocation.emptyFor", { label })}
+      </p>
+    )
   }
 
   return (
@@ -32,8 +40,8 @@ export function AllocationTable({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>{label}</TableHead>
-            <TableHead className="text-right">Value</TableHead>
-            <TableHead className="w-40 text-right">Weight</TableHead>
+            <TableHead className="text-right">{t("allocation.value")}</TableHead>
+            <TableHead className="w-40 text-right">{t("allocation.weight")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

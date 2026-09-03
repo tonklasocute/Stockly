@@ -76,17 +76,11 @@ export function isCapitalFlow(kind: CashFlowKind): boolean {
 }
 
 /** Human labels. Kept beside the kinds so a new one cannot ship without a name. */
-export const CASH_FLOW_LABELS: Record<CashFlowKind, string> = {
-  deposit: "Deposit",
-  withdrawal: "Withdrawal",
-  fee: "Fee",
-  tax: "Tax",
-  interest: "Interest",
-  transfer_in: "Transfer in",
-  transfer_out: "Transfer out",
-  adjustment_in: "Adjustment (increase)",
-  adjustment_out: "Adjustment (decrease)",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export type DomainCashTransaction = {
   kind: CashFlowKind

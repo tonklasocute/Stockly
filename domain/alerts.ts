@@ -44,29 +44,11 @@ export type AlertType = (typeof ALERT_TYPES)[number]
  * 15% since purchase — so daily change and total return are separate types that can never be
  * confused for one another in the database, the API or the UI.
  */
-export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
-  PRICE_ABOVE: "Price rises above",
-  PRICE_BELOW: "Price falls below",
-  PERCENT_CHANGE_ABOVE: "Daily change rises above",
-  PERCENT_CHANGE_BELOW: "Daily change falls below",
-  PORTFOLIO_DAILY_CHANGE_ABOVE: "Portfolio daily change rises above",
-  PORTFOLIO_DAILY_CHANGE_BELOW: "Portfolio daily change falls below",
-  PORTFOLIO_TOTAL_RETURN_ABOVE: "Portfolio total return rises above",
-  PORTFOLIO_TOTAL_RETURN_BELOW: "Portfolio total return falls below",
-  POSITION_WEIGHT_ABOVE: "Position weight rises above",
-  POSITION_WEIGHT_BELOW: "Position weight falls below",
-  DIVIDEND_RECEIVED: "A dividend is recorded",
-  RSI_ABOVE: "RSI rises above",
-  RSI_BELOW: "RSI falls below",
-  MACD_BULLISH_CROSS: "MACD crosses above its signal",
-  MACD_BEARISH_CROSS: "MACD crosses below its signal",
-  PRICE_ABOVE_EMA: "Price rises above its EMA by",
-  PRICE_BELOW_EMA: "Price falls below its EMA by",
-  EMA_CROSS_BULLISH: "50 EMA crosses above the 200 EMA",
-  EMA_CROSS_BEARISH: "50 EMA crosses below the 200 EMA",
-  RELATIVE_VOLUME_ABOVE: "Relative volume rises above",
-  ADX_ABOVE: "ADX rises above",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** Which alerts need a symbol, and which are about the portfolio as a whole. */
 export const SYMBOL_ALERT_TYPES: readonly AlertType[] = [
@@ -632,12 +614,27 @@ export function formatTarget(alert: AlertRule, currency = "USD"): string {
   }
 }
 
-/** A one-line description of the rule itself, for the alerts list. */
-export function describeAlert(alert: AlertRule, currency = "USD"): string {
-  const subject = alert.symbol ? alert.symbol.toUpperCase() : "Portfolio"
-  if (alert.type === "DIVIDEND_RECEIVED") return "Any dividend is recorded"
+/**
+ * The parts of the one-line description of a rule — never the line itself.
+ *
+ * `subject` is `null` for a portfolio-wide alert rather than the word "Portfolio", because that
+ * word is different in every language and choosing it is the caller's job. `type` is the enum, so
+ * the reader's own `enums.alertType` entry names it. The engine states the shape; the UI says it.
+ */
+export type AlertDescription = {
+  /** The instrument, or null when the rule is about the whole portfolio. */
+  subject: string | null
+  type: AlertType
+  /** The formatted threshold, or null for a rule that has none. */
+  target: string | null
+}
 
-  const target = formatTarget(alert, currency)
-  const label = ALERT_TYPE_LABELS[alert.type].toLowerCase()
-  return target ? `${subject} · ${label} ${target}` : `${subject} · ${label}`
+export function describeAlert(alert: AlertRule, currency = "USD"): AlertDescription {
+  return {
+    subject: alert.symbol ? alert.symbol.toUpperCase() : null,
+    type: alert.type,
+    // `formatTarget` returns "" for a rule with no threshold; `null` is the honest shape here, and
+    // it is what lets the sentence pick a different message rather than render a dangling separator.
+    target: formatTarget(alert, currency) || null,
+  }
 }

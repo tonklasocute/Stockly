@@ -12,6 +12,7 @@ import { parseCsv } from "@/lib/csv"
 import { CURRENCIES, MARKETS, isCurrency, isMarket, normalizeSymbol } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
 import type { Currency, MarketId } from "@/domain/market"
+import { useTranslations } from "next-intl"
 
 /**
  * Starting a reconciliation.
@@ -95,6 +96,7 @@ function parseBalances(text: string): { rows: ParsedBalance[]; skipped: number[]
 }
 
 export function ReconcileForm({ portfolioId }: { portfolioId: string }) {
+  const to = useTranslations("operations")
   const router = useRouter()
   const [sourceLabel, setSourceLabel] = useState("")
   const [periodStart, setPeriodStart] = useState("")
@@ -120,7 +122,7 @@ export function ReconcileForm({ portfolioId }: { portfolioId: string }) {
         }),
       }),
     onSuccess: () => {
-      toast.success("Comparison finished. Nothing was changed.")
+      toast.success(to("form.finished"))
       setPositionsText("")
       setBalancesText("")
       router.refresh()
@@ -138,27 +140,27 @@ export function ReconcileForm({ portfolioId }: { portfolioId: string }) {
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2 sm:col-span-3">
-          <Label htmlFor="rec-label">Statement</Label>
+          <Label htmlFor="rec-label">{to("form.statement")}</Label>
           <Input
             id="rec-label"
             value={sourceLabel}
             onChange={(event) => setSourceLabel(event.target.value)}
-            placeholder="Broker statement — August"
+            placeholder={to("form.statementPlaceholder")}
             maxLength={120}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="rec-from">Period from</Label>
+          <Label htmlFor="rec-from">{to("form.periodFrom")}</Label>
           <Input id="rec-from" type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="rec-to">Period to</Label>
+          <Label htmlFor="rec-to">{to("form.periodTo")}</Label>
           <Input id="rec-to" type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="rec-positions">Positions</Label>
+        <Label htmlFor="rec-positions">{to("form.positions")}</Label>
         <p className="text-muted-foreground text-xs">
           One per line: symbol, market ({MARKETS.join(" or ")}), quantity, average cost, currency.
           Leave the cost blank if the statement does not show one — it will read as unknown, not zero.
@@ -182,7 +184,7 @@ export function ReconcileForm({ portfolioId }: { portfolioId: string }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="rec-balances">Cash balances</Label>
+        <Label htmlFor="rec-balances">{to("form.cashBalances")}</Label>
         <p className="text-muted-foreground text-xs">
           One per line: currency ({CURRENCIES.slice(0, 2).join(", ")}…), balance. Each currency is
           compared against its own ledger — nothing is converted.
@@ -214,9 +216,7 @@ export function ReconcileForm({ portfolioId }: { portfolioId: string }) {
           )}
           Compare
         </Button>
-        <p className="text-muted-foreground text-xs">
-          This compares and records what it finds. It changes no transaction, holding or balance.
-        </p>
+        <p className="text-muted-foreground text-xs">{to("form.hint")}</p>
       </div>
     </form>
   )

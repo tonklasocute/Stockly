@@ -17,7 +17,9 @@ import { createClient } from "@/lib/supabase/server"
  * whole ownership boundary; nothing here can substitute for them.
  */
 export async function POST(request: Request) {
-  return guarded(async (userId) => {
+  // Ownership is the database's: `transfer_instrument` is `security definer` and checks
+  // `user_id = auth.uid()` itself, so this handler never needs the id.
+  return guarded(async () => {
     const body = await parseBody(request, transferSchema)
     const preview = await previewTransfer(body)
 
@@ -41,8 +43,8 @@ export async function POST(request: Request) {
       p_reason: body.reason,
     })
 
-    if (error?.code === "P0002") throw new ApiError("NOT_FOUND", "Portfolio not found.")
-    if (error?.code === "22023") throw new ApiError("VALIDATION_ERROR", "That transfer is not valid.")
+    if (error?.code === "P0002") throw new ApiError("NOT_FOUND", "Portfolio not found.", "portfolioMissing")
+    if (error?.code === "22023") throw new ApiError("VALIDATION_ERROR", "That transfer is not valid.", "transferInvalid")
     if (error) throw error
 
     // Counters only: no symbol, no quantity, no value.

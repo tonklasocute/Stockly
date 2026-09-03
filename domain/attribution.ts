@@ -62,14 +62,14 @@ export const ATTRIBUTION_UNAVAILABLE = [
 ] as const
 export type AttributionUnavailable = (typeof ATTRIBUTION_UNAVAILABLE)[number]
 
-export const UNAVAILABLE_REASONS: Record<AttributionUnavailable, string> = {
-  NO_BEGINNING_VALUE:
-    "No valuation was recorded at the start of this period, so there is nothing to measure the change against.",
-  NO_ENDING_VALUE: "No valuation was recorded at the end of this period.",
-  EMPTY_PERIOD: "The portfolio held nothing during this period.",
-  NO_HISTORICAL_FX:
-    "Separating currency movement from asset performance needs an exchange rate for every day of the period, and Stockly does not store one for all of them.",
-}
+/*
+ * The sentences moved to `analytics.attribution.unavailable.<CODE>` in phase 21.
+ *
+ * This module returns a **code**; the words are chosen by the layer that has a reader. Keeping the
+ * English here would have made the domain the copy that Thai drifts from, and the rule that these
+ * sentences describe and never advise is now checked against both languages rather than one —
+ * see `domain/attribution.test.ts`.
+ */
 
 /** What the engine is given for one holding, over one period. */
 export type HoldingPeriod = {
@@ -143,7 +143,7 @@ export type AttributionResult =
        * for exactly what would have to exist first.
        */
       fxGain: null
-      fxUnavailableReason: string
+      fxUnavailableCode: AttributionUnavailable
       /** Holdings that could not be measured, named so the total can say what it is missing. */
       incompleteSymbols: string[]
     }
@@ -235,7 +235,7 @@ export function attribute(input: {
     priceGain,
     pricePct: (priceGain / beginningValue) * 100,
     fxGain: null,
-    fxUnavailableReason: UNAVAILABLE_REASONS.NO_HISTORICAL_FX,
+    fxUnavailableCode: "NO_HISTORICAL_FX",
     incompleteSymbols,
   }
 }
@@ -275,14 +275,43 @@ export function rankContributors(
  * does not give advice. `attribution.test.ts` checks these sentences against the same forbidden
  * vocabulary the insights engine uses.
  */
-export function describeContribution(contribution: Contribution, currency: string): string {
-  if (contribution.incomplete) {
-    return `${contribution.symbol} could not be measured for this period.`
+/**
+ * The facts a sentence about one holding is built from — never the sentence itself.
+ *
+ * Phase 21 turned this from a string builder into this. A sentence has grammar, and grammar is the
+ * one thing a pure module cannot have two of: "TSLA removed 1.40 percentage points" and
+ * "TSLA ลดผลตอบแทนของพอร์ตลง 1.40 จุด" are not the same shape, and no amount of interpolation into an
+ * English skeleton produces the Thai one. So the module reports *what happened* and the ICU message
+ * in `analytics.attribution` decides how to say it.
+ *
+ * `direction` is deliberately "added"/"removed" rather than a sign: it is the whole of the claim,
+ * it is past tense, and it is what the forbidden-vocabulary test is checked against.
+ */
+export type ContributionFacts =
+  | { incomplete: true; symbol: string }
+  | {
+      incomplete: false
+      symbol: string
+      direction: "added" | "removed"
+      /** Absolute, already rounded to the two decimals the sentence shows. */
+      points: string
+      amount: string
+      currency: string
+    }
+
+export function describeContribution(
+  contribution: Contribution,
+  currency: string,
+): ContributionFacts {
+  if (contribution.incomplete) return { incomplete: true, symbol: contribution.symbol }
+  return {
+    incomplete: false,
+    symbol: contribution.symbol,
+    direction: contribution.gain >= 0 ? "added" : "removed",
+    points: Math.abs(contribution.contributionPct).toFixed(2),
+    amount: Math.abs(contribution.gain).toFixed(2),
+    currency,
   }
-  const direction = contribution.gain >= 0 ? "added" : "removed"
-  const points = Math.abs(contribution.contributionPct).toFixed(2)
-  const amount = Math.abs(contribution.gain).toFixed(2)
-  return `${contribution.symbol} ${direction} ${points} percentage points (${amount} ${currency}) of the portfolio's return.`
 }
 
 // ---------------------------------------------------------------- benchmark

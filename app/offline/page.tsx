@@ -1,7 +1,12 @@
 import type { Metadata } from "next"
 import { OfflineScreen } from "@/features/pwa/components/offline-screen"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Offline" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("metadata")
+  return { title: t("pages.offline") }
+}
 
 /**
  * Precached by the service worker and served for any navigation that fails. Signed-out by design:

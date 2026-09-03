@@ -1,22 +1,24 @@
 import { formatCompact, formatCurrency, formatOptional } from "@/lib/format"
 import type { Quote } from "@/services/market-data/types"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Provider coverage varies by plan, so every metric renders "N/A" rather than a fabricated 0 when
  * the field is missing.
  */
-export function StockOverview({ quote }: { quote: Quote }) {
+export async function StockOverview({ quote }: { quote: Quote }) {
+  const t = await getTranslations("stocks")
   const money = (value: number) => formatCurrency(value, quote.currency ?? "USD")
 
   const metrics: Array<{ label: string; value: string }> = [
-    { label: "Previous close", value: formatOptional(quote.previousClose, money) },
-    { label: "Open", value: formatOptional(quote.dayOpen, money) },
-    { label: "Day high", value: formatOptional(quote.dayHigh, money) },
-    { label: "Day low", value: formatOptional(quote.dayLow, money) },
-    { label: "52 week high", value: formatOptional(quote.fiftyTwoWeekHigh, money) },
-    { label: "52 week low", value: formatOptional(quote.fiftyTwoWeekLow, money) },
-    { label: "Volume", value: formatOptional(quote.volume, (v) => formatCompact(v)) },
-    { label: "Avg volume", value: formatOptional(quote.averageVolume, (v) => formatCompact(v)) },
+    { label: t("quote.previousClose"), value: formatOptional(quote.previousClose, money) },
+    { label: t("quote.open"), value: formatOptional(quote.dayOpen, money) },
+    { label: t("quote.dayHigh"), value: formatOptional(quote.dayHigh, money) },
+    { label: t("quote.dayLow"), value: formatOptional(quote.dayLow, money) },
+    { label: t("quote.high52"), value: formatOptional(quote.fiftyTwoWeekHigh, money) },
+    { label: t("quote.low52"), value: formatOptional(quote.fiftyTwoWeekLow, money) },
+    { label: t("quote.volume"), value: formatOptional(quote.volume, (v) => formatCompact(v)) },
+    { label: t("quote.avgVolume"), value: formatOptional(quote.averageVolume, (v) => formatCompact(v)) },
   ]
 
   return (

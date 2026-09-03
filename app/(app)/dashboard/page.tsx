@@ -9,6 +9,7 @@ import { AllocationChart } from "@/features/dashboard/components/lazy-allocation
 import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { listAlerts } from "@/features/alerts/queries"
 import { describeAlert } from "@/domain/alerts"
+import { alertSentence } from "@/features/alerts/alert-sentence"
 import { toRuleFromRow } from "@/features/alerts/to-rule"
 import { loadIntelligence } from "@/features/intelligence/loader"
 import { loadDataQuality } from "@/features/data-quality/loader"
@@ -19,7 +20,7 @@ import { EventsWidget } from "@/features/fundamentals/components/events-widget"
 import { NewsList } from "@/features/news/components/news-list"
 import { loadNews } from "@/features/news/loader"
 import { AttributionPanel } from "@/features/history/components/attribution-panel"
-import { describeDrawdown, REGIME_LABELS } from "@/domain/drawdown-history"
+import { describeDrawdown } from "@/domain/drawdown-history"
 import { resolveMetrics, visibleWidgets, withoutDismissed, type WidgetId } from "@/domain/personalization"
 import { MetricTiles } from "@/features/personalization/components/metric-tiles"
 import { QuickActions } from "@/features/personalization/components/quick-actions"
@@ -35,14 +36,22 @@ import { DataLabel } from "@/features/simulations/components/assumptions"
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Dashboard" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("dashboard") }
+}
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tEnum = await getTranslations("enums")
+  const ta = await getTranslations("alerts")
+  const t = await getTranslations("dashboard")
   const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -169,10 +178,10 @@ export default async function DashboardPage({
               {/* The figures that are not P&L, kept out of the headline row so it stays readable. */}
               <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
                 {[
-                  { label: "Invested capital", value: formatCurrency(summary.investedValue, currency) },
-                  { label: "Net contributed", value: formatCurrency(cash.netContributed, currency) },
-                  { label: "Dividends received", value: formatCurrency(dividends.summary.totalNet, currency) },
-                  { label: "Total fees", value: formatCurrency(fees.total, currency) },
+                  { label: t("review.investedCapital"), value: formatCurrency(summary.investedValue, currency) },
+                  { label: t("review.netContributed"), value: formatCurrency(cash.netContributed, currency) },
+                  { label: t("review.dividendsReceived"), value: formatCurrency(dividends.summary.totalNet, currency) },
+                  { label: t("review.totalFees"), value: formatCurrency(fees.total, currency) },
                 ].map((item) => (
                   <div key={item.label} className="bg-card space-y-0.5 p-4">
                     <dt className="text-muted-foreground text-xs">{item.label}</dt>
@@ -199,9 +208,7 @@ export default async function DashboardPage({
                       <Link
                         href={`/data-quality?p=${active.id}`}
                         className="underline underline-offset-4"
-                      >
-                        Review
-                      </Link>
+                      >{t("actions.review")}</Link>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -214,17 +221,15 @@ export default async function DashboardPage({
                   <div className="grid gap-4 lg:grid-cols-2">
                     {intelligence.goals.length > 0 && (
                       <Section
-                        title="Goals"
-                        description="Measured from the same figures as everything above."
+                        title={t("sections.goals")}
+                        description={t("sections.goalsHint")}
                         action={
                           <Button
                             nativeButton={false}
                             render={<Link href={`/goals?p=${active.id}`} />}
                             variant="outline"
                             size="sm"
-                          >
-                            Manage
-                          </Button>
+                          >{t("actions.manage")}</Button>
                         }
                       >
                         <ul className="space-y-4">
@@ -253,26 +258,22 @@ export default async function DashboardPage({
                             <Link
                               href={`/simulations?p=${active.id}`}
                               className="text-muted-foreground ml-auto underline-offset-4 hover:underline"
-                            >
-                              Plan
-                            </Link>
+                            >{t("actions.plan")}</Link>
                           </div>
                         )}
                       </Section>
                     )}
 
                     <Section
-                      title="Worth a look"
-                      description="Facts about this portfolio, never advice."
+                      title={t("sections.insights")}
+                      description={t("sections.insightsHint")}
                       action={
                         <Button
                           nativeButton={false}
                           render={<Link href={`/review?p=${active.id}`} />}
                           variant="outline"
                           size="sm"
-                        >
-                          Full review
-                        </Button>
+                        >{t("actions.fullReview")}</Button>
                       }
                       className={intelligence.goals.length === 0 ? "lg:col-span-2" : undefined}
                     >
@@ -287,30 +288,28 @@ export default async function DashboardPage({
       <>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <section className="bg-card rounded-xl border p-4 sm:p-5">
-                    <h2 className="mb-4 text-sm font-semibold">Allocation</h2>
+                    <h2 className="mb-4 text-sm font-semibold">{t("sections.allocation")}</h2>
                     {holdings.length ? (
                       <AllocationChart holdings={holdings} currency={currency} />
                     ) : (
-                      <p className="text-muted-foreground py-8 text-center text-sm">
-                        No open positions to allocate.
-                      </p>
+                      <p className="text-muted-foreground py-8 text-center text-sm">{t("sections.allocationEmpty")}</p>
                     )}
                   </section>
 
                   <section className="bg-card rounded-xl border p-4 sm:p-5">
-                    <h2 className="mb-4 text-sm font-semibold">Performance</h2>
+                    <h2 className="mb-4 text-sm font-semibold">{t("sections.performance")}</h2>
                     {best ? (
                       <div className="grid gap-3">
                         {[
-                          { label: "Best performer", holding: best, icon: TrendingUp },
-                          ...(worst ? [{ label: "Worst performer", holding: worst, icon: TrendingDown }] : []),
+                          { label: t("review.bestPerformer"), holding: best, icon: TrendingUp },
+                          ...(worst ? [{ label: t("review.worstPerformer"), holding: worst, icon: TrendingDown }] : []),
                         ].map(({ label, holding, icon: Icon }) => (
                           <div
                             key={label}
                             className="bg-muted/40 flex items-center gap-3 rounded-lg px-3 py-2.5"
                           >
                             <Icon
-                              className={label === "Best performer" ? "text-gain size-4" : "text-loss size-4"}
+                              className={label === t("review.bestPerformer") ? "text-gain size-4" : "text-loss size-4"}
                               aria-hidden
                             />
                             <div className="min-w-0 flex-1">
@@ -327,9 +326,7 @@ export default async function DashboardPage({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground py-8 text-center text-sm">
-                        No open positions yet.
-                      </p>
+                      <p className="text-muted-foreground py-8 text-center text-sm">{t("sections.performanceEmpty")}</p>
                     )}
                   </section>
                 </div>
@@ -347,14 +344,16 @@ export default async function DashboardPage({
                       <Link
                         href="/alerts"
                         className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
-                      >
-                        Manage
-                      </Link>
+                      >{t("actions.manage")}</Link>
                     </div>
                     <ul className="divide-y overflow-hidden rounded-xl border">
                       {activeAlerts.slice(0, 4).map((alert) => (
                         <li key={alert.id} className="bg-card px-4 py-2.5 text-sm">
-                          {describeAlert(toRuleFromRow(alert))}
+                          {alertSentence(
+                    describeAlert(toRuleFromRow(alert)),
+                    ta,
+                    tEnum(`alertType.${alert.type}`),
+                  )}
                         </li>
                       ))}
                     </ul>
@@ -367,13 +366,11 @@ export default async function DashboardPage({
       <>
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold">Top holdings</h2>
+                    <h2 className="text-sm font-semibold">{t("sections.topHoldings")}</h2>
                     <Link
                       href={`/portfolio?p=${active.id}`}
                       className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm underline-offset-4 hover:underline pointer-coarse:-my-2 pointer-coarse:min-h-11 pointer-coarse:py-2"
-                    >
-                      View all
-                    </Link>
+                    >{t("actions.viewAll")}</Link>
                   </div>
                   <ul className="divide-y overflow-hidden rounded-xl border">
                     {holdings.slice(0, 5).map((h) => (
@@ -413,11 +410,11 @@ export default async function DashboardPage({
     events: events ? <EventsWidget data={events} /> : null,
 
     news: news ? (
-      <NewsList data={news} title="News" description="Coverage of what you hold and watch." />
+      <NewsList data={news} title={t("sections.news")} description={t("sections.newsHint")} />
     ) : null,
 
     drawdowns: history?.drawdowns ? (
-      <Section title="Drawdowns" description={history.regime ? REGIME_LABELS[history.regime] : undefined}>
+      <Section title={t("sections.drawdowns")} description={history.regime ? tEnum(`regime.${history.regime}`) : undefined}>
         <p className="text-sm">
           {history.drawdowns.worst
             ? describeDrawdown(history.drawdowns.worst)
@@ -431,12 +428,12 @@ export default async function DashboardPage({
     ) : null,
 
     pinned: (
-      <Section title="Pinned">
+      <Section title={t("sections.pinned")}>
         <PinnedStrip items={preferences.pinnedItems} />
       </Section>
     ),
     recent: (
-      <Section title="Recently viewed">
+      <Section title={t("sections.recent")}>
         <RecentStrip items={preferences.recentItems} />
       </Section>
     ),
@@ -446,7 +443,7 @@ export default async function DashboardPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Dashboard</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
         <Button
@@ -455,9 +452,7 @@ export default async function DashboardPage({
           variant="outline"
           size="sm"
           className="gap-1.5"
-        >
-          Transactions
-          <ArrowRight className="size-3.5" aria-hidden />
+        >{t("sections.transactions")}<ArrowRight className="size-3.5" aria-hidden />
         </Button>
       </div>
 
@@ -482,16 +477,14 @@ export default async function DashboardPage({
         <div className="rounded-xl border">
           <EmptyState
             icon={TrendingUp}
-            title="Nothing to show yet"
-            description="Add your first transaction and your portfolio value, cost basis and profit and loss appear here."
+            title={t("empty.title")}
+            description={t("empty.body")}
             action={
               <Button
                 nativeButton={false}
                 render={<Link href={`/transactions?p=${active.id}`} />}
                 className="gap-2 max-sm:h-11"
-              >
-                Add a transaction
-              </Button>
+              >{t("empty.action")}</Button>
             }
           />
         </div>

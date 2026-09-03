@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/empty-state"
 import type { MarketId } from "@/domain/market"
 import {
   THESIS_STATUSES,
-  THESIS_STATUS_LABELS,
   THESIS_STATUS_TONE,
   type ThesisObservation,
   type ThesisStatus,
@@ -21,6 +20,7 @@ import { cn } from "@/lib/utils"
 import type { ThesisRow } from "@/types/database"
 import { ThesisDialog } from "./thesis-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 const TONE_CLASS = {
   neutral: "bg-muted text-foreground",
@@ -30,6 +30,7 @@ const TONE_CLASS = {
 } as const
 
 export function ThesisBadge({ status, className }: { status: ThesisStatus; className?: string }) {
+  const tEnum = useTranslations("enums")
   return (
     <span
       className={cn(
@@ -38,17 +39,18 @@ export function ThesisBadge({ status, className }: { status: ThesisStatus; class
         className,
       )}
     >
-      {THESIS_STATUS_LABELS[status]}
+      {tEnum(`thesisStatus.${status}`)}
     </span>
   )
 }
 
+/** `column` is the database column; `key` names it in the reader's language. */
 const SECTIONS = [
-  { key: "why_bought", label: "Why I bought this" },
-  { key: "expectations", label: "What I expect" },
-  { key: "catalysts", label: "Catalysts" },
-  { key: "risks", label: "Risks" },
-  { key: "invalidation_criteria", label: "What would change my mind" },
+  { column: "why_bought", key: "whyBought" },
+  { column: "expectations", key: "expect" },
+  { column: "catalysts", key: "catalysts" },
+  { column: "risks", key: "risks" },
+  { column: "invalidation_criteria", key: "changeMind" },
 ] as const
 
 /**
@@ -71,6 +73,9 @@ export function ThesisPanel({
   thesis: ThesisRow | null
   observations: ThesisObservation[]
 }) {
+  const t = useTranslations("theses")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -91,7 +96,7 @@ export function ThesisPanel({
         }),
       }),
     onSuccess: () => {
-      toast.success("Thesis status updated.")
+      toast.success(t("statusUpdated"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -102,13 +107,11 @@ export function ThesisPanel({
       <>
         <EmptyState
           icon={Lightbulb}
-          title="No thesis recorded"
+          title={t("none")}
           description={`Write down why you own ${symbol} and what would change your mind, while you can still remember.`}
           action={
             <Button onClick={() => setDialogOpen(true)} className="gap-2">
-              <Plus className="size-4" aria-hidden />
-              Write a thesis
-            </Button>
+              <Plus className="size-4" aria-hidden />{t("write")}</Button>
           }
         />
         <ThesisDialog
@@ -135,25 +138,21 @@ export function ThesisPanel({
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDialogOpen(true)}>
-          <Pencil className="size-3.5" aria-hidden />
-          Edit
-        </Button>
+          <Pencil className="size-3.5" aria-hidden />{tc("actions.edit")}</Button>
       </div>
 
       <dl className="grid gap-3 sm:grid-cols-2">
-        {SECTIONS.filter((section) => thesis[section.key]).map((section) => (
-          <div key={section.key} className="space-y-0.5">
-            <dt className="text-muted-foreground text-xs">{section.label}</dt>
-            <dd className="text-sm whitespace-pre-wrap">{thesis[section.key]}</dd>
+        {SECTIONS.filter((section) => thesis[section.column]).map((section) => (
+          <div key={section.column} className="space-y-0.5">
+            <dt className="text-muted-foreground text-xs">{t(section.key)}</dt>
+            <dd className="text-sm whitespace-pre-wrap">{thesis[section.column]}</dd>
           </div>
         ))}
       </dl>
 
       {observations.length > 0 && (
         <div className="space-y-2 border-t pt-3">
-          <p className="text-muted-foreground text-xs">
-            Facts about this position today. Stockly does not decide what they mean for your thesis.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("factsHint")}</p>
           <ul className="space-y-1">
             {observations.map((observation) => (
               <li key={observation.code} className="text-sm">
@@ -165,7 +164,7 @@ export function ThesisPanel({
       )}
 
       <div className="flex flex-wrap gap-1.5 border-t pt-3">
-        <span className="text-muted-foreground self-center pr-1 text-xs">Set status:</span>
+        <span className="text-muted-foreground self-center pr-1 text-xs">{t("setStatus")}</span>
         {THESIS_STATUSES.filter((status) => status !== thesis.status).map((status) => (
           <Button
             key={status}
@@ -177,7 +176,7 @@ export function ThesisPanel({
             {setStatus.isPending && setStatus.variables === status && (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
             )}
-            {THESIS_STATUS_LABELS[status]}
+            {tEnum(`thesisStatus.${status}`)}
           </Button>
         ))}
       </div>

@@ -37,6 +37,7 @@ import { FundamentalsPanel } from "@/features/fundamentals/components/fundamenta
 import { loadFundamentals } from "@/features/fundamentals/loader"
 import { NewsList } from "@/features/news/components/news-list"
 import { loadSymbolNews } from "@/features/news/loader"
+import { getTranslations } from "next-intl/server"
 
 type Props = {
   params: Promise<{ symbol: string }>
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function StockPage({ params, searchParams }: Props) {
+  const t = await getTranslations("stocks")
   const { symbol: raw } = await params
   const query = await searchParams
   // The market comes from the URL, not from the symbol: "PTT" is only unambiguous once you know
@@ -64,7 +66,7 @@ export default async function StockPage({ params, searchParams }: Props) {
     try {
       return getMarketDataProvider(market)
     } catch (error: unknown) {
-      return error instanceof Error ? error : new Error("Market data is unavailable.")
+      return error instanceof Error ? error : new Error(t("marketDataUnavailable"))
     }
   })()
   const unavailable = provider instanceof Error
@@ -175,12 +177,12 @@ export default async function StockPage({ params, searchParams }: Props) {
       )}
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
-        <h2 className="sr-only">Price history</h2>
+        <h2 className="sr-only">{t("page.priceHistory")}</h2>
         <PriceChart symbol={symbol} market={market} currency={currency} />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
-        <h2 className="mb-4 text-sm font-semibold">Technical overview</h2>
+        <h2 className="mb-4 text-sm font-semibold">{t("page.technicalOverview")}</h2>
         <TechnicalPanel symbol={symbol} market={market} currency={currency} />
 
         {/*
@@ -189,15 +191,13 @@ export default async function StockPage({ params, searchParams }: Props) {
         */}
         {fundamentals && <FundamentalsPanel data={fundamentals} />}
 
-        {news && <NewsList data={news} title="News" description={`Recent coverage of ${symbol}`} />}
+        {news && <NewsList data={news} title={t("page.news")} description={`Recent coverage of ${symbol}`} />}
       </section>
 
       {active && (
         <section className="bg-card rounded-xl border p-4 sm:p-5">
-          <h2 className="mb-1 text-sm font-semibold">Investment thesis</h2>
-          <p className="text-muted-foreground mb-4 text-xs">
-            Why you own this, and what would change your mind. Only you set the status.
-          </p>
+          <h2 className="mb-1 text-sm font-semibold">{t("page.thesis")}</h2>
+          <p className="text-muted-foreground mb-4 text-xs">{t("page.thesisHint")}</p>
           <ThesisPanel
             portfolioId={active.id}
             symbol={symbol}
@@ -222,7 +222,7 @@ export default async function StockPage({ params, searchParams }: Props) {
 
       {active && (
         <section className="bg-card rounded-xl border p-4 sm:p-5">
-          <h2 className="mb-1 text-sm font-semibold">Journal</h2>
+          <h2 className="mb-1 text-sm font-semibold">{t("page.journal")}</h2>
           <p className="text-muted-foreground mb-4 text-xs">
             Notes about {symbol}, newest first.
           </p>
@@ -236,15 +236,13 @@ export default async function StockPage({ params, searchParams }: Props) {
       )}
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
-        <h2 className="mb-4 text-sm font-semibold">Stockly AI</h2>
+        <h2 className="mb-4 text-sm font-semibold">{t("page.ai")}</h2>
         <StockAIPanel symbol={symbol} enabled={isAIEnabled()} />
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
-        <h2 className="mb-1 text-sm font-semibold">Alerts</h2>
-        <p className="text-muted-foreground mb-4 text-xs">
-          Checked on the server every few minutes, so they fire whether or not Stockly is open.
-        </p>
+        <h2 className="mb-1 text-sm font-semibold">{t("page.alerts")}</h2>
+        <p className="text-muted-foreground mb-4 text-xs">{t("page.alertsHint")}</p>
         <QuickAlert
           symbol={symbol}
           market={market}
@@ -256,22 +254,22 @@ export default async function StockPage({ params, searchParams }: Props) {
       </section>
 
       <section className="bg-card rounded-xl border p-4 sm:p-5">
-        <h2 className="mb-4 text-sm font-semibold">Your position</h2>
+        <h2 className="mb-4 text-sm font-semibold">{t("page.position")}</h2>
         {position ? (
           <>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
               <div className="space-y-0.5">
-                <dt className="text-muted-foreground text-xs">Shares</dt>
+                <dt className="text-muted-foreground text-xs">{t("page.shares")}</dt>
                 <dd className="tabular text-sm font-medium">{formatQuantity(position.quantity)}</dd>
               </div>
               <div className="space-y-0.5">
-                <dt className="text-muted-foreground text-xs">Average cost</dt>
+                <dt className="text-muted-foreground text-xs">{t("page.averageCost")}</dt>
                 <dd className="tabular text-sm font-medium">
                   {formatCurrency(position.averageCost, currency)}
                 </dd>
               </div>
               <div className="space-y-0.5">
-                <dt className="text-muted-foreground text-xs">Market value</dt>
+                <dt className="text-muted-foreground text-xs">{t("page.marketValue")}</dt>
                 <dd className="tabular text-sm font-medium">
                   {formatCurrency(position.marketValue, currency)}
                 </dd>
@@ -282,7 +280,7 @@ export default async function StockPage({ params, searchParams }: Props) {
                 )}
               </div>
               <div className="space-y-0.5">
-                <dt className="text-muted-foreground text-xs">Unrealized P&amp;L</dt>
+                <dt className="text-muted-foreground text-xs">{t("page.unrealizedPnl")}</dt>
                 <dd className="text-sm">
                   <Delta value={position.unrealizedPnl} currency={currency} />
                 </dd>
@@ -295,16 +293,14 @@ export default async function StockPage({ params, searchParams }: Props) {
           </>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-muted-foreground text-sm">You don&apos;t own this stock.</p>
+            <p className="text-muted-foreground text-sm">{t("page.notOwned")}</p>
             {active && (
               <Button
                 nativeButton={false}
                 render={<Link href={`/transactions?p=${active.id}`} />}
                 variant="outline"
                 size="sm"
-              >
-                Record a transaction
-              </Button>
+              >{t("page.recordTransaction")}</Button>
             )}
           </div>
         )}
@@ -312,7 +308,7 @@ export default async function StockPage({ params, searchParams }: Props) {
 
       {quote && (
         <section className="bg-card rounded-xl border p-4 sm:p-5">
-          <h2 className="mb-4 text-sm font-semibold">Overview</h2>
+          <h2 className="mb-4 text-sm font-semibold">{t("page.overview")}</h2>
           <StockOverview quote={quote} />
         </section>
       )}

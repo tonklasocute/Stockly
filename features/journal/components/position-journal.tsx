@@ -5,11 +5,12 @@ import Link from "next/link"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { MarketId } from "@/domain/market"
-import { JOURNAL_LABELS, SELL_REASON_LABELS } from "@/domain/research"
+import {} from "@/domain/research"
 import { formatDate } from "@/lib/format"
 import type { JournalRow } from "@/types/database"
 import { JournalDialog } from "./journal-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 /**
  * The last few journal entries for one instrument, with a way to add another.
@@ -28,6 +29,8 @@ export function PositionJournal({
   market: MarketId
   entries: JournalRow[]
 }) {
+  const t = useTranslations("journal")
+  const tEnum = useTranslations("enums")
   const locale = useAppLocale()
   const [open, setOpen] = useState(false)
 
@@ -48,8 +51,8 @@ export function PositionJournal({
                 </time>
               </div>
               <p className="text-muted-foreground text-xs">
-                {JOURNAL_LABELS[entry.type]}
-                {entry.reason ? ` · ${SELL_REASON_LABELS[entry.reason]}` : ""}
+                {tEnum(`journalType.${entry.type}`)}
+                {entry.reason ? ` · ${tEnum(`sellReason.${entry.reason}`)}` : ""}
               </p>
               {/* Plain text: rendered as a React text node, never parsed as markup. */}
               {entry.content && (
@@ -62,16 +65,12 @@ export function PositionJournal({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
-          <Plus className="size-3.5" aria-hidden />
-          Add entry
-        </Button>
+          <Plus className="size-3.5" aria-hidden />{t("addEntry")}</Button>
         {entries.length > 0 && (
           <Link
             href={`/journal?p=${portfolioId}&symbol=${symbol}&market=${market}`}
             className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-          >
-            See the full journal
-          </Link>
+          >{t("seeFull")}</Link>
         )}
       </div>
 

@@ -33,10 +33,10 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "You already have a scenario with that name.")
+      throw new ApiError("CONFLICT", "You already have a scenario with that name.", "duplicateScenarioName")
     }
     if (error?.code === "23514") {
-      throw new ApiError("VALIDATION_ERROR", "That change violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That change violates a data rule.", "dataRuleChange")
     }
     if (error) throw error
     if (!data) return fail("NOT_FOUND", "Scenario not found.")

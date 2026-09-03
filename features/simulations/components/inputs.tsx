@@ -11,13 +11,12 @@ import {
 } from "@/components/ui/select"
 import {
   CONTRIBUTION_FREQUENCIES,
-  FREQUENCY_LABELS,
   SCENARIOS,
-  SCENARIO_LABELS,
   SCENARIO_RETURNS,
   type ContributionFrequency,
   type ScenarioName,
 } from "@/domain/simulation"
+import { useTranslations } from "next-intl"
 
 /**
  * One numeric assumption.
@@ -76,20 +75,22 @@ export function FrequencyField({
   value: ContributionFrequency
   onChange: (value: ContributionFrequency) => void
 }) {
+  const t = useTranslations("simulations")
+  const tEnum = useTranslations("enums")
   return (
     <div className="space-y-2">
-      <Label htmlFor="simulation-frequency">How often</Label>
+      <Label htmlFor="simulation-frequency">{t("inputs.howOften")}</Label>
       <Select
         value={value}
         onValueChange={(next) => onChange((next as ContributionFrequency) ?? "MONTHLY")}
       >
         <SelectTrigger id="simulation-frequency" className="w-full">
-          <SelectValue>{(v) => FREQUENCY_LABELS[v as ContributionFrequency]}</SelectValue>
+          <SelectValue>{(v) => tEnum(`contributionFrequency.${v as ContributionFrequency}`)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {CONTRIBUTION_FREQUENCIES.map((frequency) => (
             <SelectItem key={frequency} value={frequency}>
-              {FREQUENCY_LABELS[frequency]}
+              {tEnum(`contributionFrequency.${frequency}`)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -113,9 +114,11 @@ export function ScenarioPicker({
   value: ScenarioName
   onChange: (scenario: ScenarioName, annualReturnPct: number) => void
 }) {
+  const t = useTranslations("simulations")
+  const tEnum = useTranslations("enums")
   return (
     <div className="space-y-2">
-      <Label htmlFor="simulation-scenario">Scenario</Label>
+      <Label htmlFor="simulation-scenario">{t("inputs.scenario")}</Label>
       <Select
         value={value}
         onValueChange={(next) => {
@@ -124,19 +127,17 @@ export function ScenarioPicker({
         }}
       >
         <SelectTrigger id="simulation-scenario" className="w-full">
-          <SelectValue>{(v) => SCENARIO_LABELS[v as ScenarioName]}</SelectValue>
+          <SelectValue>{(v) => tEnum(`scenarioName.${v as ScenarioName}`)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {SCENARIOS.map((scenario) => (
             <SelectItem key={scenario} value={scenario}>
-              {SCENARIO_LABELS[scenario]} · {(SCENARIO_RETURNS[scenario] * 100).toFixed(0)}%
+              {tEnum(`scenarioName.${scenario}`)} · {(SCENARIO_RETURNS[scenario] * 100).toFixed(0)}%
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <p className="text-muted-foreground text-xs">
-        Example assumptions, not forecasts. Edit the rate to use your own.
-      </p>
+      <p className="text-muted-foreground text-xs">{t("inputs.scenarioHint")}</p>
     </div>
   )
 }

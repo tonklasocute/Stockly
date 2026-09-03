@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "You already have a portfolio with that name.")
+      throw new ApiError("CONFLICT", "You already have a portfolio with that name.", "duplicatePortfolioName")
     }
     if (error) throw error
     if (data) invalidatePortfolio()

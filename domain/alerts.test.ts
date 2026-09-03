@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
+import EN_ALERTS from "@/locales/en/alerts.json"
+import TH_ALERTS from "@/locales/th/alerts.json"
+import EN_ENUMS from "@/locales/en/enums.json"
+import TH_ENUMS from "@/locales/th/enums.json"
 import {
+  ALERT_TYPES,
   describeAlert,
   evaluateAlert,
   idempotencyKeyFor,
@@ -318,11 +323,11 @@ describe("technical alerts — same engine, different reading", () => {
   })
 
   it("renders each unit correctly in the rule description", () => {
-    expect(describeAlert(alert({ type: "RSI_BELOW", targetValue: 30 }))).toBe("NVDA · rsi falls below 30")
-    expect(describeAlert(alert({ type: "RELATIVE_VOLUME_ABOVE", targetValue: 2 }))).toContain("2.0×")
-    expect(describeAlert(alert({ type: "MACD_BULLISH_CROSS" }))).toBe(
-      "NVDA · macd crosses above its signal",
-    )
+    // The *unit* is the engine's business — 30 is a level, 2.0× is a multiple. The words around it
+    // are not: `features/alerts/alert-sentence.ts` composes those from the reader's language.
+    expect(describeAlert(alert({ type: "RSI_BELOW", targetValue: 30 })).target).toBe("30")
+    expect(describeAlert(alert({ type: "RELATIVE_VOLUME_ABOVE", targetValue: 2 })).target).toBe("2.0×")
+    expect(describeAlert(alert({ type: "MACD_BULLISH_CROSS" })).target).toBeNull()
   })
 })
 
@@ -379,24 +384,44 @@ describe("messages", () => {
   })
 })
 
+/**
+ * `describeAlert` returns **facts**, not a line, since phase 21.
+ *
+ * The threshold's formatting is still the engine's job and is asserted here — a price is currency,
+ * a daily change carries a sign, a weight does not. The words that surround it are the reader's
+ * language and are asserted against the messages, below.
+ */
 describe("describeAlert", () => {
-  it("renders a price rule in currency", () => {
-    expect(describeAlert(alert())).toBe("NVDA · price rises above $200.00")
+  it("formats a price threshold in currency", () => {
+    expect(describeAlert(alert())).toEqual({
+      subject: "NVDA",
+      type: "PRICE_ABOVE",
+      target: "$200.00",
+    })
   })
 
-  it("renders a percentage rule in percent", () => {
-    expect(describeAlert(alert({ type: "PERCENT_CHANGE_ABOVE", targetValue: 5 }))).toContain("+5.00%")
+  it("formats a percentage threshold with its sign — it is a move", () => {
+    expect(describeAlert(alert({ type: "PERCENT_CHANGE_ABOVE", targetValue: 5 })).target).toBe("+5.00%")
   })
 
-  it("renders a position weight without a sign — it is a share, not a move", () => {
-    expect(describeAlert(alert({ type: "POSITION_WEIGHT_ABOVE", targetValue: 40 }))).toBe(
-      "NVDA · position weight rises above 40.00%",
-    )
+  it("formats a position weight without a sign — it is a share, not a move", () => {
+    expect(describeAlert(alert({ type: "POSITION_WEIGHT_ABOVE", targetValue: 40 })).target).toBe("40.00%")
   })
 
-  it("calls a portfolio rule Portfolio, not a symbol", () => {
-    expect(describeAlert(alert({ type: "PORTFOLIO_DAILY_CHANGE_BELOW", symbol: null, targetValue: -5 }))).toBe(
-      "Portfolio · portfolio daily change falls below −5.00%",
-    )
+  it("leaves a portfolio rule without a subject, rather than naming it in English", () => {
+    // `null` here is what lets the UI say "Portfolio" or "ทั้งพอร์ต". A hardcoded "Portfolio"
+    // in the engine would be an English word inside a figure-producing module.
+    const facts = describeAlert(alert({ type: "PORTFOLIO_DAILY_CHANGE_BELOW", symbol: null, targetValue: -5 }))
+    expect(facts.subject).toBeNull()
+    expect(facts.target).toBe("−5.00%")
+    expect(EN_ALERTS.describe.portfolio).toBe("Portfolio")
+    expect(TH_ALERTS.describe.portfolio).toBe("ทั้งพอร์ต")
+  })
+
+  it("names every alert type in both languages", () => {
+    for (const type of ALERT_TYPES) {
+      expect(EN_ENUMS.alertType[type]?.length, `en ${type}`).toBeGreaterThan(0)
+      expect(TH_ENUMS.alertType[type]?.length, `th ${type}`).toBeGreaterThan(0)
+    }
   })
 })

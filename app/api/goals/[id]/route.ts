@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     if (error?.code === "23514") {
       // The currency rule is the likely one: a percentage target cannot carry a currency, and a
       // money target cannot be without one.
-      throw new ApiError("VALIDATION_ERROR", "That change violates the goal's currency rule.")
+      throw new ApiError("VALIDATION_ERROR", "That change violates the goal's currency rule.", "goalCurrencyRule")
     }
     if (error) throw error
     if (!data) return fail("NOT_FOUND", "Goal not found.")

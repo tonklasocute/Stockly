@@ -73,7 +73,7 @@ export async function POST(request: Request, { params }: Ctx) {
 
     // P0002 is the function's own "not found", which covers a row belonging to somebody else.
     if (error?.code === "P0002") return fail("NOT_FOUND", "Transaction not found.")
-    if (error?.code === "22023") throw new ApiError("VALIDATION_ERROR", "A correction must state a reason.")
+    if (error?.code === "22023") throw new ApiError("VALIDATION_ERROR", "A correction must state a reason.", "reasonRequired")
     if (error) throw error
 
     invalidatePortfolio()

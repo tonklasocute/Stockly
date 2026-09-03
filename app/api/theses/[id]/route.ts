@@ -32,10 +32,10 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (error?.code === "23505") {
-      throw new ApiError("CONFLICT", "Another open thesis already covers that instrument.")
+      throw new ApiError("CONFLICT", "Another open thesis already covers that instrument.", "duplicateThesis")
     }
     if (error?.code === "23514") {
-      throw new ApiError("VALIDATION_ERROR", "That thesis violates a data rule.")
+      throw new ApiError("VALIDATION_ERROR", "That thesis violates a data rule.", "dataRuleThesis")
     }
     if (error) throw error
     if (!data) return fail("NOT_FOUND", "Thesis not found.")

@@ -25,10 +25,23 @@
   "timezoneNote": "Times are shown in your device's timezone, whichever language you choose.",
   "defaultPortfolio": {
     "label": "Default portfolio",
-    "description": "The portfolio Stockly opens on."
+    "description": "The portfolio Stockly opens on.",
+    "mostRecent": "Most recently created"
   },
   "account": {
     "title": "Account",
     "email": "Email address"
-  }
+  },
+  "managePortfolios": "Manage your portfolios.",
+  "about": "About",
+  "portfoliosInSettings": "portfolios are managed in Settings",
+  "push": {
+    "title": "Push notifications",
+    "hint": "Per device. Enabling on your phone does not enable on your laptop."
+  },
+  "whatToNotify": "What to notify me about",
+  "appliesToBoth": "Applies to both in-app and push.",
+  "notificationsHint": "Choose what Stockly tells you about, and how.",
+  "setupRequired": "Supabase is not configured",
+  "setupRequiredBody": "Copy .env.example to .env.local, fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, apply supabase/migrations, then restart the dev server."
 }

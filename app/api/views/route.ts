@@ -43,8 +43,8 @@ export async function POST(request: Request) {
       .select("*")
       .single()
 
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a view with that name.")
-    if (error?.code === "23503") throw new ApiError("NOT_FOUND", "That portfolio does not exist.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a view with that name.", "duplicateViewName")
+    if (error?.code === "23503") throw new ApiError("NOT_FOUND", "That portfolio does not exist.", "portfolioMissing")
     if (error) throw error
 
     invalidatePersonalization()

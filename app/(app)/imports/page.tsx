@@ -10,8 +10,13 @@ import { toPage } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Import" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("import") }
+}
 
 /**
  * The CSP is nonce-based, so every route that renders a script must be server-rendered — a
@@ -30,6 +35,7 @@ export default async function ImportsPage({
 }: {
   searchParams: Promise<{ p?: string; page?: string }>
 }) {
+  const t = await getTranslations("imports")
   const locale = await appLocale()
   const query = await searchParams
   const { active } = await resolveActivePortfolio(query.p)
@@ -40,7 +46,7 @@ export default async function ImportsPage({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Import transactions</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t("importTransactions")}</h1>
         <p className="text-muted-foreground text-sm">
           {active.name} · imported trades become ordinary transactions, and every figure is
           recalculated from them
@@ -50,13 +56,11 @@ export default async function ImportsPage({
       <ImportWizard portfolioId={active.id} portfolioName={active.name} />
 
       <Section
-        title="Import history"
-        description="Re-importing a file you have already imported creates nothing."
+        title={t("history")}
+        description={t("historyHint")}
       >
         {history.rows.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center text-sm">
-            Nothing imported into this portfolio yet.
-          </p>
+          <p className="text-muted-foreground py-6 text-center text-sm">{t("nothingYet")}</p>
         ) : (
           <ul className="divide-y">
             {history.rows.map((session) => (

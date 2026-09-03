@@ -1,1 +1,22 @@
-{}
+{
+  "allTypes": "All types",
+  "chooseReason": "Choose a reason",
+  "whyBought": "Why I bought this",
+  "thinkingHint": "What you were thinking, and what you expected to happen.",
+  "type": "Type",
+  "date": "Date",
+  "whySold": "Why you sold",
+  "symbol": "Symbol",
+  "title": "Title",
+  "notes": "Notes",
+  "search": "Search entries",
+  "searchLabel": "Search journal",
+  "filterType": "Filter by type",
+  "filterSymbol": "Filter by symbol",
+  "allSymbols": "All symbols",
+  "write": "Write",
+  "writeFirst": "Write the first entry",
+  "deleted": "Entry deleted.",
+  "addEntry": "Add entry",
+  "seeFull": "See the full journal"
+}

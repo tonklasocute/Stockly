@@ -23,9 +23,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .select("*")
       .maybeSingle()
 
-    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a tag with that name.")
+    if (error?.code === "23505") throw new ApiError("CONFLICT", "You already have a tag with that name.", "duplicateTagName")
     if (error) throw error
-    if (!data) throw new ApiError("NOT_FOUND", "That tag does not exist.")
+    if (!data) throw new ApiError("NOT_FOUND", "That tag does not exist.", "tagMissing")
 
     invalidatePersonalization()
     return ok(data)
@@ -41,7 +41,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     // deleting a tag removes a label from some positions and reaches nothing else.
     const { data, error } = await supabase.from("tags").delete().eq("id", id).select("id").maybeSingle()
     if (error) throw error
-    if (!data) throw new ApiError("NOT_FOUND", "That tag does not exist.")
+    if (!data) throw new ApiError("NOT_FOUND", "That tag does not exist.", "tagMissing")
 
     invalidatePersonalization()
     return ok({ deleted: true })

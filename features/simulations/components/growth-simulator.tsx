@@ -5,8 +5,6 @@ import { Metric, Section } from "@/components/metric"
 import { StatCard, StatGrid } from "@/components/stat-card"
 import type { Currency } from "@/domain/market"
 import {
-  FREQUENCY_LABELS,
-  SCENARIO_LABELS,
   SCENARIOS,
   SCENARIO_RETURNS,
   compareReturns,
@@ -18,13 +16,13 @@ import { AssumptionPanel, DataLabel } from "./assumptions"
 import { GrowthAreaChart, ScenarioComparisonChart } from "./lazy-charts"
 import { FrequencyField, NumberField, ScenarioPicker } from "./inputs"
 import {
-  REASON_TEXT,
   num,
   optionalNum,
   toScenario,
   useScenarioState,
   type ScenarioState,
 } from "./use-scenario"
+import { useTranslations } from "next-intl"
 
 /**
  * Compound growth and regular investing — one simulator, because they are one calculation.
@@ -50,6 +48,8 @@ export function GrowthSimulator({
   /** Reports the inputs upward so the parent can offer to save them. */
   onStateChange?: (state: ScenarioState) => void
 }) {
+  const t = useTranslations("simulations")
+  const tEnum = useTranslations("enums")
   const { state, set, pickScenario } = useScenarioState({
     initialValue: String(Math.max(0, Math.round(startingValue ?? 0))),
     contribution: String(Math.max(0, Math.round(suggestedContribution ?? 10_000))),
@@ -74,11 +74,11 @@ export function GrowthSimulator({
 
   return (
     <div className="space-y-6">
-      <Section title="Scenario inputs" description="Change anything; the numbers follow immediately.">
+      <Section title={t("inputs.title")} description={t("growth.hint")}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NumberField
             id="growth-initial"
-            label="Starting value"
+            label={t("inputs.startingValue")}
             suffix={currency}
             value={state.initialValue}
             onChange={set("initialValue")}
@@ -91,7 +91,7 @@ export function GrowthSimulator({
           />
           <NumberField
             id="growth-contribution"
-            label="Contribution"
+            label={t("inputs.contribution")}
             suffix={currency}
             value={state.contribution}
             onChange={set("contribution")}
@@ -105,7 +105,7 @@ export function GrowthSimulator({
           <FrequencyField value={state.frequency} onChange={set("frequency")} />
           <NumberField
             id="growth-years"
-            label="Duration"
+            label={t("inputs.duration")}
             suffix="years"
             value={state.years}
             onChange={set("years")}
@@ -115,14 +115,14 @@ export function GrowthSimulator({
           <ScenarioPicker value={state.scenario} onChange={pickScenario} />
           <NumberField
             id="growth-return"
-            label="Annual return"
+            label={t("inputs.annualReturn")}
             suffix="%"
             value={state.annualReturnPct}
             onChange={set("annualReturnPct")}
           />
           <NumberField
             id="growth-escalation"
-            label="Contribution increase"
+            label={t("inputs.contributionIncrease")}
             suffix="% a year"
             value={state.contributionGrowthPct}
             onChange={set("contributionGrowthPct")}
@@ -130,7 +130,7 @@ export function GrowthSimulator({
           />
           <NumberField
             id="growth-inflation"
-            label="Inflation"
+            label={t("inputs.inflation")}
             suffix="%"
             value={state.inflationPct}
             onChange={set("inflationPct")}
@@ -141,18 +141,18 @@ export function GrowthSimulator({
 
       {!result.ok ? (
         <p className="text-muted-foreground text-sm">
-          N/A — {REASON_TEXT[result.reason] ?? "that scenario cannot be modelled."}
+          N/A — {reason(t, result.reason)}
         </p>
       ) : (
         <>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Scenario result</h2>
+            <h2 className="text-sm font-semibold">{t("growth.result")}</h2>
             <DataLabel kind="PROJECTED" />
           </div>
 
           <StatGrid>
             <StatCard
-              label="Scenario value"
+              label={t("growth.scenarioValue")}
               value={formatCurrencyWithCode(result.value.finalValue, currency)}
               emphasis
               hint={
@@ -162,7 +162,7 @@ export function GrowthSimulator({
               }
             />
             <StatCard
-              label="Paid in"
+              label={t("growth.paidIn")}
               value={formatCurrency(result.value.totalInvested, currency)}
               emphasis
               hint={
@@ -172,7 +172,7 @@ export function GrowthSimulator({
               }
             />
             <StatCard
-              label="Scenario growth"
+              label={t("growth.scenarioGrowth")}
               value={formatCurrency(result.value.totalGrowth, currency)}
               emphasis
               hint={
@@ -184,7 +184,7 @@ export function GrowthSimulator({
               }
             />
             <StatCard
-              label="In today's money"
+              label={t("growth.inTodaysMoney")}
               value={
                 result.value.finalRealValue === null ? (
                   <span className="text-muted-foreground text-lg">N/A</span>
@@ -204,19 +204,19 @@ export function GrowthSimulator({
           </StatGrid>
 
           <Section
-            title="Paid in against growth"
-            description="Stacked, so the part that is your money and the part that is the assumed return stay distinguishable."
+            title={t("growth.paidInVsGrowth")}
+            description={t("growth.paidInVsGrowthHint")}
           >
             <GrowthAreaChart points={result.value.points} currency={currency} />
           </Section>
 
           <Section
-            title="The same plan at three rates"
-            description="One assumption changed, everything else held."
+            title={t("growth.threeRates")}
+            description={t("growth.threeRatesHint")}
           >
             <ScenarioComparisonChart
               rows={SCENARIOS.map((name, index) => ({
-                label: `${SCENARIO_LABELS[name]} · ${(SCENARIO_RETURNS[name] * 100).toFixed(0)}%`,
+                label: `${tEnum(`scenarioName.${name}`)} · ${(SCENARIO_RETURNS[name] * 100).toFixed(0)}%`,
                 value: comparison[index].result.ok ? comparison[index].result.value.finalValue : null,
               }))}
               currency={currency}
@@ -227,7 +227,7 @@ export function GrowthSimulator({
                 return (
                   <Metric
                     key={name}
-                    label={`${SCENARIO_LABELS[name]} · ${(SCENARIO_RETURNS[name] * 100).toFixed(0)}%`}
+                    label={`${tEnum(`scenarioName.${name}`)} · ${(SCENARIO_RETURNS[name] * 100).toFixed(0)}%`}
                     value={
                       row.ok ? formatCurrency(row.value.finalValue, currency) : <span>N/A</span>
                     }
@@ -241,31 +241,48 @@ export function GrowthSimulator({
           <AssumptionPanel
             method={result.value.method}
             assumptions={[
-              { label: "Starting value", value: formatCurrency(scenario.initialValue, currency) },
+              { label: t("inputs.startingValue"), value: formatCurrency(scenario.initialValue, currency) },
               {
-                label: "Contribution",
+                label: t("inputs.contribution"),
                 value: formatCurrency(scenario.contribution, currency),
-                hint: FREQUENCY_LABELS[scenario.frequency].toLowerCase() + ", at period end",
+                hint: t("inputs.atPeriodEnd", { frequency: tEnum(`contributionFrequency.${scenario.frequency}`) }),
               },
-              { label: "Annual return", value: formatPercent(scenario.annualReturn * 100) },
-              { label: "Duration", value: `${scenario.years} years` },
+              { label: t("inputs.annualReturn"), value: formatPercent(scenario.annualReturn * 100) },
+              { label: t("inputs.duration"), value: `${scenario.years} years` },
               {
-                label: "Contribution increase",
+                label: t("inputs.contributionIncrease"),
                 value: formatPercent(scenario.contributionGrowth * 100),
-                hint: "once a year",
+                hint: t("inputs.onceAYear"),
               },
               {
-                label: "Inflation",
+                label: t("inputs.inflation"),
                 value:
                   scenario.inflationRate === null
                     ? "Not modelled"
                     : formatPercent(scenario.inflationRate * 100),
               },
-              { label: "Currency", value: currency },
+              { label: t("inputs.currency"), value: currency },
             ]}
           />
         </>
       )}
     </div>
   )
+}
+
+/**
+ * A refusal code becomes a sentence, with a fallback that is itself a message.
+ *
+ * The engine returns a reason for every scenario it will not model — never `NaN`, never
+ * `Infinity` — and an unrecognised one still has to say something in the reader's language, which
+ * is why the fallback is a key rather than an English string.
+ */
+function reason(
+  t: (key: string) => string,
+  code: string | undefined,
+  fallback: "UNKNOWN" | "NOT_COMPUTABLE" = "UNKNOWN",
+): string {
+  const known = ["INVALID_INITIAL_VALUE", "INVALID_CONTRIBUTION", "INVALID_RETURN", "INVALID_DURATION",
+    "INVALID_INFLATION", "NO_FX_RATE", "INSUFFICIENT_HISTORY", "TARGET_UNREACHABLE"]
+  return t(`reasons.${code && known.includes(code) ? code : fallback}`)
 }

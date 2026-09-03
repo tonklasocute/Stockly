@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TIME_RANGES, type TimeRange } from "@/domain/analytics"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 /**
  * The one date-range control. Every dated view reads `?range=` from the URL, so the choice is
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils"
  * implementation to keep consistent instead of one per page.
  */
 export function RangeFilter({ current }: { current: TimeRange }) {
+  const tc = useTranslations("common")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -23,7 +25,7 @@ export function RangeFilter({ current }: { current: TimeRange }) {
   return (
     <div
       role="tablist"
-      aria-label="Time range"
+      aria-label={tc("state.timeRange")}
       className="-mx-1 flex max-w-full snap-x gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {TIME_RANGES.map((range) => (

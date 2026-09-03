@@ -4,21 +4,27 @@
   "description": "Track your stock portfolio, cost basis and profit and loss.",
   "install": {
     "title": "Install Stockly",
-    "body": "Add Stockly to your home screen for a full-screen app that opens instantly.",
+    "body": "Install Stockly on your device for a faster, app-like experience.",
     "action": "Install",
     "dismiss": "Not now",
     "iosTitle": "Install on iPhone or iPad",
-    "iosBody": "Tap Share, then \"Add to Home Screen\"."
+    "iosBody": "Tap Share, then \"Add to Home Screen\".",
+    "iosTap": "Tap",
+    "iosShare": "Share",
+    "iosChoose": "Choose",
+    "iosAddToHome": "Add to Home Screen",
+    "iosTapAdd": "Tap Add"
   },
   "update": {
     "title": "A new version is ready",
     "body": "Reload when you are ready — anything you are typing will be kept until you do.",
     "action": "Reload",
-    "dismiss": "Later"
+    "dismiss": "Later",
+    "available": "A new version of Stockly is available."
   },
   "network": {
-    "offline": "You are offline. Figures may be out of date.",
-    "backOnline": "Back online"
+    "offline": "Offline · showing the last data loaded",
+    "backOnline": "Back online — refreshing your data."
   },
   "notifications": {
     "title": "Push notifications",

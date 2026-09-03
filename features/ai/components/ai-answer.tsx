@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { AlertTriangle, CheckCircle2, Clock, Database, ShieldAlert, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { INTENT_LABELS, type AIIntent, type DataCompleteness } from "@/domain/ai"
+import { type AIIntent, type DataCompleteness } from "@/domain/ai"
 import type {
   GroundedData,
   MarketFacts,
@@ -15,6 +15,7 @@ import type {
 import type { Narrative } from "@/features/ai/schema"
 import { formatCurrency, formatPercent, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 import { useAppLocale } from "@/lib/i18n/locale"
 
 /**
@@ -72,6 +73,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function StockCard({ stock }: { stock: StockFacts }) {
+  const t = useTranslations("ai")
   const locale = useAppLocale()
   return (
     <div className="space-y-3 rounded-xl border p-3.5">
@@ -94,29 +96,27 @@ function StockCard({ stock }: { stock: StockFacts }) {
 
       <dl className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <Metric
-          label="Price"
+          label={t("answer.price")}
           value={stock.price === null ? "N/A" : formatCurrency(stock.price, stock.currency)}
         />
         <Metric
-          label="Change"
+          label={t("answer.change")}
           value={stock.changePct === null ? "N/A" : formatPercent(stock.changePct)}
         />
-        <Metric label="Score" value={stock.score === null ? "N/A" : `${stock.score}/100`} />
-        <Metric label="RSI (14)" value={num(stock.rsi, 1)} />
-        <Metric label="ADX (14)" value={num(stock.adx, 1)} />
+        <Metric label={t("answer.score")} value={stock.score === null ? "N/A" : `${stock.score}/100`} />
+        <Metric label={t("answer.rsi")} value={num(stock.rsi, 1)} />
+        <Metric label={t("answer.adx")} value={num(stock.adx, 1)} />
         <Metric
-          label="Rel volume"
+          label={t("answer.relVolume")}
           value={stock.relativeVolume === null ? "N/A" : `${num(stock.relativeVolume, 2)}×`}
         />
-        <Metric label="ATR % of price" value={num(stock.atrPct, 2, "%")} />
-        <Metric label="Stage" value={stock.stage} />
+        <Metric label={t("answer.atrPct")} value={num(stock.atrPct, 2, "%")} />
+        <Metric label={t("answer.stage")} value={stock.stage} />
       </dl>
 
       {stock.components.length > 0 && (
         <div className="space-y-1 border-t pt-3">
-          <p className="text-muted-foreground text-xs font-medium">
-            How the score was reached — every component shows the rule that produced it
-          </p>
+          <p className="text-muted-foreground text-xs font-medium">{t("answer.scoreHint")}</p>
           <ul className="space-y-1">
             {stock.components.map((component) => (
               <li key={component.key} className="flex gap-2 text-xs">
@@ -144,7 +144,7 @@ function StockCard({ stock }: { stock: StockFacts }) {
         <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <Clock className="size-3.5" aria-hidden />
           Indicators may be delayed
-          {stock.indicatorsAsOf ? ` — calculated ${formatTime(stock.indicatorsAsOf, locale)}` : ""}.
+          {stock.indicatorsAsOf ? t("answer.calculated", { at: formatTime(stock.indicatorsAsOf, locale) }) : ""}.
         </p>
       )}
     </div>
@@ -152,28 +152,29 @@ function StockCard({ stock }: { stock: StockFacts }) {
 }
 
 function PortfolioCard({ portfolio }: { portfolio: PortfolioFacts }) {
+  const t = useTranslations("ai")
   return (
     <div className="space-y-3 rounded-xl border p-3.5">
       <p className="font-semibold">{portfolio.name}</p>
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Total value" value={formatCurrency(portfolio.totalValue, portfolio.currency)} />
-        <Metric label="Invested" value={formatCurrency(portfolio.investedValue, portfolio.currency)} />
-        <Metric label="Cash" value={formatCurrency(portfolio.cashValue, portfolio.currency)} />
+        <Metric label={t("answer.totalValue")} value={formatCurrency(portfolio.totalValue, portfolio.currency)} />
+        <Metric label={t("answer.invested")} value={formatCurrency(portfolio.investedValue, portfolio.currency)} />
+        <Metric label={t("answer.cash")} value={formatCurrency(portfolio.cashValue, portfolio.currency)} />
         <Metric
-          label="Return"
+          label={t("answer.return")}
           value={portfolio.returnPct === null ? "N/A" : formatPercent(portfolio.returnPct)}
         />
         <Metric
-          label="Unrealised P&L"
+          label={t("answer.unrealizedPnl")}
           value={formatCurrency(portfolio.unrealizedPnl, portfolio.currency)}
         />
         <Metric
-          label="Realised P&L"
+          label={t("answer.realizedPnl")}
           value={formatCurrency(portfolio.realizedPnl, portfolio.currency)}
         />
-        <Metric label="Holdings" value={String(portfolio.holdingCount)} />
+        <Metric label={t("answer.holdings")} value={String(portfolio.holdingCount)} />
         <Metric
-          label="Largest"
+          label={t("answer.largest")}
           value={
             portfolio.largest
               ? `${portfolio.largest.symbol} ${num(portfolio.largest.weightPct, 1, "%")}`
@@ -192,10 +193,11 @@ function PortfolioCard({ portfolio }: { portfolio: PortfolioFacts }) {
 }
 
 function WatchlistCard({ watchlist }: { watchlist: WatchlistFacts }) {
+  const t = useTranslations("ai")
   return (
     <div className="space-y-3 rounded-xl border p-3.5">
       <div className="flex flex-wrap items-baseline gap-3">
-        <p className="font-semibold">Watchlist</p>
+        <p className="font-semibold">{t("answer.watchlist")}</p>
         <p className="text-muted-foreground text-xs">
           {watchlist.count} stocks · {watchlist.bullish} bullish · {watchlist.neutral} neutral ·{" "}
           {watchlist.bearish} bearish
@@ -219,16 +221,17 @@ function WatchlistCard({ watchlist }: { watchlist: WatchlistFacts }) {
 }
 
 function MarketCard({ market }: { market: MarketFacts }) {
+  const t = useTranslations("ai")
   return (
     <div className="space-y-3 rounded-xl border p-3.5">
-      <p className="font-semibold">Market conditions</p>
+      <p className="font-semibold">{t("answer.marketConditions")}</p>
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Symbols tracked" value={String(market.universeSize)} />
-        <Metric label="Bullish" value={String(market.bullish)} />
-        <Metric label="Neutral" value={String(market.neutral)} />
-        <Metric label="Bearish" value={String(market.bearish)} />
-        <Metric label="Median score" value={market.medianScore === null ? "N/A" : String(market.medianScore)} />
-        <Metric label="Above average volume" value={String(market.aboveAverageVolume)} />
+        <Metric label={t("answer.symbolsTracked")} value={String(market.universeSize)} />
+        <Metric label={t("answer.bullish")} value={String(market.bullish)} />
+        <Metric label={t("answer.neutral")} value={String(market.neutral)} />
+        <Metric label={t("answer.bearish")} value={String(market.bearish)} />
+        <Metric label={t("answer.medianScore")} value={market.medianScore === null ? "N/A" : String(market.medianScore)} />
+        <Metric label={t("answer.aboveAverageVolume")} value={String(market.aboveAverageVolume)} />
       </dl>
       <p className="text-muted-foreground border-t pt-3 text-xs">
         Breadth is measured across the stocks Stockly tracks, not the whole market — index data is
@@ -265,6 +268,8 @@ function ScreenCard({ screen }: { screen: ScreenExplanation }) {
 }
 
 export function AIAnswerView({ answer }: { answer: AIAnswer }) {
+  const t = useTranslations("ai")
+  const tEnum = useTranslations("enums")
   const locale = useAppLocale()
   const { grounded, narrative, completeness } = answer
   const hasData =
@@ -279,26 +284,22 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary" className="gap-1.5">
           <Sparkles className="size-3.5" aria-hidden />
-          {INTENT_LABELS[answer.intent]}
+          {tEnum(`aiIntent.${answer.intent}`)}
         </Badge>
         <Badge variant="outline" className="gap-1.5">
           <Database className="size-3.5" aria-hidden />
-          Data coverage {completeness.coveragePct}%
+          {t("answer.coverage", { pct: completeness.coveragePct })}
         </Badge>
         {answer.delayed && (
           <Badge variant="outline" className="gap-1.5">
-            <Clock className="size-3.5" aria-hidden />
-            Some data may be delayed
-          </Badge>
+            <Clock className="size-3.5" aria-hidden />{t("answer.someDelayed")}</Badge>
         )}
       </div>
 
       {/* Fact first. The figures below are Stockly's, not the model's. */}
       {hasData && (
         <section className="space-y-3">
-          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-            Data — from Stockly
-          </h3>
+          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{t("answer.fromStockly")}</h3>
           {grounded.stocks.map((stock) => (
             <StockCard key={stock.symbol} stock={stock} />
           ))}
@@ -324,9 +325,7 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
 
       {/* Interpretation second, and clearly marked as generated. */}
       <section className="space-y-3">
-        <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          AI interpretation
-        </h3>
+        <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{t("answer.interpretation")}</h3>
 
         {answer.safetyFiltered && (
           <p className="flex items-start gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-sm">
@@ -336,14 +335,15 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
           </p>
         )}
 
-        <Prose text={narrative.summary} />
+        {/* The one narrative Stockly writes itself, so the one it has to translate. */}
+        <Prose text={answer.safetyFiltered ? t("notCompliant") : narrative.summary} />
         {narrative.interpretation && <Prose text={narrative.interpretation} />}
 
         {(narrative.positives.length > 0 || narrative.risks.length > 0) && (
           <div className="grid gap-4 sm:grid-cols-2">
             {narrative.positives.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold">Constructive in the data</p>
+                <p className="text-xs font-semibold">{t("answer.constructive")}</p>
                 <ul className="space-y-1">
                   {narrative.positives.map((item, index) => (
                     <li key={index} className="text-muted-foreground flex gap-2 text-xs">
@@ -356,7 +356,7 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
             )}
             {narrative.risks.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold">Risks in the data</p>
+                <p className="text-xs font-semibold">{t("answer.risks")}</p>
                 <ul className="space-y-1">
                   {narrative.risks.map((item, index) => (
                     <li key={index} className="text-muted-foreground flex gap-2 text-xs">
@@ -375,14 +375,18 @@ export function AIAnswerView({ answer }: { answer: AIAnswer }) {
 
       <footer className="text-muted-foreground space-y-1 border-t pt-3 text-xs">
         <p>
-          Based on Stockly market and technical data · updated {formatTime(answer.dataAsOf, locale)}
+          {t("answer.updated", { at: formatTime(answer.dataAsOf, locale) })}
           {completeness.missing.length > 0 &&
-            ` · unavailable: ${completeness.missing.slice(0, 4).join(", ")}`}
+            t("answer.unavailable", {
+              // Each coverage point is a code plus its subject, so it reads in the right language.
+              items: completeness.missing
+                .slice(0, 4)
+                .map((ref) => t(`coverage.${ref.code}`, { symbol: ref.symbol ?? "" }))
+                .join(", "),
+            })}
         </p>
         <p>
-          Written by {answer.provider}/{answer.model}. Stockly AI describes data; it does not give
-          investment advice, price targets or forecasts. Analysis confidence reflects data coverage
-          only — it is not a probability that a price will move.
+          {t("answer.writtenBy", { provider: answer.provider, model: answer.model })}
         </p>
       </footer>
     </div>

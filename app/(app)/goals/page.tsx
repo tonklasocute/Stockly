@@ -6,7 +6,6 @@ import { Metric, Section } from "@/components/metric"
 import { GOAL_DEFINITIONS } from "@/domain/goals"
 import { averageMonthlyContribution } from "@/domain/goals"
 import {
-  SCENARIO_LABELS,
   SCENARIO_RETURNS,
   planGoal,
   requiredContribution,
@@ -20,14 +19,21 @@ import { listCashTransactions } from "@/features/cash/queries"
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Goals" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("goals") }
+}
 
 export default async function GoalsPage({
   searchParams,
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("goals")
   const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -86,7 +92,7 @@ export default async function GoalsPage({
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Goals</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("goals")}</h1>
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
         <Button
@@ -95,9 +101,7 @@ export default async function GoalsPage({
           variant="outline"
           size="sm"
           className="gap-1.5"
-        >
-          Plan a scenario
-          <ArrowRight className="size-3.5" aria-hidden />
+        >{t("planScenario")}<ArrowRight className="size-3.5" aria-hidden />
         </Button>
       </div>
 
@@ -109,7 +113,7 @@ export default async function GoalsPage({
 
       {outlooks.length > 0 && (
         <Section
-          title="Base-case outlook"
+          title={t("baseCaseOutlook")}
           description={`At ${formatPercent(SCENARIO_RETURNS.BASE * 100, { signed: false })} a year with ${formatCurrency(contribution, bundle.baseCurrency)} a month — an example assumption, not a forecast.`}
           action={
             <Button
@@ -117,9 +121,7 @@ export default async function GoalsPage({
               render={<Link href={`/simulations?p=${active.id}`} />}
               variant="outline"
               size="sm"
-            >
-              Change assumptions
-            </Button>
+            >{t("changeAssumptions")}</Button>
           }
         >
           <ul className="divide-y">
@@ -136,7 +138,7 @@ export default async function GoalsPage({
 
                 <dl className="grid gap-4 sm:grid-cols-4">
                   <Metric
-                    label="Target"
+                    label={t("target")}
                     value={
                       progress.unit === "percent"
                         ? formatPercent(progress.target, { signed: false })
@@ -144,16 +146,16 @@ export default async function GoalsPage({
                     }
                   />
                   <Metric
-                    label="Scenario value"
+                    label={t("scenarioValue")}
                     value={
                       plan.ok
                         ? formatCurrency(plan.value.projectedValue, bundle.baseCurrency)
                         : "N/A"
                     }
-                    hint={SCENARIO_LABELS.BASE + " scenario"}
+                    hint={t("baseScenario")}
                   />
                   <Metric
-                    label="Projected gap"
+                    label={t("projectedGap")}
                     value={
                       !plan.ok
                         ? "N/A"
@@ -163,7 +165,7 @@ export default async function GoalsPage({
                     }
                   />
                   <Metric
-                    label="Contribution needed"
+                    label={t("contributionNeeded")}
                     value={
                       required.ok
                         ? formatCurrency(required.value, bundle.baseCurrency)
@@ -177,7 +179,7 @@ export default async function GoalsPage({
           </ul>
 
           <p className="text-muted-foreground mt-4 border-t pt-3 text-xs">
-            <strong className="text-foreground font-medium">These are not predictions.</strong>{" "}
+            <strong className="text-foreground font-medium">{t("notPredictions")}</strong>{" "}
             Every figure above is arithmetic on the assumption stated in the heading. Change it, or
             model a different one, in Planning.
           </p>

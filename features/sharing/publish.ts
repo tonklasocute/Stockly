@@ -34,7 +34,7 @@ export async function buildProjection(portfolioId: string, config: ShareConfig) 
     loadIntelligence(portfolioId),
     readPortfolioName(portfolioId),
   ])
-  if (name === null) throw new ApiError("NOT_FOUND", "That portfolio does not exist.")
+  if (name === null) throw new ApiError("NOT_FOUND", "That portfolio does not exist.", "portfolioMissing")
 
   const source = toShareSource(bundle, name)
   return { payload: projectPublicPortfolio(source, config), baseCurrency: bundle.baseCurrency }
@@ -160,7 +160,7 @@ export async function revokeShareLink(linkId: string, userId: string): Promise<v
   if (error) throw error
   // RLS turned somebody else's link into no rows. A 404 rather than a 403: confirming that an id
   // exists is itself information.
-  if (!data) throw new ApiError("NOT_FOUND", "That share link does not exist.")
+  if (!data) throw new ApiError("NOT_FOUND", "That share link does not exist.", "shareLinkMissing")
   await recordEvent(data.portfolio_id, userId, "LINK_REVOKED", {})
 }
 
@@ -212,7 +212,7 @@ export async function deleteSnapshot(snapshotId: string, userId: string): Promis
     .maybeSingle()
 
   if (error) throw error
-  if (!data) throw new ApiError("NOT_FOUND", "That snapshot does not exist.")
+  if (!data) throw new ApiError("NOT_FOUND", "That snapshot does not exist.", "snapshotMissing")
   await recordEvent(data.portfolio_id, userId, "SNAPSHOT_DELETED", { snapshotId })
 }
 

@@ -1,9 +1,10 @@
 import { Info } from "lucide-react"
 import { Metric } from "@/components/metric"
-import { SIGNAL_LABELS, type TechnicalSnapshot } from "@/domain/technical"
+import { type TechnicalSnapshot } from "@/domain/technical"
 import { formatCompact, formatCurrency, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 const TREND_LABEL: Record<string, string> = {
   bullish: "Bullish",
@@ -53,11 +54,11 @@ export function TechnicalOverview({
    * here is a build error rather than a runtime surprise. That is the boundary working.
    */
   const locale = useAppLocale()
+  const tEnum = useTranslations("enums")
+  const tt = useTranslations("technical")
   if (snapshot.candleCount === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Not enough price history to compute technical indicators for this stock.
-      </p>
+      <p className="text-muted-foreground text-sm">{tt("notEnoughHistory")}</p>
     )
   }
 
@@ -70,23 +71,22 @@ export function TechnicalOverview({
       {stale && (
         <p className="text-muted-foreground flex items-start gap-2 rounded-lg border border-dashed px-3 py-2 text-xs">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          Technical data may be delayed — last calculated {formatTime(calculatedAt, locale)}. The price above
-          is live; these indicators are not.
+          {tt("delayed", { at: formatTime(calculatedAt, locale) })}
         </p>
       )}
 
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
         <div>
-          <p className="text-muted-foreground text-xs">Trend</p>
+          <p className="text-muted-foreground text-xs">{tt("trend")}</p>
           <TrendBadge trend={snapshot.trend} />
         </div>
         <div>
-          <p className="text-muted-foreground text-xs">Stage</p>
+          <p className="text-muted-foreground text-xs">{tt("stage")}</p>
           <p className="text-sm font-medium">{STAGE_LABEL[snapshot.stage]}</p>
         </div>
         {snapshot.score !== null && (
           <div>
-            <p className="text-muted-foreground text-xs">Technical score</p>
+            <p className="text-muted-foreground text-xs">{tt("score")}</p>
             <p className="tabular text-sm font-medium">
               {snapshot.score} <span className="text-muted-foreground">/ 100</span>
             </p>
@@ -95,7 +95,7 @@ export function TechnicalOverview({
       </div>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-        <Metric label="RSI (14)" value={optional(snapshot.rsi)} />
+        <Metric label={tt("rsi")} value={optional(snapshot.rsi)} />
         <Metric
           label="MACD"
           value={
@@ -106,22 +106,22 @@ export function TechnicalOverview({
                 : "Below signal"
           }
         />
-        <Metric label="ADX (14)" value={optional(snapshot.adx)} />
+        <Metric label={tt("adx")} value={optional(snapshot.adx)} />
         <Metric
-          label="Relative volume"
+          label={tt("relativeVolume")}
           value={snapshot.relativeVolume === null ? "N/A" : `${snapshot.relativeVolume.toFixed(1)}×`}
         />
         <Metric
-          label="EMA 50"
+          label={tt("ema50")}
           value={snapshot.ema[50] === null ? "N/A" : formatCurrency(snapshot.ema[50]!, currency)}
         />
         <Metric
-          label="EMA 200"
+          label={tt("ema200")}
           value={snapshot.ema[200] === null ? "N/A" : formatCurrency(snapshot.ema[200]!, currency)}
         />
-        <Metric label="ATR % of price" value={snapshot.atrPct === null ? "N/A" : `${snapshot.atrPct.toFixed(2)}%`} />
+        <Metric label={tt("atrPct")} value={snapshot.atrPct === null ? "N/A" : `${snapshot.atrPct.toFixed(2)}%`} />
         <Metric
-          label="Avg volume (20)"
+          label={tt("avgVolume20")}
           value={snapshot.averageVolume === null ? "N/A" : formatCompact(snapshot.averageVolume)}
         />
       </dl>
@@ -149,14 +149,14 @@ export function TechnicalOverview({
 
       {snapshot.signals.length > 0 && (
         <div>
-          <p className="text-muted-foreground mb-1.5 text-xs">Current conditions</p>
+          <p className="text-muted-foreground mb-1.5 text-xs">{tt("currentConditions")}</p>
           <ul className="flex flex-wrap gap-1.5">
             {snapshot.signals.map((signal) => (
               <li
                 key={signal}
                 className="bg-muted/60 text-muted-foreground rounded-md px-2 py-1 text-xs"
               >
-                {SIGNAL_LABELS[signal]}
+                {tEnum(`technicalSignal.${signal}`)}
               </li>
             ))}
           </ul>

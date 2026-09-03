@@ -7,6 +7,7 @@ import { Section } from "@/components/metric"
 import { TAG_CLASSES } from "@/features/personalization/tag-colors"
 import { apiFetch } from "@/lib/api-client"
 import type { TagRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 /**
  * Applying tags to positions.
@@ -30,6 +31,7 @@ export function TagAssigner({
   /** Tag ids per `market:symbol`. */
   assigned: Record<string, string[]>
 }) {
+  const t = useTranslations("personalization")
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [local, setLocal] = useState(assigned)
@@ -37,8 +39,8 @@ export function TagAssigner({
 
   if (tags.length === 0) {
     return (
-      <Section title="Tags" description="Create a tag in Preferences to group these positions your own way.">
-        <p className="text-muted-foreground text-sm">No tags yet.</p>
+      <Section title={t("tags.title")} description={t("tags.createHint")}>
+        <p className="text-muted-foreground text-sm">{t("tags.noneYet")}</p>
       </Section>
     )
   }
@@ -68,15 +70,13 @@ export function TagAssigner({
   }
 
   return (
-    <Section title="Tags" description="Your own labels. They group and filter holdings and never change a figure.">
+    <Section title={t("tags.title")} description={t("tags.description")}>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <caption className="sr-only">Apply tags to positions</caption>
+          <caption className="sr-only">{t("tags.applyTo")}</caption>
           <thead>
             <tr>
-              <th scope="col" className="text-muted-foreground py-2 pr-4 text-left text-xs font-medium">
-                Position
-              </th>
+              <th scope="col" className="text-muted-foreground py-2 pr-4 text-left text-xs font-medium">{t("tags.position")}</th>
               {tags.map((tag) => (
                 <th key={tag.id} scope="col" className="px-2 py-2 text-center">
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] ${TAG_CLASSES[tag.color] ?? TAG_CLASSES.slate}`}>

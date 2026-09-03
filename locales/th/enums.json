@@ -1,6 +1,12 @@
 {
-  "transactionSide": { "buy": "ซื้อ", "sell": "ขาย" },
-  "market": { "US": "สหรัฐอเมริกา", "TH": "ไทย (SET)" },
+  "transactionSide": {
+    "buy": "ซื้อ",
+    "sell": "ขาย"
+  },
+  "market": {
+    "US": "สหรัฐอเมริกา",
+    "TH": "ไทย (SET)"
+  },
   "cashFlow": {
     "deposit": "ฝากเงิน",
     "withdrawal": "ถอนเงิน",
@@ -218,6 +224,80 @@
     "market": "ตลาด",
     "sector": "กลุ่มอุตสาหกรรม"
   },
-  "density": { "comfortable": "โปร่ง", "compact": "กระชับ" },
-  "theme": { "system": "ตามอุปกรณ์", "light": "สว่าง", "dark": "มืด" }
+  "density": {
+    "comfortable": "โปร่ง",
+    "compact": "กระชับ"
+  },
+  "theme": {
+    "system": "ตามอุปกรณ์",
+    "light": "สว่าง",
+    "dark": "มืด"
+  },
+  "screenerMetric": {
+    "PRICE": "ราคา",
+    "MARKET_CAP": "มูลค่าหลักทรัพย์ตามราคาตลาด",
+    "VOLUME": "ปริมาณซื้อขาย",
+    "RELATIVE_VOLUME": "ปริมาณซื้อขายเทียบค่าเฉลี่ย",
+    "RSI": "RSI (14)",
+    "ADX": "ADX (14)",
+    "ATR_PCT": "ATR เทียบราคา (%)",
+    "TECHNICAL_SCORE": "คะแนนทางเทคนิค",
+    "MACD_HISTOGRAM": "MACD ฮิสโทแกรม",
+    "PRICE_VS_EMA50": "ราคาเทียบ EMA 50 (%)",
+    "PRICE_VS_EMA200": "ราคาเทียบ EMA 200 (%)",
+    "PRICE_VS_SMA200": "ราคาเทียบ SMA 200 (%)",
+    "EMA50_VS_EMA200": "EMA 50 เทียบ EMA 200 (%)",
+    "TREND": "แนวโน้ม",
+    "REVENUE_GROWTH": "การเติบโตของรายได้ (เทียบปีก่อน)",
+    "EPS_GROWTH": "การเติบโตของกำไรต่อหุ้น (เทียบปีก่อน)",
+    "GROSS_MARGIN": "อัตรากำไรขั้นต้น",
+    "OPERATING_MARGIN": "อัตรากำไรจากการดำเนินงาน",
+    "NET_MARGIN": "อัตรากำไรสุทธิ",
+    "ROE": "ผลตอบแทนต่อส่วนของผู้ถือหุ้น",
+    "ROA": "ผลตอบแทนต่อสินทรัพย์",
+    "FCF_MARGIN": "อัตรากระแสเงินสดอิสระ",
+    "DEBT_TO_EQUITY": "อัตราส่วนหนี้สินต่อทุน",
+    "CURRENT_RATIO": "อัตราส่วนสภาพคล่อง",
+    "PE_RATIO": "P/E (12 เดือนย้อนหลัง)",
+    "PS_RATIO": "P/S (12 เดือนย้อนหลัง)",
+    "PB_RATIO": "P/B",
+    "EV_EBITDA": "EV / EBITDA",
+    "DIVIDEND_YIELD": "อัตราผลตอบแทนจากเงินปันผล",
+    "PAYOUT_RATIO": "อัตราการจ่ายเงินปันผล"
+  },
+  "aiIntent": {
+    "STOCK_ANALYSIS": "วิเคราะห์หุ้น",
+    "STOCK_COMPARISON": "เปรียบเทียบหุ้น",
+    "TECHNICAL_EXPLANATION": "อธิบายเชิงเทคนิค",
+    "PORTFOLIO_ANALYSIS": "วิเคราะห์พอร์ต",
+    "WATCHLIST_ANALYSIS": "วิเคราะห์รายการติดตาม",
+    "SCREENER_EXPLANATION": "อธิบายผลการคัดกรอง",
+    "MARKET_SUMMARY": "สรุปภาวะตลาด",
+    "INDICATOR_EXPLANATION": "อธิบายอินดิเคเตอร์",
+    "GENERAL_RESEARCH": "ค้นคว้าทั่วไป"
+  },
+  "technicalSignal": {
+    "PRICE_ABOVE_EMA200": "ราคาอยู่เหนือเส้น EMA 200",
+    "PRICE_BELOW_EMA200": "ราคาอยู่ต่ำกว่าเส้น EMA 200",
+    "PRICE_ABOVE_EMA50": "ราคาอยู่เหนือเส้น EMA 50",
+    "PRICE_BELOW_EMA50": "ราคาอยู่ต่ำกว่าเส้น EMA 50",
+    "GOLDEN_CROSS": "EMA 50 ตัดขึ้นเหนือ EMA 200",
+    "DEATH_CROSS": "EMA 50 ตัดลงต่ำกว่า EMA 200",
+    "MACD_BULLISH": "MACD อยู่เหนือเส้นสัญญาณ",
+    "MACD_BEARISH": "MACD อยู่ต่ำกว่าเส้นสัญญาณ",
+    "MACD_BULLISH_CROSS": "MACD ตัดขึ้นเหนือเส้นสัญญาณ",
+    "MACD_BEARISH_CROSS": "MACD ตัดลงต่ำกว่าเส้นสัญญาณ",
+    "RSI_OVERSOLD": "RSI ต่ำกว่า 30",
+    "RSI_OVERBOUGHT": "RSI สูงกว่า 70",
+    "RSI_NEUTRAL": "RSI อยู่ระหว่าง 45 ถึง 55",
+    "STRONG_TREND": "ADX สูงกว่า 25",
+    "WEAK_TREND": "ADX ต่ำกว่า 20",
+    "HIGH_RELATIVE_VOLUME": "ปริมาณซื้อขายสูงกว่าค่าเฉลี่ย 1.5 เท่า",
+    "VOLUME_SPIKE": "ปริมาณซื้อขายสูงกว่าค่าเฉลี่ย 2 เท่า",
+    "LOW_RELATIVE_VOLUME": "ปริมาณซื้อขายต่ำกว่าค่าเฉลี่ย",
+    "ABOVE_UPPER_BAND": "ราคาอยู่เหนือแถบ Bollinger บน",
+    "BELOW_LOWER_BAND": "ราคาอยู่ต่ำกว่าแถบ Bollinger ล่าง",
+    "HIGH_VOLATILITY": "ATR สูงกว่า 4% ของราคา",
+    "LOW_VOLATILITY": "ATR ต่ำกว่า 2% ของราคา"
+  }
 }

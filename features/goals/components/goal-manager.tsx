@@ -14,6 +14,7 @@ import type { PortfolioGoalRow } from "@/types/database"
 import { GoalDialog } from "./goal-dialog"
 import { GoalProgressBar } from "./goal-progress-bar"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 export type GoalCard = { row: PortfolioGoalRow; progress: GoalProgress }
 
@@ -26,6 +27,8 @@ export function GoalManager({
   baseCurrency: Currency
   goals: GoalCard[]
 }) {
+  const tg = useTranslations("goals")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -37,7 +40,7 @@ export function GoalManager({
   const remove = useMutation({
     mutationFn: (row: PortfolioGoalRow) => apiFetch(`/api/goals/${row.id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Goal removed.")
+      toast.success(tg("removed"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -57,22 +60,18 @@ export function GoalManager({
             : `${goals.length} of ${GOAL_TYPES.length} goal types in use.`}
         </p>
         <Button onClick={openNew} disabled={allTaken} className="gap-2 max-sm:h-11">
-          <Plus className="size-4" aria-hidden />
-          Add goal
-        </Button>
+          <Plus className="size-4" aria-hidden />{tg("add")}</Button>
       </div>
 
       {goals.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
             icon={Target}
-            title="No goals yet"
-            description="Set a target and Stockly measures progress against it from your own transactions — portfolio value, invested capital, dividend income or total return."
+            title={tg("empty")}
+            description={tg("emptyBody")}
             action={
               <Button onClick={openNew} className="gap-2">
-                <Plus className="size-4" aria-hidden />
-                Set a goal
-              </Button>
+                <Plus className="size-4" aria-hidden />{tg("set")}</Button>
             }
           />
         </div>
@@ -92,9 +91,7 @@ export function GoalManager({
                     setDialogOpen(true)
                   }}
                 >
-                  <Pencil className="size-3.5" aria-hidden />
-                  Edit
-                </Button>
+                  <Pencil className="size-3.5" aria-hidden />{tc("actions.edit")}</Button>
                 <Button
                   variant="ghost"
                   size="sm"

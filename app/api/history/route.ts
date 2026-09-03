@@ -21,12 +21,12 @@ export async function GET(request: Request) {
   return guarded(async () => {
     const params = new URL(request.url).searchParams
     const portfolioId = params.get("portfolioId")
-    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.")
+    if (!portfolioId) throw new ApiError("VALIDATION_ERROR", "A portfolio is required.", "portfolioRequired")
 
     // Validated server-side against a closed enum, never interpolated into a query.
     const requested = params.get("period") ?? "1Y"
     if (!HISTORY_PERIODS.includes(requested as HistoryPeriod)) {
-      throw new ApiError("VALIDATION_ERROR", "That period is not one Stockly offers.")
+      throw new ApiError("VALIDATION_ERROR", "That period is not one Stockly offers.", "periodInvalid")
     }
 
     return ok(await loadHistory(portfolioId, requested as HistoryPeriod))

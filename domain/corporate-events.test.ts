@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest"
+import EN_ENUMS from "@/locales/en/enums.json"
+import TH_ENUMS from "@/locales/th/enums.json"
+import EN from "@/locales/en/fundamentals.json"
+import TH from "@/locales/th/fundamentals.json"
 import {
   coversEvent,
   dedupeEvents,
   describeEvent,
   dividendFundamentals,
   EVENT_TYPES,
-  EVENT_LABELS,
   MARKET_EVENT_COVERAGE,
   relevantEvents,
   statusOf,
@@ -87,9 +90,10 @@ describe("market coverage", () => {
     }
   })
 
-  it("has a label for every event type", () => {
+  it("has a name for every event type, in both languages", () => {
     for (const type of EVENT_TYPES) {
-      expect(EVENT_LABELS[type].length).toBeGreaterThan(0)
+      expect(EN_ENUMS.corporateEvent[type]?.length, `en ${type}`).toBeGreaterThan(0)
+      expect(TH_ENUMS.corporateEvent[type]?.length, `th ${type}`).toBeGreaterThan(0)
     }
   })
 })
@@ -158,32 +162,56 @@ describe("relevance to a portfolio", () => {
   })
 })
 
+/*
+ * Only the sentences that describe an *event*, not every string in the namespace.
+ *
+ * The empty state legitimately says "what you hold or watch", which the forbidden-vocabulary
+ * pattern catches on `hold` — correctly, for a sentence about an instrument, and wrongly for a
+ * sentence about the reader's own list. Naming the shapes keeps the check pointed at what the rule
+ * is actually about.
+ */
+const SHAPES = ["EARNINGS", "EX_DIVIDEND", "DIVIDEND_AMOUNT", "DIVIDEND", "RATIO", "GENERIC"] as const
+const EVENT_SENTENCES = SHAPES.flatMap((shape) => [EN.events[shape], TH.events[shape]])
+
 describe("event sentences", () => {
   it("marks an estimated date as estimated, every time", () => {
     // An estimated earnings date presented as confirmed is the most misleading thing a calendar
-    // can do, because a reader plans around it.
-    expect(describeEvent(event({ estimated: true }))).toContain("(estimated)")
-    expect(describeEvent(event({ estimated: false }))).not.toContain("(estimated)")
+    // can do, because a reader plans around it. The flag is carried in the facts; the words that
+    // render it are asserted below, in both languages.
+    expect(describeEvent(event({ estimated: true })).estimated).toBe(true)
+    expect(describeEvent(event({ estimated: false })).estimated).toBe(false)
+    expect(EN.events.estimated).toContain("estimated")
+    expect(TH.events.estimated).toContain("ประมาณการ")
   })
 
   it("says so when a date is not announced rather than inventing one", () => {
-    expect(describeEvent(event({ date: null }))).toContain("not yet announced")
+    expect(describeEvent(event({ date: null })).date).toBeNull()
+    expect(EN.events.dateUnannounced).toContain("not yet announced")
+    expect(TH.events.dateUnannounced.length).toBeGreaterThan(4)
   })
 
-  it("carries no portfolio figure", () => {
+  it("picks a sentence shape for every event type", () => {
+    for (const type of EVENT_TYPES) {
+      const facts = describeEvent(event({ type, amountPerShare: 0.24, currency: "USD", ratio: "4:1" }))
+      expect(EN.events[facts.shape], `en ${type}`).toBeTruthy()
+      expect(TH.events[facts.shape], `th ${type}`).toBeTruthy()
+    }
+  })
+
+  it("carries no portfolio figure, and has nowhere to put one", () => {
     // These reach a lock screen through push. Prices and per-share amounts are public; a position's
-    // value is not.
-    const sentences = EVENT_TYPES.map((type) =>
-      describeEvent(event({ type, amountPerShare: 0.24, currency: "USD", ratio: "4:1" })),
+    // value is not — and the shape simply has no field for it.
+    const facts = describeEvent(event({ amountPerShare: 0.24, currency: "USD", ratio: "4:1" }))
+    expect(Object.keys(facts).sort()).toEqual(
+      ["amountPerShare", "currency", "date", "estimated", "ratio", "shape", "symbol", "type"],
     )
-    for (const sentence of sentences) {
+    for (const sentence of EVENT_SENTENCES) {
       expect(sentence).not.toMatch(/position|portfolio|you (own|hold)|worth/i)
     }
   })
 
-  it("uses none of the forbidden vocabulary", () => {
-    for (const type of EVENT_TYPES) {
-      const sentence = describeEvent(event({ type, ratio: "4:1", amountPerShare: 0.24, currency: "USD" }))
+  it("uses none of the forbidden vocabulary, in either language", () => {
+    for (const sentence of EVENT_SENTENCES) {
       for (const pattern of FORBIDDEN_INSIGHT_PATTERNS) {
         expect(pattern.test(sentence), `"${sentence}" matched ${pattern}`).toBe(false)
       }

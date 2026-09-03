@@ -1,1 +1,116 @@
-{}
+{
+  "title": "Analytics",
+  "empty": {
+    "title": "Nothing to analyse yet",
+    "body": "Record a transaction and this page fills in with allocation, performance, contribution and trade statistics.",
+    "action": "Add a transaction"
+  },
+  "summary": {
+    "portfolioValue": "Portfolio value",
+    "totalPnl": "Total P&L",
+    "unrealized": "Unrealized",
+    "realized": "Realized"
+  },
+  "performance": {
+    "title": "Performance",
+    "hint": "Portfolio value against invested capital. Deposits raise both lines, so they never look like a return."
+  },
+  "allocation": {
+    "title": "Allocation",
+    "hint": "Stocks and cash as a share of total value.",
+    "empty": "Nothing to allocate yet.",
+    "value": "Value",
+    "weight": "Weight",
+    "bySector": "By sector",
+    "sectorHint": "Grouped from company profiles.",
+    "sector": "Sector",
+    "byIndustry": "By industry",
+    "industry": "Industry",
+    "byCountry": "By country",
+    "countryHint": "Geographic exposure, from company profiles.",
+    "country": "Country",
+    "currencyExposure": "Currency exposure",
+    "currency": "Currency",
+    "emptyFor": "No {label} data yet."
+  },
+  "concentration": {
+    "title": "Concentration",
+    "hint": "Informational only — Stockly describes your portfolio, it does not advise on it.",
+    "largestPosition": "Largest position",
+    "positions": "Positions",
+    "top3": "Top 3",
+    "top5": "Top 5"
+  },
+  "movers": {
+    "topGainers": "Top gainers",
+    "topLosers": "Top losers",
+    "sincePurchase": "By return since purchase.",
+    "todayGainers": "Today's gainers",
+    "todayLosers": "Today's losers"
+  },
+  "contribution": {
+    "title": "P&L contribution",
+    "hint": "What each holding contributed, split into booked and on-paper profit.",
+    "realizedPnl": "Realized P&L"
+  },
+  "trades": {
+    "hint": "A trade is one sell. Break-even trades are excluded from the win rate.",
+    "winRate": "Win rate",
+    "winning": "Winning trades",
+    "losing": "Losing trades",
+    "averageWin": "Average win",
+    "averageLoss": "Average loss",
+    "totalRealized": "Total realized",
+    "bestTrade": "Best trade",
+    "worstTrade": "Worst trade",
+    "averageHold": "Average hold"
+  },
+  "fees": {
+    "title": "Fees",
+    "hint": "What trading has cost, in money rather than in feel.",
+    "total": "Total fees",
+    "ofTurnover": "Of turnover",
+    "thisMonth": "This month",
+    "thisYear": "This year"
+  },
+  "dividends": {
+    "title": "Dividend income",
+    "hint": "Two yields with two denominators — they are not interchangeable.",
+    "receivedAllTime": "Received (all time)",
+    "last12Months": "Last 12 months",
+    "yieldOnValue": "Yield on current value",
+    "yieldOnCost": "Yield on cost",
+    "all": "All dividends"
+  },
+  "export": {
+    "summary": "Portfolio summary",
+    "transactions": "Transactions",
+    "dividends": "Dividends",
+    "cash": "Cash transactions"
+  },
+  "attribution": {
+    "title": "What produced this return",
+    "method": "Money-weighted attribution",
+    "methodHint": "Money-weighted: each holding measured against the money actually in it.",
+    "totalGain": "Total gain",
+    "fromPrice": "From price",
+    "fromDividends": "From dividends",
+    "fromCurrency": "From currency",
+    "addedMost": "Added most",
+    "removedMost": "Removed most",
+    "empty": "Nothing in this period.",
+    "unavailable": {
+      "NO_BEGINNING_VALUE": "No valuation was recorded at the start of this period, so there is nothing to measure the change against.",
+      "NO_ENDING_VALUE": "No valuation was recorded at the end of this period.",
+      "EMPTY_PERIOD": "The portfolio held nothing during this period.",
+      "NO_HISTORICAL_FX": "Separating currency movement from asset performance needs an exchange rate for every day of the period, and Stockly does not store one for all of them."
+    },
+    "contribution": {
+      "incomplete": "{symbol} could not be measured for this period.",
+      "added": "{symbol} added {points} percentage points ({amount} {currency}) of the portfolio's return.",
+      "removed": "{symbol} removed {points} percentage points ({amount} {currency}) of the portfolio's return."
+    },
+    "ownReturn": " Its own return was {pct}%.",
+    "needsHistoricalRates": "Needs historical rates"
+  }
+}

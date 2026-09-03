@@ -13,6 +13,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatOptionalCurrency, formatOptionalPercent, formatQuantity } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { ReconciliationItemRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 /**
  * The findings from one run.
@@ -67,6 +68,7 @@ function num(detail: Record<string, unknown>, key: string): number | null {
 }
 
 function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: string }) {
+  const to = useTranslations("operations")
   const router = useRouter()
   const detail = item.detail ?? {}
   const causes = Array.isArray(detail.causes) ? (detail.causes as string[]) : []
@@ -81,7 +83,7 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
       }),
     onSuccess: () => {
       setResolved(true)
-      toast.success("Marked as reviewed. Nothing was changed.")
+      toast.success(to("findings.marked"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -101,16 +103,14 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
         <StatusPill status={item.status} />
         {resolved ? (
           <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-            <Check className="size-3" aria-hidden />
-            Reviewed
-          </span>
+            <Check className="size-3" aria-hidden />{to("findings.reviewed")}</span>
         ) : null}
       </div>
 
       {item.scope === "POSITIONS" ? (
         <dl className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
           <div>
-            <dt>Statement</dt>
+            <dt>{to("findings.statement")}</dt>
             <dd className="text-foreground">
               <Quantity value={detail.brokerQuantity} />
             </dd>
@@ -122,13 +122,13 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
             </dd>
           </div>
           <div>
-            <dt>Statement cost</dt>
+            <dt>{to("findings.statementCost")}</dt>
             <dd className="text-foreground tabular">
               {formatOptionalCurrency(num(detail, "brokerAverageCost"), currency)}
             </dd>
           </div>
           <div>
-            <dt>Difference</dt>
+            <dt>{to("findings.difference")}</dt>
             <dd className="text-foreground tabular">
               {formatOptionalPercent(num(detail, "costDifferencePct"))}
             </dd>
@@ -137,7 +137,7 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
       ) : (
         <dl className="text-muted-foreground grid grid-cols-3 gap-x-4 gap-y-1 text-xs">
           <div>
-            <dt>Statement</dt>
+            <dt>{to("findings.statement")}</dt>
             <dd className="text-foreground tabular">
               {formatOptionalCurrency(num(detail, "brokerBalance"), currency)}
             </dd>
@@ -149,7 +149,7 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
             </dd>
           </div>
           <div>
-            <dt>Difference</dt>
+            <dt>{to("findings.difference")}</dt>
             <dd className="text-foreground tabular">
               {formatOptionalCurrency(num(detail, "difference"), currency)}
             </dd>
@@ -159,7 +159,7 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
 
       {causes.length > 0 ? (
         <div className="text-muted-foreground space-y-1 text-xs">
-          <p className="font-medium">What could explain this</p>
+          <p className="font-medium">{to("findings.causes")}</p>
           <ul className="list-disc space-y-0.5 pl-4">
             {causes.map((cause) => (
               <li key={cause}>{CAUSES[cause] ?? cause}</li>
@@ -194,12 +194,11 @@ function FindingRow({ item, runId }: { item: ReconciliationItemRow; runId: strin
 }
 
 export function Findings({ items, runId }: { items: ReconciliationItemRow[]; runId: string }) {
+  const to = useTranslations("operations")
   if (items.length === 0) {
     return (
       <p className="text-muted-foreground flex items-center gap-2 py-6 text-sm">
-        <Minus className="size-4" aria-hidden />
-        This run compared nothing in this section.
-      </p>
+        <Minus className="size-4" aria-hidden />{to("findings.nothingCompared")}</p>
     )
   }
 

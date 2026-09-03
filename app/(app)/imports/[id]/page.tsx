@@ -12,8 +12,13 @@ import { formatDate, formatTime } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Import detail" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("metadata")
+  return { title: t("pages.importDetail") }
+}
 export const dynamic = "force-dynamic"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -25,6 +30,7 @@ type Ctx = { params: Promise<{ id: string }> }
  * the reads — an id belonging to another user simply is not found, which is also the right answer.
  */
 export default async function ImportDetailPage({ params }: Ctx) {
+  const t = await getTranslations("imports")
   const locale = await appLocale()
   const { id } = await params
   const session = await findImportSession(id)
@@ -54,9 +60,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
           size="sm"
           className="gap-1.5"
         >
-          <ArrowLeft className="size-3.5" aria-hidden />
-          All imports
-        </Button>
+          <ArrowLeft className="size-3.5" aria-hidden />{t("allImports")}</Button>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{session.filename}</h1>
         <p className="text-muted-foreground text-sm">
           {session.format} · imported {formatTime(session.applied_at, locale)}
@@ -65,10 +69,10 @@ export default async function ImportDetailPage({ params }: Ctx) {
 
       <dl className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-xl border sm:grid-cols-4">
         {[
-          { label: "Rows read", value: session.total_rows },
-          { label: "Created", value: session.applied_count },
-          { label: "Already imported", value: session.duplicate_count },
-          { label: "Rejected", value: session.reject_count },
+          { label: t("rowsRead"), value: session.total_rows },
+          { label: t("created"), value: session.applied_count },
+          { label: t("alreadyImported"), value: session.duplicate_count },
+          { label: t("rejected"), value: session.reject_count },
         ].map((entry) => (
           <div key={entry.label} className="bg-card space-y-0.5 p-4">
             <dt className="text-muted-foreground text-xs">{entry.label}</dt>
@@ -80,7 +84,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
       {rejected.length > 0 && (
         <Section
           title={`${rejected.length} row${rejected.length === 1 ? "" : "s"} rejected`}
-          description="These never became transactions. Fix them in the file and import it again — what already succeeded will not be created twice."
+          description={t("rejectedHint")}
         >
           <ul className="divide-y">
             {rejected.map((row) => (
@@ -107,7 +111,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
       {duplicates.length > 0 && (
         <Section
           title={`${duplicates.length} row${duplicates.length === 1 ? " was" : "s were"} already imported`}
-          description="Skipped rather than created a second time. This is what makes re-importing a file safe."
+          description={t("duplicatesHint")}
         >
           <p className="text-muted-foreground text-sm">
             Rows {duplicates.map((row) => row.row_number).slice(0, 30).join(", ")}
@@ -117,13 +121,11 @@ export default async function ImportDetailPage({ params }: Ctx) {
       )}
 
       <Section
-        title="Transactions created"
-        description="Ordinary transactions. Holdings and P&L are derived from them like any other."
+        title={t("transactionsCreated")}
+        description={t("transactionsCreatedHint")}
       >
         {(created.data ?? []).length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            None. Either every row was a duplicate, or the import failed.
-          </p>
+          <p className="text-muted-foreground text-sm">{t("noneCreated")}</p>
         ) : (
           <ul className="divide-y">
             {(created.data ?? []).map((transaction) => (
@@ -155,7 +157,7 @@ export default async function ImportDetailPage({ params }: Ctx) {
       </Section>
 
       <Metric
-        label="Auditability"
+        label={t("auditability")}
         value="Every transaction above carries this import's id and its line number"
         hint="Deleting this history entry leaves the transactions where they are — they are financial records, and an import is only how they arrived."
       />

@@ -3,10 +3,16 @@ import { ScreenerClient } from "@/features/screener/components/screener-client"
 import { MAX_UNIVERSE_SIZE } from "@/features/technical/universe"
 import { createClient } from "@/lib/supabase/server"
 import { isAIEnabled } from "@/services/ai"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Screener" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("screener") }
+}
 
 export default async function ScreenerPage() {
+  const t = await getTranslations("screener")
   const supabase = await createClient()
   // RLS scopes this to the caller's own saved screens.
   const [{ data: screens }, { count }] = await Promise.all([
@@ -17,7 +23,7 @@ export default async function ScreenerPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Stock screener</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t("title")}</h1>
         <p className="text-muted-foreground text-sm">
           {count ?? 0} stocks with technical data · refreshed on a schedule
         </p>

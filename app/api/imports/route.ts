@@ -71,7 +71,7 @@ export async function POST(request: Request) {
         throw new ApiError("VALIDATION_ERROR", error.message)
       }
       if ((error as { code?: string }).code === "23503") {
-        throw new ApiError("VALIDATION_ERROR", "That portfolio could not be found.")
+        throw new ApiError("VALIDATION_ERROR", "That portfolio could not be found.", "portfolioMissing")
       }
       throw error
     }

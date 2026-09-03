@@ -1,1 +1,33 @@
-{}
+{
+  "title": "Cash",
+  "record": "Record cash",
+  "type": "Cash movement type",
+  "amount": "Amount",
+  "date": "Date",
+  "notes": "Notes",
+  "monthlyContribution": "Monthly contribution",
+  "empty": {
+    "title": "No cash movements yet",
+    "body": "Record the deposits that funded your trades so your cash balance and allocation are accurate."
+  },
+  "deleted": "Cash transaction deleted.",
+  "rows": "cash transactions",
+  "summary": {
+    "balance": "Cash balance",
+    "balanceHint": "Deposits minus withdrawals",
+    "netContributed": "Net contributed",
+    "totalPortfolio": "Total portfolio",
+    "totalPortfolioHint": "Stocks plus cash",
+    "dividendsReceived": "Dividends received",
+    "dividendsHint": "Net, added to cash"
+  },
+  "breakdown": {
+    "title": "How the balance is built",
+    "hint": "Deposits − withdrawals − buy costs + sell proceeds + net dividends. Fees are already inside the buy and sell figures.",
+    "deposits": "Deposits",
+    "withdrawals": "Withdrawals",
+    "buyCosts": "Buy costs",
+    "sellProceeds": "Sell proceeds",
+    "dividends": "Dividends"
+  }
+}

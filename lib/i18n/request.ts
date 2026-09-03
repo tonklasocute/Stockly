@@ -1,5 +1,5 @@
 import { getRequestConfig } from "next-intl/server"
-import { intlTag, type Locale } from "@/domain/locale"
+import { intlTag, toLocale, type Locale } from "@/domain/locale"
 import { logger } from "@/lib/log"
 import { resolveLocale } from "./resolve"
 
@@ -18,8 +18,16 @@ import { resolveLocale } from "./resolve"
  * no time at all or is formatted in the market's own timezone by `domain/calendar.ts`. Letting
  * next-intl impose one would be the localization layer quietly deciding when a trading day ended.
  */
-export default getRequestConfig(async () => {
-  const locale = await resolveLocale()
+export default getRequestConfig(async ({ locale: requested }) => {
+  /*
+   * An explicitly requested locale wins over the cookie.
+   *
+   * `getTranslations({ locale })` passes one, and the only caller that does is the shared-page
+   * view — which is read by somebody who is not the owner, at a `?lang=` of their choosing. Without
+   * this line their request would be answered in the *owner's* language, silently, and only on the
+   * pages where getting it wrong matters most.
+   */
+  const locale = toLocale(requested) ?? (await resolveLocale())
 
   return {
     /*

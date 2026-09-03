@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, formatQuantity } from "@/lib/format"
 import type { Position } from "@/domain/types"
 import type { PortfolioRow } from "@/types/database"
+import { useTranslations } from "next-intl"
 
 /**
  * Moving holdings between two of your own portfolios.
@@ -40,6 +41,7 @@ export function TransferPanel({
   portfolios: Pick<PortfolioRow, "id" | "name">[]
   activeId: string
 }) {
+  const to = useTranslations("operations")
   const router = useRouter()
   const others = portfolios.filter((p) => p.id !== activeId)
   const [toPortfolioId, setToPortfolioId] = useState(others[0]?.id ?? "")
@@ -85,9 +87,7 @@ export function TransferPanel({
 
   if (others.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        A transfer needs a second portfolio to move into.
-      </p>
+      <p className="text-muted-foreground text-sm">{to("transferForm.needsSecond")}</p>
     )
   }
 
@@ -95,7 +95,7 @@ export function TransferPanel({
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="tr-to">Move into</Label>
+          <Label htmlFor="tr-to">{to("transferForm.moveInto")}</Label>
           <select
             id="tr-to"
             value={toPortfolioId}
@@ -113,7 +113,7 @@ export function TransferPanel({
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="tr-symbol">Symbol</Label>
+          <Label htmlFor="tr-symbol">{to("transferForm.symbol")}</Label>
           <Input
             id="tr-symbol"
             value={symbol}
@@ -121,7 +121,7 @@ export function TransferPanel({
               setSymbol(event.target.value.toUpperCase())
               setPreview(null)
             }}
-            placeholder="Leave blank to move everything"
+            placeholder={to("transferForm.leaveBlank")}
             maxLength={20}
             aria-describedby="tr-symbol-help"
           />
@@ -141,12 +141,12 @@ export function TransferPanel({
           />
         ) : null}
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="tr-reason">Why</Label>
+          <Label htmlFor="tr-reason">{to("transferForm.why")}</Label>
           <Input
             id="tr-reason"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Consolidating into one broker"
+            placeholder={to("transferForm.reasonPlaceholder")}
             maxLength={500}
           />
         </div>
@@ -189,13 +189,9 @@ export function TransferPanel({
           Preview
         </Button>
         <Button type="button" disabled={!preview || run.isPending} onClick={() => run.mutate(true)}>
-          <ArrowRightLeft className="size-4" aria-hidden />
-          Move
-        </Button>
+          <ArrowRightLeft className="size-4" aria-hidden />{to("transferForm.move")}</Button>
         {reason.trim().length < 3 ? (
-          <p className="text-muted-foreground self-center text-xs">
-            A transfer needs a reason, so the audit trail explains itself.
-          </p>
+          <p className="text-muted-foreground self-center text-xs">{to("transferForm.needsReason")}</p>
         ) : null}
       </div>
     </div>

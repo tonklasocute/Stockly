@@ -14,8 +14,13 @@ import { resolveActivePortfolio } from "@/features/portfolios/queries"
 import { formatTime } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Planning" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("planning") }
+}
 
 /**
  * The CSP is nonce-based, so every route that renders a script must be server-rendered — a
@@ -28,6 +33,7 @@ export default async function SimulationsPage({
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
   const locale = await appLocale()
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
@@ -87,7 +93,7 @@ export default async function SimulationsPage({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Planning</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("planning")}</h1>
         <p className="text-muted-foreground text-sm">
           {active.name} · what the arithmetic says under assumptions you choose
         </p>

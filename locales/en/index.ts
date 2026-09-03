@@ -16,7 +16,6 @@ import ai from "./ai.json"
 import alerts from "./alerts.json"
 import analytics from "./analytics.json"
 import auth from "./auth.json"
-import automation from "./automation.json"
 import cash from "./cash.json"
 import dashboard from "./dashboard.json"
 import dataQuality from "./dataQuality.json"
@@ -27,6 +26,7 @@ import history from "./history.json"
 import imports from "./imports.json"
 import intelligence from "./intelligence.json"
 import journal from "./journal.json"
+import legal from "./legal.json"
 import news from "./news.json"
 import notifications from "./notifications.json"
 import operations from "./operations.json"
@@ -54,7 +54,6 @@ const messages = {
   alerts,
   analytics,
   auth,
-  automation,
   cash,
   dashboard,
   dataQuality,
@@ -65,6 +64,7 @@ const messages = {
   imports,
   intelligence,
   journal,
+  legal,
   news,
   notifications,
   operations,

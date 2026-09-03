@@ -64,7 +64,7 @@ export async function PUT(request: Request) {
       .maybeSingle()
 
     if (error?.code === "23503") {
-      throw new ApiError("VALIDATION_ERROR", "That benchmark does not exist.")
+      throw new ApiError("VALIDATION_ERROR", "That benchmark does not exist.", "benchmarkMissing")
     }
     if (error) throw error
     if (!data) return fail("NOT_FOUND", "Portfolio not found.")

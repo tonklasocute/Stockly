@@ -3,8 +3,10 @@ import { CalendarDays } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/empty-state"
 import { Section } from "@/components/metric"
-import { describeEvent, EVENT_LABELS } from "@/domain/corporate-events"
+import { describeEvent } from "@/domain/corporate-events"
+import { eventSentence } from "../event-sentence"
 import type { PortfolioEventsBundle } from "@/features/fundamentals/events-loader"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Upcoming events for what the reader owns and watches.
@@ -16,10 +18,12 @@ import type { PortfolioEventsBundle } from "@/features/fundamentals/events-loade
  * Every sentence is `describeEvent`, which carries no portfolio figure: these also reach a lock
  * screen through push, and a lock screen is not a private surface.
  */
-export function EventsWidget({ data }: { data: PortfolioEventsBundle }) {
+export async function EventsWidget({ data }: { data: PortfolioEventsBundle }) {
+  const tEnum = await getTranslations("enums")
+  const tf = await getTranslations("fundamentals")
   if (!data.covered) {
     return (
-      <Section title="Upcoming events">
+      <Section title={tf("events.title")}>
         <p className="text-muted-foreground text-sm">
           This deployment has no corporate events provider configured, so there is nothing to show.
           That is a limitation of Stockly&apos;s setup rather than a statement about your holdings.
@@ -30,11 +34,11 @@ export function EventsWidget({ data }: { data: PortfolioEventsBundle }) {
 
   if (data.events.length === 0) {
     return (
-      <Section title="Upcoming events">
+      <Section title={tf("events.title")}>
         <EmptyState
           icon={CalendarDays}
-          title="Nothing scheduled"
-          description="Earnings and dividend dates for the instruments you hold or watch appear here."
+          title={tf("nothingScheduled")}
+          description={tf("nothingScheduledBody")}
         />
       </Section>
     )
@@ -42,12 +46,10 @@ export function EventsWidget({ data }: { data: PortfolioEventsBundle }) {
 
   return (
     <Section
-      title="Upcoming events"
-      description="For the instruments you hold or watch."
+      title={tf("events.title")}
+      description={tf("forHeldAndWatched")}
       action={
-        <Link href="/watchlist" className="text-muted-foreground text-sm underline-offset-4 hover:underline">
-          Watchlist
-        </Link>
+        <Link href="/watchlist" className="text-muted-foreground text-sm underline-offset-4 hover:underline">{tf("watchlist")}</Link>
       }
     >
       <ul className="divide-y">
@@ -63,15 +65,15 @@ export function EventsWidget({ data }: { data: PortfolioEventsBundle }) {
               >
                 {event.symbol}
               </Link>
-              <span className="text-muted-foreground ml-2">{describeEvent(event)}</span>
+              <span className="text-muted-foreground ml-2">{eventSentence(describeEvent(event), tf, tEnum(`corporateEvent.${event.type}`))}</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
               {/* Relation, not a figure: "held" says why this row is here without saying how much. */}
               <Badge variant={event.relation === "HELD" ? "outline" : "secondary"}>
                 {event.relation === "HELD" ? "Held" : "Watching"}
               </Badge>
-              {event.estimated && <Badge variant="secondary">Estimated</Badge>}
-              <span className="text-muted-foreground text-xs">{EVENT_LABELS[event.type]}</span>
+              {event.estimated && <Badge variant="secondary">{tf("estimated")}</Badge>}
+              <span className="text-muted-foreground text-xs">{tEnum(`corporateEvent.${event.type}`)}</span>
             </span>
           </li>
         ))}

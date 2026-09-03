@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { acceptsLocaleParam, LOCALE_HEADER, LOCALE_PARAM, toLocale } from "@/domain/locale"
 import { isSupabaseConfigured } from "@/lib/env"
 import { NONCE_HEADER, PATHNAME_HEADER, REQUEST_ID_HEADER, resolveRequestId } from "@/lib/log"
 import { applySecurityHeaders, buildCsp, createNonce, cspMode, CSP_HEADER } from "@/lib/security-headers"
@@ -32,6 +33,19 @@ export async function middleware(request: NextRequest) {
   // app/layout.tsx.
   requestHeaders.set(NONCE_HEADER, nonce)
 
+  /*
+   * A shared page's language, taken from the URL and handed to the root layout.
+   *
+   * The layout renders `<html lang>` and serialises the client message payload, and it cannot see a
+   * route's search parameters — so without this a `/p/acme?lang=en` document declared whatever the
+   * *visitor's cookie* said. `toLocale` is the same closed-enum check every other read uses, so a
+   * crafted `?lang=` sets nothing at all.
+   */
+  const requested =
+    acceptsLocaleParam(request.nextUrl.pathname) &&
+    toLocale(request.nextUrl.searchParams.get(LOCALE_PARAM))
+  if (requested) requestHeaders.set(LOCALE_HEADER, requested)
+
   const decorate = (response: NextResponse) => {
     applySecurityHeaders(response.headers, csp, mode, { dev })
     response.headers.set(REQUEST_ID_HEADER, requestId)
@@ -48,8 +62,17 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Static output is immutable and served without a session; it needs no policy and no session
-    // refresh, and excluding it keeps the middleware off the hot path for every asset on the page.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    /*
+     * Static output is immutable and served without a session; it needs no policy and no session
+     * refresh, and excluding it keeps the middleware off the hot path for every asset on the page.
+     *
+     * `robots.txt`, `sitemap.xml` and `opengraph-image` are excluded for a different reason, found
+     * by the phase 21 smoke run: they were being sent through the session check, which redirected an
+     * anonymous request to `/login`. A crawler could therefore never read the robots file — so
+     * every `Disallow` in it, including the ones keeping crawlers away from share tokens, was
+     * unenforceable. They are public by definition and carry nothing user-specific; the baseline
+     * security headers still reach them from `next.config.ts`.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|icons/|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 }

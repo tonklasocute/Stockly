@@ -14,14 +14,21 @@ import { CurrencyExposure, CurrencyNotice, TranslationNote } from "@/components/
 import { baseCurrencyOf } from "@/domain/market"
 import { formatCurrency, formatCurrencyWithCode } from "@/lib/format"
 import { NoPortfolio } from "../_no-portfolio"
+import { getTranslations } from "next-intl/server"
 
-export const metadata: Metadata = { title: "Portfolio" }
+/** Localized per request: a title is a word, and this application has two sets of them. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("navigation")
+  return { title: t("portfolio") }
+}
 
 export default async function PortfolioPage({
   searchParams,
 }: {
   searchParams: Promise<{ p?: string }>
 }) {
+  const tNav = await getTranslations("navigation")
+  const t = await getTranslations("portfolios")
   const { p } = await searchParams
   const { active } = await resolveActivePortfolio(p)
   if (!active) return <NoPortfolio />
@@ -45,7 +52,7 @@ export default async function PortfolioPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Portfolio</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{tNav("portfolio")}</h1>
           <p className="text-muted-foreground text-sm">{active.name}</p>
         </div>
         {/*
@@ -60,9 +67,7 @@ export default async function PortfolioPage({
           size="sm"
           className="gap-1.5"
         >
-          <FlaskConical className="size-3.5" aria-hidden />
-          What-if
-        </Button>
+          <FlaskConical className="size-3.5" aria-hidden />{t("whatIf")}</Button>
       </div>
 
       {marketDataError && (
@@ -77,18 +82,18 @@ export default async function PortfolioPage({
 
       <StatGrid>
         <StatCard
-          label="Portfolio value"
+          label={t("summary.value")}
           value={formatCurrencyWithCode(summary.marketValue, currency)}
           emphasis
         />
-        <StatCard label="Invested" value={formatCurrency(summary.investedValue, currency)} emphasis />
+        <StatCard label={t("summary.invested")} value={formatCurrency(summary.investedValue, currency)} emphasis />
         <StatCard
-          label="Unrealized P&L"
+          label={t("summary.unrealizedPnl")}
           value={<Delta value={summary.unrealizedPnl} currency={currency} />}
           emphasis
         />
         <StatCard
-          label="Today"
+          label={t("summary.today")}
           value={
             summary.todayPnl === null ? (
               <span className="text-muted-foreground text-lg">N/A</span>

@@ -72,39 +72,11 @@ export type ScreenerDefinition = {
   sort?: { metric: ScreenerMetric; direction: "asc" | "desc" }
 }
 
-export const METRIC_LABELS: Record<ScreenerMetric, string> = {
-  PRICE: "Price",
-  MARKET_CAP: "Market cap",
-  VOLUME: "Volume",
-  RELATIVE_VOLUME: "Relative volume",
-  RSI: "RSI (14)",
-  ADX: "ADX (14)",
-  ATR_PCT: "ATR % of price",
-  TECHNICAL_SCORE: "Technical score",
-  MACD_HISTOGRAM: "MACD histogram",
-  PRICE_VS_EMA50: "Price vs 50 EMA (%)",
-  PRICE_VS_EMA200: "Price vs 200 EMA (%)",
-  PRICE_VS_SMA200: "Price vs 200 SMA (%)",
-  EMA50_VS_EMA200: "50 EMA vs 200 EMA (%)",
-  TREND: "Trend",
-  // Every label names its period where one is implied, so "P/E" is never shown bare.
-  REVENUE_GROWTH: "Revenue growth (YoY)",
-  EPS_GROWTH: "EPS growth (YoY)",
-  GROSS_MARGIN: "Gross margin",
-  OPERATING_MARGIN: "Operating margin",
-  NET_MARGIN: "Net margin",
-  ROE: "Return on equity",
-  ROA: "Return on assets",
-  FCF_MARGIN: "Free cash flow margin",
-  DEBT_TO_EQUITY: "Debt to equity",
-  CURRENT_RATIO: "Current ratio",
-  PE_RATIO: "P/E (TTM)",
-  PS_RATIO: "P/S (TTM)",
-  PB_RATIO: "P/B",
-  EV_EBITDA: "EV / EBITDA",
-  DIVIDEND_YIELD: "Dividend yield",
-  PAYOUT_RATIO: "Payout ratio",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /**
  * Metrics that come from fundamentals rather than from candles.
@@ -136,15 +108,11 @@ export function isFundamentalMetric(metric: ScreenerMetric): boolean {
   return FUNDAMENTAL_METRICS.includes(metric)
 }
 
-export const OPERATOR_LABELS: Record<ScreenerOperator, string> = {
-  GT: "is above",
-  GTE: "is at or above",
-  LT: "is below",
-  LTE: "is at or below",
-  EQ: "is",
-  CROSS_ABOVE: "just crossed above",
-  CROSS_BELOW: "just crossed below",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** Which metrics are a percentage difference rather than an absolute value. */
 export const RELATIVE_METRICS: readonly ScreenerMetric[] = [

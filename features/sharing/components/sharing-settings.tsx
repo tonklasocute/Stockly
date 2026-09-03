@@ -15,9 +15,7 @@ import {
   SHARE_TEMPLATES,
   SHARE_VISIBILITIES,
   TEMPLATE_HELP,
-  TEMPLATE_LABELS,
   VISIBILITY_HELP,
-  VISIBILITY_LABELS,
   linkState,
   normalizeSlug,
   type ShareConfig,
@@ -27,6 +25,7 @@ import { apiFetch } from "@/lib/api-client"
 import { formatDate } from "@/lib/format"
 import type { PortfolioShareLinkRow, ShareSnapshotRow } from "@/types/database"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 type Snapshot = Omit<ShareSnapshotRow, "payload">
 
@@ -60,6 +59,9 @@ export function SharingSettings({
   publishedAt: string | null
   origin: string
 }) {
+  const t = useTranslations("sharing")
+  const tEnum = useTranslations("enums")
+  const tc = useTranslations("common")
   const locale = useAppLocale()
   const router = useRouter()
   const [config, setConfig] = useState(initialConfig)
@@ -95,7 +97,7 @@ export function SharingSettings({
 
   return (
     <div className="space-y-4">
-      <Section title="Who can see this portfolio">
+      <Section title={t("visibility.title")}>
         <div className="space-y-2">
           {SHARE_VISIBILITIES.map((visibility) => (
             <label
@@ -110,7 +112,7 @@ export function SharingSettings({
                 onChange={() => set("visibility", visibility as ShareVisibility)}
               />
               <span className="min-w-0">
-                <span className="block text-sm font-medium">{VISIBILITY_LABELS[visibility]}</span>
+                <span className="block text-sm font-medium">{tEnum(`shareVisibility.${visibility}`)}</span>
                 <span className="text-muted-foreground block text-xs">
                   {VISIBILITY_HELP[visibility]}
                 </span>
@@ -131,7 +133,7 @@ export function SharingSettings({
         {config.visibility !== "PRIVATE" ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="slug">Public address</Label>
+              <Label htmlFor="slug">{t("identity.slug")}</Label>
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground shrink-0 text-xs">{origin}/p/</span>
                 <Input
@@ -141,35 +143,31 @@ export function SharingSettings({
                   placeholder="my-portfolio"
                 />
               </div>
-              <p className="text-muted-foreground text-xs">
-                Changing this makes the old address stop working. It never points at anyone else.
-              </p>
+              <p className="text-muted-foreground text-xs">{t("identity.slugHint")}</p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="displayName">Page title</Label>
+              <Label htmlFor="displayName">{t("identity.pageTitle")}</Label>
               <Input
                 id="displayName"
                 value={config.displayName ?? ""}
                 onChange={(event) => set("displayName", event.target.value || null)}
-                placeholder="Growth portfolio"
+                placeholder={t("identity.namePlaceholder")}
                 maxLength={60}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ownerDisplayName">Your name on the page</Label>
+              <Label htmlFor="ownerDisplayName">{t("identity.displayName")}</Label>
               <Input
                 id="ownerDisplayName"
                 value={config.ownerDisplayName ?? ""}
                 onChange={(event) => set("ownerDisplayName", event.target.value || null)}
-                placeholder="Optional"
+                placeholder={tc("state.optional")}
                 maxLength={40}
               />
-              <p className="text-muted-foreground text-xs">
-                Free text. Your email address is never shown.
-              </p>
+              <p className="text-muted-foreground text-xs">{t("identity.displayNameHint")}</p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t("identity.description")}</Label>
               <Input
                 id="description"
                 value={config.description ?? ""}
@@ -181,7 +179,7 @@ export function SharingSettings({
         ) : null}
       </Section>
 
-      <Section title="Start from a preset" description="A preset fills in the switches below. You can then change any of them.">
+      <Section title={t("preset.title")} description={t("preset.hint")}>
         <div className="flex flex-wrap gap-2">
           {SHARE_TEMPLATES.map((template) => (
             <Button
@@ -197,28 +195,28 @@ export function SharingSettings({
                     body: JSON.stringify({ portfolioId, template }),
                   })
                   setConfig(result.config)
-                }, `Applied the ${TEMPLATE_LABELS[template].toLowerCase()} preset.`)
+                }, `Applied the ${tEnum(`shareTemplate.${template}`).toLowerCase()} preset.`)
               }
               title={TEMPLATE_HELP[template]}
             >
-              {TEMPLATE_LABELS[template]}
+              {tEnum(`shareTemplate.${template}`)}
             </Button>
           ))}
         </div>
       </Section>
 
-      <Section title="Sections" description="Nothing is shared until you switch it on.">
+      <Section title={t("sections.title")} description={t("sections.hint")}>
         <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-          <Toggle label="Overview" checked={config.showOverview} onChange={(v) => set("showOverview", v)} />
-          <Toggle label="Holdings" checked={config.showHoldings} onChange={(v) => set("showHoldings", v)} />
-          <Toggle label="Allocation" checked={config.showAllocation} onChange={(v) => set("showAllocation", v)} />
-          <Toggle label="Performance" checked={config.showPerformance} onChange={(v) => set("showPerformance", v)} />
-          <Toggle label="Benchmark" checked={config.showBenchmark} onChange={(v) => set("showBenchmark", v)} />
-          <Toggle label="Risk" checked={config.showRisk} onChange={(v) => set("showRisk", v)} />
-          <Toggle label="Dividends" checked={config.showDividends} onChange={(v) => set("showDividends", v)} />
-          <Toggle label="Observations" checked={config.showInsights} onChange={(v) => set("showInsights", v)} />
+          <Toggle label={t("sections.overview")} checked={config.showOverview} onChange={(v) => set("showOverview", v)} />
+          <Toggle label={t("sections.holdings")} checked={config.showHoldings} onChange={(v) => set("showHoldings", v)} />
+          <Toggle label={t("sections.allocation")} checked={config.showAllocation} onChange={(v) => set("showAllocation", v)} />
+          <Toggle label={t("sections.performance")} checked={config.showPerformance} onChange={(v) => set("showPerformance", v)} />
+          <Toggle label={t("sections.benchmark")} checked={config.showBenchmark} onChange={(v) => set("showBenchmark", v)} />
+          <Toggle label={t("sections.risk")} checked={config.showRisk} onChange={(v) => set("showRisk", v)} />
+          <Toggle label={t("sections.dividends")} checked={config.showDividends} onChange={(v) => set("showDividends", v)} />
+          <Toggle label={t("sections.insights")} checked={config.showInsights} onChange={(v) => set("showInsights", v)} />
           <Toggle
-            label="Goal progress"
+            label={t("sections.goals")}
             hint="Progress only. Your notes are never shared."
             checked={config.showGoals}
             onChange={(v) => set("showGoals", v)}
@@ -227,35 +225,35 @@ export function SharingSettings({
       </Section>
 
       <Section
-        title="Figures"
-        description="What the sections above are allowed to say. Each is off until you turn it on."
+        title={t("figures.title")}
+        description={t("figures.hint")}
       >
         <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
           <Toggle
-            label="Amounts"
+            label={t("figures.amounts")}
             hint="Portfolio value and money figures. Off means percentages only."
             checked={config.showAbsoluteValues}
             onChange={(v) => set("showAbsoluteValues", v)}
           />
           <Toggle
-            label="Quantities"
+            label={t("figures.quantities")}
             hint="How many shares you hold."
             checked={config.showQuantity}
             onChange={(v) => set("showQuantity", v)}
           />
           <Toggle
-            label="Unrealised P&L"
+            label={t("figures.unrealizedPnl")}
             checked={config.showUnrealizedPnl}
             onChange={(v) => set("showUnrealizedPnl", v)}
           />
           <Toggle
-            label="Realised P&L"
+            label={t("figures.realizedPnl")}
             checked={config.showRealizedPnl}
             onChange={(v) => set("showRealizedPnl", v)}
           />
-          <Toggle label="Cash balance" checked={config.showCash} onChange={(v) => set("showCash", v)} />
+          <Toggle label={t("figures.cash")} checked={config.showCash} onChange={(v) => set("showCash", v)} />
           <Toggle
-            label="Allow search engines"
+            label={t("figures.indexing")}
             hint={
               config.visibility === "PUBLIC"
                 ? "Lets Google and others index your public page."
@@ -277,15 +275,15 @@ export function SharingSettings({
               Visitors currently see figures published {formatDate(publishedAt, locale)}.
             </span>
           ) : (
-            <span className="text-muted-foreground text-xs">Nothing is published yet.</span>
+            <span className="text-muted-foreground text-xs">{t("published.none")}</span>
           )}
         </div>
       </Section>
 
       {publishedAt ? (
         <Section
-          title="Published figures"
-          description="A shared page shows what was last published, not a live feed. It says so on the page."
+          title={t("published.title")}
+          description={t("published.hint")}
         >
           <Button
             type="button"
@@ -298,15 +296,13 @@ export function SharingSettings({
                 "Published today's figures.",
               )
             }
-          >
-            Update published figures
-          </Button>
+          >{t("published.update")}</Button>
         </Section>
       ) : null}
 
       <Section
-        title="Share links"
-        description="A link works whatever your visibility is set to, until it expires or you revoke it."
+        title={t("links.title")}
+        description={t("links.hint")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {LINK_DURATIONS.map((duration) => (
@@ -341,7 +337,7 @@ export function SharingSettings({
         ) : null}
 
         {links.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No links yet.</p>
+          <p className="text-muted-foreground text-sm">{t("links.none")}</p>
         ) : (
           <ul className="divide-y">
             {links.map((link) => {
@@ -375,9 +371,7 @@ export function SharingSettings({
                             "Link revoked.",
                           )
                         }
-                      >
-                        Revoke
-                      </Button>
+                      >{t("links.revoke")}</Button>
                     ) : null}
                   </div>
                 </li>
@@ -392,8 +386,8 @@ export function SharingSettings({
       </Section>
 
       <Section
-        title="Snapshots"
-        description="A snapshot freezes today's figures at their own address. It never updates."
+        title={t("snapshots.title")}
+        description={t("snapshots.hint")}
         action={
           <Button
             type="button"
@@ -409,13 +403,11 @@ export function SharingSettings({
                 setIssuedToken({ token: result.token, kind: "SNAPSHOT" })
               }, "Snapshot taken.")
             }
-          >
-            Take a snapshot
-          </Button>
+          >{t("snapshots.take")}</Button>
         }
       >
         {snapshots.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No snapshots yet.</p>
+          <p className="text-muted-foreground text-sm">{t("snapshots.none")}</p>
         ) : (
           <ul className="divide-y">
             {snapshots.map((snapshot) => (
@@ -439,7 +431,7 @@ export function SharingSettings({
                   }
                 >
                   <Trash2 className="size-3.5" />
-                  <span className="sr-only">Delete snapshot</span>
+                  <span className="sr-only">{t("snapshots.delete")}</span>
                 </Button>
               </li>
             ))}
@@ -492,11 +484,12 @@ function Toggle({
  * a hash.
  */
 function CopyOnce({ url, onDismiss }: { url: string; onDismiss: () => void }) {
+  const t = useTranslations("sharing")
   const [copied, setCopied] = useState(false)
   return (
     <Alert className="mb-3">
       <AlertDescription className="space-y-2">
-        <p className="text-sm font-medium">Copy this link now — it is shown only once.</p>
+        <p className="text-sm font-medium">{t("links.copyOnce")}</p>
         <div className="flex flex-wrap items-center gap-2">
           <code className="bg-muted min-w-0 flex-1 overflow-x-auto rounded px-2 py-1 text-xs">
             {url}
@@ -508,16 +501,14 @@ function CopyOnce({ url, onDismiss }: { url: string; onDismiss: () => void }) {
             onClick={() => {
               navigator.clipboard.writeText(url).then(
                 () => setCopied(true),
-                () => toast.error("Could not copy. Select the link and copy it manually."),
+                () => toast.error(t("links.copyFailed")),
               )
             }}
           >
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
-            Done
-          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>{t("links.done")}</Button>
         </div>
       </AlertDescription>
     </Alert>

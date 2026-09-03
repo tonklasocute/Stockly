@@ -1,1 +1,37 @@
-{}
+{
+  "describe": {
+    "portfolio": "ทั้งพอร์ต",
+    "anyDividend": "เมื่อมีการบันทึกเงินปันผลใด ๆ",
+    "withTarget": "{subject} · {condition} {target}",
+    "withoutTarget": "{subject} · {condition}"
+  },
+  "title": "การเตือน",
+  "search": "ค้นหาด้วยสัญลักษณ์",
+  "searchLabel": "ค้นหาการเตือน",
+  "filter": "กรองการเตือน",
+  "empty": "ยังไม่มีการเตือน",
+  "emptyBody": "ตั้งราคาเป้าหมายไว้ แล้ว Stockly จะเฝ้าดูให้บนเซิร์ฟเวอร์ คุณจะได้รับแจ้งไม่ว่าจะเปิดแอปอยู่หรือไม่",
+  "noMatches": "ไม่พบผลลัพธ์",
+  "noMatchesBody": "ไม่มีการเตือนที่ตรงกับตัวกรองนี้",
+  "new": "สร้างการเตือน",
+  "portfolio": "ทั้งพอร์ต",
+  "waitingToReset": "รอรีเซ็ตเงื่อนไข",
+  "deleted": "ลบการเตือนแล้ว",
+  "notifyWhen": "แจ้งเตือนเมื่อ",
+  "conditionLocked": "ไม่สามารถแก้ไขเงื่อนไขได้ กรุณาลบการเตือนนี้แล้วสร้างใหม่",
+  "stock": "หุ้น",
+  "cooldown": "ระยะเวลาเงียบหลังแจ้งเตือน",
+  "groupPrice": "ราคา",
+  "groupDailyMove": "การเปลี่ยนแปลงรายวัน",
+  "groupPortfolio": "ทั้งพอร์ต",
+  "groupDividend": "เงินปันผล",
+  "cooldownNone": "ไม่มีระยะเวลาเงียบ",
+  "cooldown15m": "15 นาที",
+  "cooldown1h": "1 ชั่วโมง",
+  "cooldown6h": "6 ชั่วโมง",
+  "cooldown1d": "1 วัน",
+  "history": "ประวัติการแจ้งเตือน",
+  "historyHint": "ทุกครั้งที่การเตือนของคุณทำงาน และที่ค่าเท่าใด",
+  "notificationSettings": "ตั้งค่าการแจ้งเตือน",
+  "lastFired": "แจ้งเตือนล่าสุด {at}"
+}

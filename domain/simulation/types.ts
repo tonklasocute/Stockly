@@ -32,21 +32,21 @@ export const PERIODS_PER_YEAR: Record<ContributionFrequency, number> = {
   YEARLY: 1,
 }
 
-export const FREQUENCY_LABELS: Record<ContributionFrequency, string> = {
-  MONTHLY: "Monthly",
-  QUARTERLY: "Quarterly",
-  YEARLY: "Yearly",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /** The three named starting points. Every rate remains editable — see `SCENARIO_RETURNS`. */
 export const SCENARIOS = ["CONSERVATIVE", "BASE", "OPTIMISTIC"] as const
 export type ScenarioName = (typeof SCENARIOS)[number]
 
-export const SCENARIO_LABELS: Record<ScenarioName, string> = {
-  CONSERVATIVE: "Conservative",
-  BASE: "Base",
-  OPTIMISTIC: "Optimistic",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 /**
  * Example annual return assumptions, as decimal fractions.

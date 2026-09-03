@@ -44,21 +44,11 @@ export const NEWS_CATEGORIES = [
 ] as const
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number]
 
-export const CATEGORY_LABELS: Record<NewsCategory, string> = {
-  EARNINGS: "Earnings",
-  DIVIDEND: "Dividend",
-  CORPORATE: "Corporate action",
-  M_AND_A: "Mergers & acquisitions",
-  MANAGEMENT: "Management",
-  PRODUCT: "Product",
-  REGULATION: "Regulation",
-  LEGAL: "Legal",
-  MACRO: "Macro",
-  MARKET: "Market",
-  SECTOR: "Sector",
-  ANALYST: "Analyst commentary",
-  OTHER: "Other",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 // ---------------------------------------------------------------- sentiment
 
@@ -76,13 +66,11 @@ export const CATEGORY_LABELS: Record<NewsCategory, string> = {
 export const SENTIMENTS = ["POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED", "UNKNOWN"] as const
 export type Sentiment = (typeof SENTIMENTS)[number]
 
-export const SENTIMENT_LABELS: Record<Sentiment, string> = {
-  POSITIVE: "Positive tone",
-  NEUTRAL: "Neutral tone",
-  NEGATIVE: "Negative tone",
-  MIXED: "Mixed tone",
-  UNKNOWN: "Tone not classified",
-}
+/*
+ * The words for this enum live in the `enums` namespace, keyed by the same values, in every
+ * language Stockly ships. A `Record<Enum, string>` of English here would be the copy the other
+ * languages drift away from, and this module is the one that must hold no prose at all.
+ */
 
 export const SENTIMENT_METHODS = ["RULE_BASED", "PROVIDER", "NONE"] as const
 export type SentimentMethod = (typeof SENTIMENT_METHODS)[number]
@@ -516,10 +504,15 @@ export function linkToEvents(
  * "New NVDA-related news is available" is safe, and "your NVDA position gained $4,283" is not. The
  * same rule phase 5 applied to price alerts.
  */
-export function newsNotificationText(article: Pick<NewsArticle, "symbols" | "category">): string {
+export type NewsNotification =
+  | { kind: "MARKET" }
+  | { kind: "SYMBOL"; symbol: string; category: NewsCategory }
+
+export function newsNotificationText(
+  article: Pick<NewsArticle, "symbols" | "category">,
+): NewsNotification {
   const symbol = article.symbols[0]?.split(":")[1]
-  if (!symbol) return "New market news is available."
-  return `New ${symbol} news is available (${CATEGORY_LABELS[article.category].toLowerCase()}).`
+  return symbol ? { kind: "SYMBOL", symbol, category: article.category } : { kind: "MARKET" }
 }
 
 /** Shown wherever news appears. */

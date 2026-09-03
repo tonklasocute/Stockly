@@ -13,7 +13,7 @@ import { formatCurrency, formatOptionalCurrency, formatOptionalPercent } from "@
  * that comes to in the base currency at today's rate, with the rate itself beside it. A converted
  * number with no rate attached is one the user cannot check.
  */
-export function CurrencyExposure({
+export async function CurrencyExposure({
   summary,
   className,
 }: {

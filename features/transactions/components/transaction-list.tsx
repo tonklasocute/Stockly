@@ -51,18 +51,21 @@ import { cn } from "@/lib/utils"
 import type { TransactionRow } from "@/types/database"
 import { TransactionDialog } from "./transaction-dialog"
 import { useAppLocale } from "@/lib/i18n/locale"
+import { useTranslations } from "next-intl"
 
 type SortKey = "date-desc" | "date-asc" | "total-desc"
 
-const SIDE_LABELS: Record<string, string> = { all: "All types", buy: "Buy", sell: "Sell" }
-const SORT_LABELS: Record<SortKey, string> = {
-  "date-desc": "Newest",
-  "date-asc": "Oldest",
-  "total-desc": "Largest",
+/* Keys, not words — resolved at the render site, like `NAV_ITEMS`. */
+const SIDE_FILTERS = ["all", "buy", "sell"] as const
+const SORT_KEYS: Record<SortKey, string> = {
+  "date-desc": "sort.newest",
+  "date-asc": "sort.oldest",
+  "total-desc": "sort.largest",
 }
 
-function totalOf(t: TransactionRow) {
-  return t.side === "buy" ? t.quantity * t.price + t.fee : t.quantity * t.price - t.fee
+// Renamed from `t` in phase 21: `t` is the translator everywhere else in this file.
+function totalOf(row: TransactionRow) {
+  return row.side === "buy" ? row.quantity * row.price + row.fee : row.quantity * row.price - row.fee
 }
 
 export function TransactionList({
@@ -75,6 +78,9 @@ export function TransactionList({
   /** Existing sell reviews keyed by transaction id, so the menu offers "edit" rather than "add". */
   sellReviews?: Record<string, JournalRow>
 }) {
+  const tc = useTranslations("common")
+  const t = useTranslations("transactions")
+  const tEnum = useTranslations("enums")
   const locale = useAppLocale()
   const router = useRouter()
   // A trade's amounts are in the currency of the venue it happened on, never the portfolio's: a
@@ -119,7 +125,7 @@ export function TransactionList({
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/transactions/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("Transaction deleted.")
+      toast.success(t("deleted"))
       router.refresh()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -144,9 +150,7 @@ export function TransactionList({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => openEdit(transaction)} className="gap-2">
-          <Pencil className="size-4" aria-hidden />
-          Edit
-        </DropdownMenuItem>
+          <Pencil className="size-4" aria-hidden />{tc("actions.edit")}</DropdownMenuItem>
         {/*
           Both paths are audited — a database trigger records the before and after of every write,
           and no route can opt out. Only this one carries *why*, which is the whole difference.
@@ -158,9 +162,7 @@ export function TransactionList({
           }}
           className="gap-2"
         >
-          <FileClock className="size-4" aria-hidden />
-          Correct with a reason
-        </DropdownMenuItem>
+          <FileClock className="size-4" aria-hidden />{t("rowActions.correct")}</DropdownMenuItem>
         {transaction.side === "sell" && (
           <DropdownMenuItem
             onSelect={() => {
@@ -182,9 +184,7 @@ export function TransactionList({
             }
           }}
         >
-          <Trash2 className="size-4" aria-hidden />
-          Delete
-        </DropdownMenuItem>
+          <Trash2 className="size-4" aria-hidden />{tc("actions.delete")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -212,30 +212,36 @@ export function TransactionList({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search symbol or notes"
+            placeholder={t("search.placeholder")}
             className="pl-9"
-            aria-label="Search transactions"
+            aria-label={t("search.label")}
           />
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:flex sm:w-auto">
           <Select value={side} onValueChange={(value) => setSide((value as typeof side) ?? "all")}>
-            <SelectTrigger aria-label="Filter by type" className="sm:w-28">
-              <SelectValue>{(value) => SIDE_LABELS[String(value)]}</SelectValue>
+            <SelectTrigger aria-label={t("search.filterType")} className="sm:w-28">
+              <SelectValue>
+                {(value) =>
+                  value === "all" ? t("search.allTypes") : tEnum(`transactionSide.${String(value)}`)
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="buy">Buy</SelectItem>
-              <SelectItem value="sell">Sell</SelectItem>
+              {SIDE_FILTERS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value === "all" ? t("search.allTypes") : tEnum(`transactionSide.${value}`)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           <Select value={symbol} onValueChange={(value) => setSymbol(value ?? "all")}>
-            <SelectTrigger aria-label="Filter by symbol" className="sm:w-32">
-              <SelectValue>{(value) => (value === "all" ? "All symbols" : String(value))}</SelectValue>
+            <SelectTrigger aria-label={t("search.filterSymbol")} className="sm:w-32">
+              <SelectValue>{(value) => (value === "all" ? t("search.allSymbols") : String(value))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All symbols</SelectItem>
+              <SelectItem value="all">{t("search.allSymbols")}</SelectItem>
               {symbols.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s}
@@ -245,35 +251,31 @@ export function TransactionList({
           </Select>
 
           <Select value={sort} onValueChange={(value) => setSort((value as SortKey) ?? "date-desc")}>
-            <SelectTrigger aria-label="Sort transactions" className="sm:w-36">
+            <SelectTrigger aria-label={t("search.sort")} className="sm:w-36">
               <ArrowUpDown className="size-3.5 opacity-60" aria-hidden />
-              <SelectValue>{(value) => SORT_LABELS[value as SortKey]}</SelectValue>
+              <SelectValue>{(value) => t(SORT_KEYS[value as SortKey])}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="date-desc">Newest</SelectItem>
-              <SelectItem value="date-asc">Oldest</SelectItem>
-              <SelectItem value="total-desc">Largest</SelectItem>
+              <SelectItem value="date-desc">{t("sort.newest")}</SelectItem>
+              <SelectItem value="date-asc">{t("sort.oldest")}</SelectItem>
+              <SelectItem value="total-desc">{t("sort.largest")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <Button onClick={openNew} className="gap-2 max-sm:h-11 max-sm:w-full">
-          <Plus className="size-4" aria-hidden />
-          Add
-        </Button>
+          <Plus className="size-4" aria-hidden />{tc("actions.add")}</Button>
       </div>
 
       {transactions.length === 0 ? (
         <div className="rounded-xl border">
           <EmptyState
             icon={ArrowLeftRight}
-            title="No transactions yet"
-            description="Record your first buy and Stockly will work out your holdings, cost basis and profit and loss."
+            title={t("empty.title")}
+            description={t("empty.body")}
             action={
               <Button onClick={openNew} className="gap-2">
-                <Plus className="size-4" aria-hidden />
-                Add transaction
-              </Button>
+                <Plus className="size-4" aria-hidden />{t("add")}</Button>
             }
           />
         </div>
@@ -281,8 +283,8 @@ export function TransactionList({
         <div className="rounded-xl border">
           <EmptyState
             icon={Search}
-            title="No matches"
-            description="No transaction matches those filters. Try clearing the search or the type filter."
+            title={t("noMatches.title")}
+            description={t("noMatches.body")}
           />
         </div>
       ) : (
@@ -316,19 +318,19 @@ export function TransactionList({
                 </div>
                 <dl className="text-muted-foreground mt-2.5 grid grid-cols-3 gap-2 border-t pt-2.5 text-xs">
                   <div>
-                    <dt>Quantity</dt>
+                    <dt>{t("columns.quantity")}</dt>
                     <dd className="tabular text-foreground">
                       {formatQuantity(transaction.quantity)}
                     </dd>
                   </div>
                   <div>
-                    <dt>Price</dt>
+                    <dt>{t("columns.price")}</dt>
                     <dd className="tabular text-foreground">
                       {formatCurrency(transaction.price, currencyOfRow(transaction))}
                     </dd>
                   </div>
                   <div>
-                    <dt>Fee</dt>
+                    <dt>{t("columns.fee")}</dt>
                     <dd className="tabular text-foreground">
                       {formatCurrency(transaction.fee, currencyOfRow(transaction))}
                     </dd>
@@ -342,13 +344,13 @@ export function TransactionList({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>{t("columns.date")}</TableHead>
+                  <TableHead>{t("columns.type")}</TableHead>
+                  <TableHead>{t("columns.symbol")}</TableHead>
+                  <TableHead className="text-right">{t("columns.quantity")}</TableHead>
+                  <TableHead className="text-right">{t("columns.price")}</TableHead>
+                  <TableHead className="text-right">{t("columns.fee")}</TableHead>
+                  <TableHead className="text-right">{t("columns.total")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>

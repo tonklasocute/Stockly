@@ -2,8 +2,37 @@
   "title": "Notifications",
   "unreadCount": "{count, plural, =0 {No unread notifications} one {# unread notification} other {# unread notifications}}",
   "markAllRead": "Mark all as read",
-  "empty": "No notifications yet",
+  "empty": "Nothing here yet",
   "emptyHint": "Alerts you create will appear here when they fire.",
   "unread": "Unread",
-  "read": "Read"
+  "read": "Read",
+  "filter": "Filter notifications",
+  "settings": "Settings",
+  "all": "All",
+  "price": "Price",
+  "portfolio": "Portfolio",
+  "dividend": "Dividend",
+  "system": "System",
+  "emptyBody": "When one of your alerts triggers, or a dividend is recorded, it appears here.",
+  "markRead": "Mark as read",
+  "deleteOne": "Delete notification",
+  "allMarkedRead": "All notifications marked as read.",
+  "prefs": {
+    "asPush": "Send as push notifications",
+    "saved": "Notification preferences saved.",
+    "price": "Price alerts",
+    "priceHint": "When a stock crosses a price or percentage target.",
+    "portfolio": "Portfolio alerts",
+    "portfolioHint": "Daily change, total return and position size.",
+    "dividend": "Dividend alerts",
+    "dividendHint": "When a dividend is recorded.",
+    "system": "System notices",
+    "systemHint": "Occasional messages about Stockly itself."
+  },
+  "push": {
+    "notConfigured": "Push notifications are not configured on this deployment. In-app notifications still work.",
+    "denied": "Notifications were not allowed.",
+    "enabled": "Push notifications enabled on this device.",
+    "disabled": "Push notifications disabled on this device."
+  }
 }

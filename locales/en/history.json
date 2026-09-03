@@ -1,1 +1,38 @@
-{}
+{
+  "title": "History",
+  "period": "Period",
+  "empty": {
+    "title": "No history yet for this period",
+    "body": "Stockly records a valuation each day the portfolio is open or the market closes. A few days of those and this page fills in."
+  },
+  "returnAndValue": "Return and value",
+  "twr": "Time-weighted return",
+  "mwr": "Money-weighted return",
+  "valueChange": "Value change",
+  "netCapitalFlow": "Net capital flow",
+  "flowsRemoved": "Capital flows removed from every return.",
+  "drawdowns": "Drawdowns",
+  "deepestFall": "Deepest fall",
+  "currentlyBelowHigh": "Currently below high",
+  "ongoing": "Ongoing",
+  "observations": "Observations",
+  "byMonth": "By month",
+  "noValuationThisMonth": "No valuation recorded for this month",
+  "activityAndCosts": "Activity and costs",
+  "bought": "Bought",
+  "sold": "Sold",
+  "turnover": "Turnover",
+  "fees": "Fees",
+  "attribution": {
+    "title": "Top contributors",
+    "contribution": "Contribution",
+    "holdingReturn": "Holding return",
+    "basis": "Basis",
+    "residual": "Residual",
+    "residualHint": "The gap between the parts and the whole. It is shown rather than distributed — a residual is evidence that something was not captured.",
+    "priceComponent": "From price",
+    "dividendComponent": "From dividends",
+    "fxComponent": "From currency",
+    "fxUnavailable": "Currency attribution needs a rate for every day of the period, which Stockly does not store."
+  }
+}

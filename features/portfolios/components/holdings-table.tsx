@@ -25,7 +25,6 @@ import { Delta, Percent } from "@/components/value"
 import type { Currency } from "@/domain/market"
 import {
   DENSITY_CLASSES,
-  GROUPING_LABELS,
   GROUPINGS,
   UNGROUPED,
   type Density,
@@ -39,14 +38,16 @@ import {
   formatOptionalPercent,
   formatQuantity,
 } from "@/lib/format"
+import { useTranslations } from "next-intl"
 
 type SortKey = "value" | "return" | "pnl" | "symbol"
 
-const SORT_LABELS: Record<SortKey, string> = {
-  value: "Market value",
-  return: "Return %",
-  pnl: "Profit & loss",
-  symbol: "Symbol",
+/* Keys, resolved at the render site — this table is module scope and has no translator. */
+const SORT_KEYS: Record<SortKey, string> = {
+  value: "holdings.marketValue",
+  return: "holdings.returnPct",
+  pnl: "holdings.pnlLong",
+  symbol: "holdings.symbol",
 }
 
 /**
@@ -106,6 +107,8 @@ export function HoldingsTable({
   /** Tags for each position, keyed by `market:symbol`. Labels only — never an input to a figure. */
   tags?: Record<string, HoldingTag[]>
 }) {
+  const t = useTranslations("portfolios")
+  const tEnum = useTranslations("enums")
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<SortKey>("value")
   const [grouping, setGrouping] = useState<Grouping>("none")
@@ -159,8 +162,8 @@ export function HoldingsTable({
       <div className="rounded-xl border">
         <EmptyState
           icon={Wallet}
-          title="No open positions"
-          description="Once you record a buy, your holdings and their cost basis appear here."
+          title={t("holdings.empty")}
+          description={t("holdings.emptyBody")}
         />
       </div>
     )
@@ -177,44 +180,44 @@ export function HoldingsTable({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search holdings"
+            placeholder={t("holdings.search")}
             className="pl-9"
-            aria-label="Search holdings"
+            aria-label={t("holdings.search")}
           />
         </div>
         <Select
           value={grouping}
           onValueChange={(value) => setGrouping((value as Grouping) ?? "none")}
         >
-          <SelectTrigger aria-label="Group holdings" className="w-32">
-            <SelectValue>{(value) => GROUPING_LABELS[value as Grouping]}</SelectValue>
+          <SelectTrigger aria-label={t("holdings.group")} className="w-32">
+            <SelectValue>{(value) => tEnum(`grouping.${value as Grouping}`)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {/* Sector grouping needs provider metadata the table is not given, so it is offered
                 where that data exists (the analytics page) and not here. */}
             {GROUPINGS.filter((g) => g !== "sector").map((g) => (
               <SelectItem key={g} value={g}>
-                {GROUPING_LABELS[g]}
+                {tEnum(`grouping.${g}`)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(value) => setSort((value as SortKey) ?? "value")}>
-          <SelectTrigger aria-label="Sort holdings" className="w-36">
-            <SelectValue>{(value) => SORT_LABELS[value as SortKey]}</SelectValue>
+          <SelectTrigger aria-label={t("holdings.sort")} className="w-36">
+            <SelectValue>{(value) => t(SORT_KEYS[value as SortKey])}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="value">Market value</SelectItem>
-            <SelectItem value="return">Return %</SelectItem>
-            <SelectItem value="pnl">Profit &amp; loss</SelectItem>
-            <SelectItem value="symbol">Symbol</SelectItem>
+            <SelectItem value="value">{t("holdings.marketValue")}</SelectItem>
+            <SelectItem value="return">{t("holdings.returnPct")}</SelectItem>
+            <SelectItem value="pnl">{t("holdings.pnlLong")}</SelectItem>
+            <SelectItem value="symbol">{t("holdings.symbol")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {visible.length === 0 ? (
         <div className="rounded-xl border">
-          <EmptyState icon={Search} title="No matches" description={`Nothing matches "${query}".`} />
+          <EmptyState icon={Search} title={t("holdings.noMatches")} description={t("holdings.nothingMatches", { query })} />
         </div>
       ) : (
         <>
@@ -249,7 +252,7 @@ export function HoldingsTable({
                       </p>
                     )}
                     {h.baseUnrealizedPnl === null ? (
-                      <span className="text-muted-foreground text-xs">P&amp;L N/A</span>
+                      <span className="text-muted-foreground text-xs">{t("holdings.pnlUnavailable")}</span>
                     ) : (
                       <Delta
                         value={h.baseUnrealizedPnl}
@@ -261,23 +264,23 @@ export function HoldingsTable({
                 </div>
                 <dl className="text-muted-foreground mt-2.5 grid grid-cols-4 gap-2 border-t pt-2.5 text-xs">
                   <div>
-                    <dt>Qty</dt>
+                    <dt>{t("holdings.quantityShort")}</dt>
                     <dd className="tabular text-foreground">{formatQuantity(h.quantity)}</dd>
                   </div>
                   <div>
-                    <dt>Avg cost</dt>
+                    <dt>{t("holdings.averageCost")}</dt>
                     <dd className="tabular text-foreground">
                       {formatCurrency(h.averageCost, h.currency)}
                     </dd>
                   </div>
                   <div>
-                    <dt>Price</dt>
+                    <dt>{t("holdings.price")}</dt>
                     <dd className="tabular text-foreground">
                       {formatCurrency(h.currentPrice, h.currency)}
                     </dd>
                   </div>
                   <div>
-                    <dt>Weight</dt>
+                    <dt>{t("holdings.weight")}</dt>
                     <dd className="tabular text-foreground">
                       {formatOptionalPercent(h.weight, { signed: false })}
                     </dd>
@@ -295,16 +298,16 @@ export function HoldingsTable({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Symbol</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Avg cost</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  {mixed && <TableHead className="text-right">Value (native)</TableHead>}
+                  <TableHead>{t("holdings.symbol")}</TableHead>
+                  <TableHead className="text-right">{t("holdings.quantity")}</TableHead>
+                  <TableHead className="text-right">{t("holdings.averageCost")}</TableHead>
+                  <TableHead className="text-right">{t("holdings.price")}</TableHead>
+                  {mixed && <TableHead className="text-right">{t("holdings.nativeValue")}</TableHead>}
                   <TableHead className="text-right">Market value ({currency})</TableHead>
-                  <TableHead className="text-right">P&amp;L</TableHead>
-                  <TableHead className="text-right">Return</TableHead>
-                  <TableHead className="text-right">Weight</TableHead>
-                  <TableHead>Tags</TableHead>
+                  <TableHead className="text-right">{t("holdings.pnl")}</TableHead>
+                  <TableHead className="text-right">{t("holdings.return")}</TableHead>
+                  <TableHead className="text-right">{t("holdings.weight")}</TableHead>
+                  <TableHead>{t("holdings.tags")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

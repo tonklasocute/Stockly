@@ -3,6 +3,7 @@ import { MIN_RETURN_OBSERVATIONS, TRADING_DAYS_PER_YEAR } from "@/domain/risk"
 import { formatDate, formatOptionalPercent } from "@/lib/format"
 import type { RiskBundle } from "../loader"
 import { appLocale } from "@/lib/i18n/server"
+import { getTranslations } from "next-intl/server"
 
 /**
  * Every advanced metric carries a one-line explanation, and every unavailable one says what is
@@ -36,6 +37,7 @@ function Unavailable({ reason }: { reason: string }) {
 }
 
 export async function RiskPanel({ risk }: { risk: RiskBundle }) {
+  const t = await getTranslations("intelligence")
   const locale = await appLocale()
   const tooFewObservations = `needs ${MIN_RETURN_OBSERVATIONS} valuations, has ${risk.observations}`
 
@@ -43,7 +45,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
     <div className="space-y-4">
       <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
         <Metric
-          label="Volatility (annualised)"
+          label={t("risk.volatility")}
           value={
             risk.volatility ? (
               formatOptionalPercent(risk.volatility.annualisedPct, { signed: false })
@@ -54,7 +56,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
           hint={EXPLANATIONS.volatility}
         />
         <Metric
-          label="Sharpe ratio"
+          label={t("risk.sharpe")}
           value={
             risk.sharpe ? (
               risk.sharpe.ratio.toFixed(2)
@@ -69,7 +71,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
           }
         />
         <Metric
-          label="Maximum drawdown"
+          label={t("risk.maxDrawdown")}
           value={
             risk.drawdown ? (
               formatOptionalPercent(risk.drawdown.maxDrawdownPct, { signed: false })
@@ -87,7 +89,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
           }
         />
         <Metric
-          label="Current drawdown"
+          label={t("risk.currentDrawdown")}
           value={
             risk.drawdown ? (
               formatOptionalPercent(risk.drawdown.currentDrawdownPct, { signed: false })
@@ -98,7 +100,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
           hint="How far below its running peak the portfolio stands today."
         />
         <Metric
-          label="Beta"
+          label={t("risk.beta")}
           value={
             risk.beta ? (
               risk.beta.beta.toFixed(2)
@@ -113,7 +115,7 @@ export async function RiskPanel({ risk }: { risk: RiskBundle }) {
           }
         />
         <Metric
-          label="Effective positions"
+          label={t("risk.effectivePositions")}
           value={
             risk.concentration ? (
               String(risk.concentration.effectivePositions)

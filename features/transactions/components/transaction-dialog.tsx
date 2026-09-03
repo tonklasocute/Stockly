@@ -29,6 +29,7 @@ import {
   type TransactionFormValues,
   type TransactionInput,
 } from "../schema"
+import { useTranslations } from "next-intl"
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -46,6 +47,8 @@ export function TransactionDialog({
   /** Present when editing an existing row. */
   transaction?: TransactionRow
 }) {
+  const tc = useTranslations("common")
+  const t = useTranslations("transactions")
   const router = useRouter()
   const isEdit = Boolean(transaction)
 
@@ -114,13 +117,11 @@ export function TransactionDialog({
         <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} noValidate>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit transaction" : "Add transaction"}</DialogTitle>
-            <DialogDescription>
-              Holdings and profit and loss are recalculated from your transactions.
-            </DialogDescription>
+            <DialogDescription>{t("form.recalcHint")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-5">
-            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Transaction type">
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("form.type")}>
               {(["buy", "sell"] as const).map((value) => (
                 <button
                   key={value}
@@ -144,7 +145,7 @@ export function TransactionDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="symbol">Symbol</Label>
+                <Label htmlFor="symbol">{t("columns.symbol")}</Label>
                 <Input
                   id="symbol"
                   placeholder="NVDA"
@@ -169,7 +170,7 @@ export function TransactionDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="tradeDate">Date</Label>
+                <Label htmlFor="tradeDate">{t("columns.date")}</Label>
                 {/* Native date input: correct on every mobile keyboard, no picker dependency. */}
                 <Input
                   id="tradeDate"
@@ -187,7 +188,7 @@ export function TransactionDialog({
             <div className="grid gap-4 sm:grid-cols-3">
               {(
                 [
-                  { name: "quantity", label: "Quantity", step: "any", min: 0 },
+                  { name: "quantity", label: t("columns.quantity"), step: "any", min: 0 },
                   { name: "price", label: `Price (${tradeCurrency})`, step: "any", min: 0 },
                   { name: "fee", label: `Fee (${tradeCurrency})`, step: "any", min: 0 },
                 ] as const
@@ -212,10 +213,9 @@ export function TransactionDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">
-                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              <Label htmlFor="notes">{t("form.notes")}<span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
-              <Input id="notes" placeholder="Why you made this trade" {...form.register("notes")} />
+              <Input id="notes" placeholder={t("form.notesHint")} {...form.register("notes")} />
             </div>
 
             <div className="bg-muted/50 flex items-center justify-between rounded-lg px-3 py-2.5 text-sm">
@@ -231,9 +231,7 @@ export function TransactionDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" className="max-sm:h-11" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="ghost" className="max-sm:h-11" onClick={() => onOpenChange(false)}>{tc("actions.cancel")}</Button>
             <Button type="submit" className="max-sm:h-11" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Add transaction"}
