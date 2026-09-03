@@ -36,6 +36,13 @@ export type TransactionRow = {
   import_fingerprint: string | null
   import_session_id: string | null
   source_row: number | null
+  /**
+   * How this row came to exist. 'MANUAL' for everything typed in, which is most of them.
+   * A reconciliation adjustment, a transferred row and a corporate-action row all say so, so an
+   * unexpected transaction can always be traced without reading an audit trail first.
+   */
+  source: FinancialSource
+  source_reference: string | null
   created_at: string
   updated_at: string
 }
@@ -73,7 +80,8 @@ export type DividendRow = {
   updated_at: string
 }
 
-export type CashTransactionKind = "deposit" | "withdrawal"
+/** Mirrors `CASH_FLOW_KINDS` in `domain/cash.ts`, which is where direction and meaning live. */
+export type CashTransactionKind = import("@/domain/cash").CashFlowKind
 
 export type CashTransactionRow = {
   id: string
@@ -84,6 +92,8 @@ export type CashTransactionRow = {
   currency: string
   occurred_on: string
   notes: string | null
+  source: FinancialSource
+  source_reference: string | null
   created_at: string
   updated_at: string
 }
@@ -748,11 +758,24 @@ export type Database = {
         Row: TransactionRow
         // Import provenance is optional on insert: a hand-entered transaction has none, which is
         // exactly what makes "where did this come from?" answerable.
-        Insert: Omit<TransactionRow, "id" | Timestamps | "import_fingerprint" | "import_session_id" | "source_row"> & {
+        Insert: Omit<
+          TransactionRow,
+          | "id"
+          | Timestamps
+          | "import_fingerprint"
+          | "import_session_id"
+          | "source_row"
+          | "source"
+          | "source_reference"
+        > & {
           id?: string
           import_fingerprint?: string | null
           import_session_id?: string | null
           source_row?: number | null
+          // Defaults to 'MANUAL' in the database, so a row written the way phase 1 wrote it still
+          // compiles and still behaves identically.
+          source?: FinancialSource
+          source_reference?: string | null
         }
         Update: Partial<Omit<TransactionRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
         Relationships: []
@@ -765,7 +788,11 @@ export type Database = {
       }
       cash_transactions: {
         Row: CashTransactionRow
-        Insert: Omit<CashTransactionRow, "id" | Timestamps> & { id?: string }
+        Insert: Omit<CashTransactionRow, "id" | Timestamps | "source" | "source_reference"> & {
+          id?: string
+          source?: FinancialSource
+          source_reference?: string | null
+        }
         Update: Partial<Omit<CashTransactionRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
         Relationships: []
       }
@@ -1030,6 +1057,55 @@ export type Database = {
         Update: Partial<Omit<WatchlistItemRow, "id" | "user_id" | Timestamps>>
         Relationships: []
       }
+
+      // ---------------------------------------------------------------- phase 19
+
+      /**
+       * Insert-only from the application's point of view, and not even that: the trigger writes it.
+       * Declared here so a read can be typed, with no Insert or Update shape to hand anybody.
+       */
+      financial_audit: {
+        Row: FinancialAuditRow
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      share_adjustments: {
+        Row: ShareAdjustmentRow
+        Insert: Omit<ShareAdjustmentRow, "id" | Timestamps | "corporate_event_id" | "note"> & {
+          id?: string
+          corporate_event_id?: string | null
+          note?: string | null
+        }
+        Update: Partial<Omit<ShareAdjustmentRow, "id" | "user_id" | "portfolio_id" | Timestamps>>
+        Relationships: []
+      }
+      reconciliation_runs: {
+        Row: ReconciliationRunRow
+        Insert: Omit<
+          ReconciliationRunRow,
+          "id" | "created_at" | "started_at" | "completed_at" | "summary" | "status" | "error"
+        > & {
+          id?: string
+          started_at?: string
+          completed_at?: string | null
+          summary?: Record<string, unknown>
+          status?: ReconciliationRunRow["status"]
+          error?: string | null
+        }
+        Update: Partial<Omit<ReconciliationRunRow, "id" | "user_id" | "portfolio_id" | "created_at">>
+        Relationships: []
+      }
+      reconciliation_items: {
+        Row: ReconciliationItemRow
+        Insert: Omit<ReconciliationItemRow, "id" | "created_at" | "resolved_at" | "resolution"> & {
+          id?: string
+          resolved_at?: string | null
+          resolution?: ReconciliationItemRow["resolution"]
+        }
+        Update: Partial<Pick<ReconciliationItemRow, "resolved_at" | "resolution">>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     /**
@@ -1051,6 +1127,35 @@ export type Database = {
           created_at: string
         }>
       }
+      /**
+       * A correction, and a transfer. Both are `security definer` and both check `auth.uid()`
+       * themselves — with RLS off inside them, that predicate is the ownership boundary.
+       */
+      correct_transaction: {
+        Args: {
+          p_id: string
+          p_symbol: string
+          p_market: string
+          p_side: TransactionSide
+          p_trade_date: string
+          p_quantity: number
+          p_price: number
+          p_fee: number
+          p_notes: string | null
+          p_reason: string
+        }
+        Returns: TransactionRow
+      }
+      transfer_instrument: {
+        Args: {
+          p_from_portfolio: string
+          p_to_portfolio: string
+          p_symbol: string | null
+          p_market: string | null
+          p_reason: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       transaction_side: TransactionSide
@@ -1069,4 +1174,88 @@ export type Database = {
     }
     CompositeTypes: Record<string, never>
   }
+}
+
+// ---------------------------------------------------------------- phase 19: portfolio operations
+
+/** Where a money-bearing row came from. Written on the row itself, not inferred from a join. */
+export type FinancialSource =
+  | "MANUAL"
+  | "IMPORT"
+  | "RECONCILIATION"
+  | "TRANSFER"
+  | "CORPORATE_ACTION"
+
+/**
+ * One change to a money-bearing row, written by a database trigger.
+ *
+ * Readable by its owner and writable by nobody: the table has no insert, update or delete policy,
+ * and the trigger writes through `security definer`.
+ */
+export type FinancialAuditRow = {
+  id: string
+  user_id: string
+  /** Not a foreign key — an audit row outlives the row it describes. */
+  portfolio_id: string | null
+  entity: "TRANSACTION" | "CASH_TRANSACTION"
+  entity_id: string
+  operation: "INSERT" | "UPDATE" | "DELETE"
+  /** The whole row, before and after. Null on an insert and a delete respectively. */
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  /** Set by a correction or a transfer; null for an ordinary edit, which is honest. */
+  reason: string | null
+  source: FinancialSource | "CORRECTION"
+  occurred_at: string
+}
+
+/** A split the user confirmed. Applied in front of the engine; transactions are never rewritten. */
+export type ShareAdjustmentRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  symbol: string
+  market: string
+  event_type: "SPLIT" | "REVERSE_SPLIT"
+  effective_date: string
+  numerator: number
+  denominator: number
+  corporate_event_id: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ReconciliationRunRow = {
+  id: string
+  portfolio_id: string
+  user_id: string
+  /** Which statement this was. Free text rather than a broker-account foreign key — see the migration. */
+  source_label: string
+  period_start: string | null
+  period_end: string | null
+  status: import("@/domain/reconciliation").ReconciliationStatus
+  /** Counts only. Every figure the report shows is re-derived, so a run cannot go stale. */
+  summary: Record<string, unknown>
+  started_at: string
+  completed_at: string | null
+  error: string | null
+  created_at: string
+}
+
+export type ReconciliationItemRow = {
+  id: string
+  run_id: string
+  user_id: string
+  scope: import("@/domain/reconciliation").ReconciliationScope
+  status: string
+  symbol: string | null
+  market: string | null
+  currency: string | null
+  /** A pointer, not a reference: the finding stays readable after the transaction is deleted. */
+  transaction_id: string | null
+  detail: Record<string, unknown>
+  resolved_at: string | null
+  resolution: "ADJUSTED" | "IGNORED" | "EXPLAINED" | null
+  created_at: string
 }

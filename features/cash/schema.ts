@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { CASH_FLOW_KINDS } from "@/domain/cash"
 import { CURRENCIES } from "@/domain/market"
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -11,8 +12,11 @@ function tomorrowUtc(): string {
 
 export const cashInputSchema = z.object({
   portfolioId: z.uuid("Choose a portfolio."),
-  kind: z.enum(["deposit", "withdrawal"], { message: "Choose deposit or withdrawal." }),
-  // Direction is carried by `kind`, so the amount is always positive.
+  /**
+   * The full ledger. Direction is carried by `kind` — see `CASH_FLOW_DIRECTION` — so the amount
+   * is always positive and one movement has exactly one spelling.
+   */
+  kind: z.enum(CASH_FLOW_KINDS, { message: "Choose what kind of movement this is." }),
   amount: z.coerce.number<number>().positive("Amount must be greater than 0.").finite(),
   /**
    * Genuinely independent of any market: one portfolio can hold a dollar balance and a baht balance

@@ -119,17 +119,43 @@ value yesterday.
 ## 4. Cash
 
 ```
-balance = deposits − withdrawals − buyCosts + sellProceeds + netDividends
+balance = netContributed − buyCosts + sellProceeds + netDividends + interest − charges
 
-buyCosts      = Σ (q × price + fee)     ← the fee is inside; never subtracted twice
-sellProceeds  = Σ (q × price − fee)
-netContributed = deposits − withdrawals
+buyCosts       = Σ (q × price + fee)     ← the trade fee is inside; never subtracted twice
+sellProceeds   = Σ (q × price − fee)
+netContributed = capital in − capital out
+charges        = Σ (fee + tax)           ← ACCOUNT-level charges only, not trade fees
 ```
 
 The balance may be negative. That means trades were recorded without the deposit that funded them —
 an incomplete history, shown honestly rather than clamped to zero and hidden.
 
 `netContributed`, not market value, is the money the user actually put in.
+
+### Which kinds are capital (phase 19)
+
+The ledger has nine kinds, and they divide along the line every performance figure depends on:
+
+| | Kinds | Treatment |
+|---|---|---|
+| **Capital flows** | `deposit` `withdrawal` `transfer_in` `transfer_out` `adjustment_in` `adjustment_out` | Cross the portfolio's boundary. Removed from both sides of every return figure. |
+| **Outcomes** | `fee` `tax` `interest` | Happened *to* the portfolio. Part of performance; never contributed capital. |
+
+A custody fee is not a withdrawal — the portfolio did worse, it was not drawn down. A transfer in is
+contributed capital in exactly the way a deposit is. `CASH_FLOW_DIRECTION` and `CAPITAL_FLOW_KINDS`
+in `domain/cash.ts` are the single statement of both rules; nothing anywhere tests for one kind by
+name.
+
+### Per-currency balances
+
+`computeCashByCurrency` computes the same figures **once per currency, with no exchange rate in any
+of them**. A trade's currency is its market's; a cash movement's and a dividend's are stored. Nothing
+is summed across currencies, and there is deliberately no combined total — that is what
+`computeCash` is for, and it is only safe because its callers translate first and drop what they
+could not translate.
+
+This is the figure a broker statement is reconciled against: a statement reports a dollar balance
+and a baht balance, never a translated one.
 
 ---
 
@@ -271,6 +297,36 @@ Same numerator, different denominators. Conflating them is how a portfolio appea
 it yields 3%. Both use trailing actual payments — Stockly does not forecast a forward yield.
 
 `null` when the denominator is zero: "no yield yet" is not "a yield of zero".
+
+---
+
+## 10a. Share adjustments (splits)
+
+A split changes a share count with no transaction behind it. Stored separately and applied **in
+front of** the replay engine, never by rewriting a transaction:
+
+```
+for every transaction on the instrument dated strictly BEFORE effectiveDate:
+  quantity ← quantity × (numerator / denominator)
+  price    ← price    ÷ (numerator / denominator)
+  fee      ← fee                                     ← unchanged, always
+```
+
+`quantity × price` is preserved, so cost basis does not move and realized P&L on a pre-split sell is
+unchanged. The fee is never touched: a commission was paid in cash, once.
+
+A trade **on** the effective date is already quoted post-split, so the boundary is strict. Multiple
+splits compound, oldest first.
+
+**Precision.** A 3-for-1 split of a $10 purchase is $3.333333 a share in any fixed-decimal
+representation, so total cost is preserved to within one unit of `MONEY_SCALE` per share rather than
+exactly. The bound is pinned by a test. Most real ratios divide exactly.
+
+**Fractions are kept, never rounded away.** A reverse split leaving 12.5 shares leaves 12.5 shares;
+the cash in lieu a broker paid is a transaction the user records.
+
+Deleting the adjustment restores every figure exactly — which is why this representation was chosen
+over rewriting history or synthesising a trade. See [`docs/reconciliation.md`](reconciliation.md).
 
 ---
 

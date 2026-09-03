@@ -339,8 +339,43 @@ uses, the user reviews it, and `POST /api/screener` executes it.
 
 ---
 
+## Reconciliation and operations (phase 19)
+
+**Nothing here changes a financial figure except the two endpoints that say so.** A reconciliation
+compares two readings and records what it found; a difference becomes a change when the user
+approves one, through the endpoints that have always created those rows.
+
+| | Limit | |
+|---|---|---|
+| `GET /api/reconciliation?portfolioId` | — | Run history, newest first. |
+| `POST /api/reconciliation` | 10/min | `{ portfolioId, sourceLabel, periodStart?, periodEnd?, positions[], balances[] }` → 201. Writes a run and its findings and **nothing else**. Reads the cached analytics pass, so it costs no extra quote call — which is also why it is rate-limited. Running it twice produces the same findings and changes nothing either time. |
+| `GET /api/reconciliation/:id` | — | One run plus counts recomputed from its stored items, so a resolved finding shows immediately and the two can never disagree. |
+| `DELETE /api/reconciliation/:id` | — | Deletes findings. It has never been able to delete money: no item references any financial table. |
+| `GET /api/reconciliation/:id/items?page` | — | Paginated findings — a statement of 500 positions is 500 rows. |
+| `PATCH /api/reconciliation/:id/items` | — | `{ itemId, resolution: ADJUSTED \| IGNORED \| EXPLAINED }`. **Records a decision; does not act on one** — marking an item `ADJUSTED` creates no adjustment. Scoped to the run in the path as well as to the item. |
+
+A position or balance the statement omits is reported as `null`, never `0`. Cash is compared one
+currency at a time with nothing converted, so there is no combined difference figure to read.
+
+| | |
+|---|---|
+| `GET /api/adjustments?portfolioId` | Recorded splits. |
+| `POST /api/adjustments` | `{ portfolioId, symbol, market, effectiveDate, numerator, denominator }` → 201. **Changes a derived figure without touching a transaction**: the row is applied in front of the replay engine. `event_type` is derived from the ratio rather than accepted from the client. A second identical split is `409` — applying one twice would square the ratio. |
+| `DELETE /api/adjustments/:id` | Fully reversible. The transactions were never rewritten, so every figure returns to exactly what it was. |
+| `POST /api/transactions/:id/correction` | `{ …transaction fields, reason }`. Both this and the plain `PATCH` are audited by a trigger; only this one carries *why*, because PostgREST sends each request as its own transaction and a reason set separately would never reach the trigger. Re-checks sell coverage first, exactly as an edit does. |
+| `POST /api/transfers` | `{ fromPortfolioId, toPortfolioId, symbol?, market?, reason, apply }`. One computation, one flag: `apply: false` previews and **writes nothing at all**. The apply re-parents the transactions — no sale, no repurchase, and therefore no realized profit or loss. An instrument moves with its whole history or not at all. |
+| `GET /api/audit?entityId` or `?portfolioId&page` | The before-and-after of every change to a money-bearing row. **Read-only, permanently**: `financial_audit` has a select policy and no insert, update or delete policy, so there is no write counterpart and never will be. |
+
+`correct_transaction` and `transfer_instrument` are `security definer`, so RLS does not apply inside
+them and their `auth.uid()` predicates are the ownership boundary. Neither is executable by the
+anonymous role.
+
+---
+
 ## Not in the API
 
 No `user_id` parameter anywhere. No admin endpoints. No endpoint that accepts a price, a total or a
 P&L — every figure is recomputed server-side. No endpoint the model can call: the AI orchestrator
-finishes retrieval before the model is invoked, and the model is given no tools.
+finishes retrieval before the model is invoked, and the model is given no tools. No endpoint that
+applies a reconciliation finding, and no scheduled job that applies an adjustment, resolves a
+difference or corrects a transaction — every one of those is a decision a person makes.

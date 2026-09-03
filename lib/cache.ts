@@ -76,6 +76,19 @@ export function invalidateImports(): void {
 }
 
 /**
+ * A reconciliation ran, or a finding was resolved.
+ *
+ * Narrow on purpose. A reconciliation is a *reading*: it compares two sides and records what it
+ * found, and no financial figure anywhere derives from a run or an item. Only the pages that
+ * display the findings need to change — and a run that also created an adjustment calls
+ * `invalidatePortfolio` separately, because that adjustment is what moved a number.
+ */
+export function invalidateReconciliation(): void {
+  revalidatePath("/operations")
+  revalidatePath("/data-quality")
+}
+
+/**
  * Sharing changed: settings, a link, a snapshot, or what is published.
  *
  * The two slugs matter and are not decoration. A public page is rendered for an address, so

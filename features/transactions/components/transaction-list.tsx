@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query"
 import {
   ArrowLeftRight,
   ArrowUpDown,
+  FileClock,
   MoreHorizontal,
   NotebookPen,
   Pencil,
@@ -41,6 +42,7 @@ import {
 import { EmptyState } from "@/components/empty-state"
 import { MarketBadge } from "@/components/market-badge"
 import { JournalDialog } from "@/features/journal/components/journal-dialog"
+import { CorrectionDialog } from "@/features/operations/components/correction-dialog"
 import type { JournalRow } from "@/types/database"
 import { currencyOf, toMarket } from "@/domain/market"
 import { apiFetch } from "@/lib/api-client"
@@ -84,6 +86,8 @@ export function TransactionList({
   const [editing, setEditing] = useState<TransactionRow | undefined>()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [reviewing, setReviewing] = useState<TransactionRow | undefined>()
+  const [correcting, setCorrecting] = useState<TransactionRow | undefined>()
+  const [correctionOpen, setCorrectionOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
   const symbols = useMemo(
@@ -140,6 +144,20 @@ export function TransactionList({
         <DropdownMenuItem onSelect={() => openEdit(transaction)} className="gap-2">
           <Pencil className="size-4" aria-hidden />
           Edit
+        </DropdownMenuItem>
+        {/*
+          Both paths are audited — a database trigger records the before and after of every write,
+          and no route can opt out. Only this one carries *why*, which is the whole difference.
+        */}
+        <DropdownMenuItem
+          onSelect={() => {
+            setCorrecting(transaction)
+            setCorrectionOpen(true)
+          }}
+          className="gap-2"
+        >
+          <FileClock className="size-4" aria-hidden />
+          Correct with a reason
         </DropdownMenuItem>
         {transaction.side === "sell" && (
           <DropdownMenuItem
@@ -382,6 +400,22 @@ export function TransactionList({
         computed by the engine from the transaction itself, and a figure typed here would be a
         second source of truth for the number the whole application exists to get right.
       */}
+      {/*
+        Mounted per transaction and unmounted on close, so the form always starts from the stored
+        row without an effect synchronising props into state.
+      */}
+      {correcting && correctionOpen && (
+        <CorrectionDialog
+          key={correcting.id}
+          open
+          onOpenChange={(next) => {
+            setCorrectionOpen(next)
+            if (!next) setCorrecting(undefined)
+          }}
+          transaction={correcting}
+        />
+      )}
+
       {reviewing && (
         <JournalDialog
           open={reviewOpen}

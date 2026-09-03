@@ -10,7 +10,7 @@ holdings, cost basis, P&L, allocation, dividends and cash balance from them.
 
 Markets: US stocks first, SET (Thailand) later. Multi-portfolio from day one, multi-currency later.
 
-**Status: Phase 18 complete.** On top of phases 1–6, phase 7 added an AI research
+**Status: Phase 19 complete.** On top of phases 1–6, phase 7 added an AI research
 assistant that answers questions
 about your stocks, portfolio and watchlist in plain language — grounded in Stockly's own engines,
 never in the model's memory — plus a natural-language screener that proposes filters for you to
@@ -41,6 +41,13 @@ the cross-phase invariant suite that proves only a transaction can move a number
 Stockly personal: a dashboard whose widgets the user orders and hides, summary metrics they choose,
 their own tags and saved views over holdings, pins, recently viewed, insight dismissal, a density
 setting, a default portfolio and a command palette — none of which can move a figure.
+Phase 19 made the records checkable: a broker statement can be compared against the portfolio and
+every difference is *described* — with candidate causes and never a verdict — while the portfolio
+itself is untouched, because a change happens only when the user approves one. It also gave the cash
+ledger the kinds a statement actually contains, gave splits a representation that restates history
+without rewriting a transaction, made every write to a money-bearing table auditable by a database
+trigger nobody can bypass, and made a portfolio transfer what it always should have been: the same
+rows, re-parented, realizing nothing.
 See [Development Phases](#development-phases).
 
 ## Commands
@@ -154,7 +161,9 @@ domain/      pure business logic. No framework imports. Heavily tested.
              drawdown-history.ts (peak/trough/recovery events, regime) ·
              news.ts (articles, URL safety, dedupe, categories, tone, relevance, event links) ·
              fundamentals.ts (statements, periods, margins, growth, TTM) · valuation.ts (multiples,
-             yields, historical context) · corporate-events.ts (events, coverage, dividend facts)
+             yields, historical context) · corporate-events.ts (events, coverage, dividend facts) ·
+             reconciliation.ts (position + cash comparison, candidate causes, run status) ·
+             corporate-actions.ts (share adjustments, split arithmetic, what is not adjustable)
 lib/         cross-cutting infra: supabase clients, env parsing, formatting, constants.
 services/    external integrations behind interfaces (market-data/, fx/, benchmark/, ai/).
 types/       shared types, generated types/supabase.ts.
@@ -707,6 +716,57 @@ Full detail in [`docs/personalization.md`](docs/personalization.md).
 - **Preferences are read per request under RLS, never from a module-level cache** — a `Map` on a
   serverless instance is shared between whoever it serves.
 
+## Reconciliation & Operations Rules
+
+Full detail in [`docs/reconciliation.md`](docs/reconciliation.md).
+
+- **External data verifies the portfolio; it never replaces its source of truth.** The chain is
+  external data → reconciliation → difference → human review → explicit adjustment → engine. The
+  arrow from a statement straight to a figure does not exist anywhere in the code.
+- **A comparison has no way to write.** `domain/reconciliation.ts` and `domain/corporate-actions.ts`
+  import no client, no `fetch`, no framework and no `server-only`, and a test reads their source to
+  keep it that way. `domain/operations-invariants.test.ts` runs the whole layer and asserts every
+  figure is byte-identical afterwards.
+- **A difference is never a verdict about who is wrong.** Every finding carries *candidate causes*
+  and stops. `SPLIT_RATIO` fires only on a clean ratio — 1.37× is a different number, not a split.
+- **A missing side is `null`, never `0`.** A position the statement omits, an unreported average
+  cost and an absent balance are all unknown; a zero is a claim about a real quantity.
+- **Cash reconciles one currency at a time, and nothing is converted.** A statement reports a dollar
+  balance and a baht balance, never a translated total — comparing against `analytics.cash` would
+  report today's FX rate as a discrepancy. There is deliberately no combined difference figure.
+- **A cash kind's direction and meaning live in `domain/cash.ts` and nowhere else.**
+  `CASH_FLOW_DIRECTION` and `CAPITAL_FLOW_KINDS` are the single statement of both. Never write
+  `kind === "deposit" ? … : …` — that pattern is how a fee becomes a withdrawal in the IRR series.
+- **A capital flow is not an outcome.** Deposits, withdrawals, transfers and adjustments cross the
+  boundary and are removed from performance; fees, tax and interest happened *to* the portfolio and
+  are part of it.
+- **A split restates history; it never rewrites a transaction.** `applyShareAdjustments` is a filter
+  in front of `replayPortfolio`. Quantity × ratio, price ÷ ratio, **fee untouched** — a commission
+  was paid in cash once. Deleting the adjustment row restores every figure exactly.
+- **A fraction left by a reverse split is kept and named, never rounded away.** Rounding it deletes
+  shares the user owns; the cash in lieu is a transaction they record.
+- **Only splits are adjustable.** A merger, rights offering or tender offer needs a cost-basis
+  allocation ratio only the issuer publishes. An invented basis flows into realized P&L and becomes
+  indistinguishable from a figure that was earned — so those are listed with a reason and recorded
+  by hand.
+- **A transfer re-parents transactions.** One `update … set portfolio_id`, moving an instrument's
+  whole history or none of it. A synthesised sell-and-buy pair would book a profit nobody made.
+- **The audit trail is written by a trigger and editable by nobody.** `financial_audit` has a select
+  policy and no insert, update or delete policy — the absence of those three *is* the protection.
+  It stores the row before and after, not a diff.
+- **`security definer` turns RLS off, so `user_id = auth.uid()` inside those functions is the
+  ownership boundary.** `correct_transaction` and `transfer_instrument` each carry it, and
+  `supabase/operations-policies.test.ts` asserts they still do.
+- **A financial change carries a reason** — required by the schema and by the function. A correction
+  gets its own endpoint because PostgREST sends each request as its own transaction, so a reason set
+  separately would never reach the trigger.
+- **A failure is recorded as one.** A run is written `PROCESSING` before the comparison, `FAILED`
+  requires an `error` by check constraint, and `COMPLETED_WITH_WARNINGS` exists so a run that found
+  differences is never reported as clean.
+- **Nothing here reaches a shared page.** `ShareSource` declares no field for a reconciliation, an
+  audit row, an adjustment or a per-currency balance, and `features/operations/privacy.test.ts`
+  proves it by projection and by reading the source.
+
 ## Observability Rules
 
 Full detail in [`docs/observability.md`](docs/observability.md). Audit findings in
@@ -817,7 +877,8 @@ Prefer the smallest change that fully works. No speculative abstractions, no sca
 | 17 ✅ | Fundamental intelligence: provider abstraction with declared capabilities, normalized statements, metrics and valuation engines, corporate events, fundamental screener filters, portfolio event awareness |
 | 17.5 ✅ | Production review: audit report, phase-16 snapshot regression fixed, currency on fundamental figures, two N+1 jobs, one representation of N/A |
 | 18 ✅ | News & market context: provider abstraction, normalization and de-duplication, URL safety, deterministic categories, tone and relevance, corporate-event linking, feeds for portfolio/watchlist/market, opt-in notifications |
-| 19 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
+| 19 ✅ | Advanced portfolio operations: position and cash reconciliation with run history, the full cash ledger, split adjustments applied in front of the engine, a trigger-written audit trail, corrections that carry a reason, and portfolio transfer by re-parenting |
+| 20 | Advanced: Monte Carlo, per-instrument price history and full FX attribution, FIFO cost basis, tax lots |
 
 Do not start the next phase without being asked.
 

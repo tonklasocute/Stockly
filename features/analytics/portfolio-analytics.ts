@@ -24,7 +24,15 @@ import {
   type SymbolFacts,
   type TradeStatistics,
 } from "@/domain/analytics"
-import { computeCash, type CashSummary } from "@/domain/cash"
+import {
+  computeCash,
+  computeCashByCurrency,
+  isCapitalFlow,
+  signedAmount,
+  type CashSummary,
+  type CurrencyCashBalance,
+  type DomainCashTransaction,
+} from "@/domain/cash"
 import {
   computeYields,
   dividendsBySymbol,
@@ -37,6 +45,7 @@ import {
 } from "@/domain/dividends"
 import { add } from "@/domain/money"
 import { buildPortfolio, replayPortfolio } from "@/domain/holdings"
+import { applyShareAdjustments } from "@/domain/corporate-actions"
 import { converterTo } from "@/domain/fx"
 import type { DatedFlow, ValuationPoint } from "@/domain/returns"
 import { baseCurrencyOf, currencyOf, symbolKey, type Currency, type MarketId } from "@/domain/market"
@@ -45,6 +54,7 @@ import { listCashTransactions, toDomainCash } from "@/features/cash/queries"
 import { listDividends, toDomainDividends } from "@/features/dividends/queries"
 import { listTransactions, toDomain } from "@/features/transactions/queries"
 import { dedupeInstruments } from "@/features/portfolios/portfolio-view"
+import { adjustmentsFor } from "@/features/operations/queries"
 import { createClient } from "@/lib/supabase/server"
 import { loadFxTable } from "@/services/fx"
 import { getMarketDataProvider, getQuotesFor, type Quote } from "@/services/market-data"
@@ -66,6 +76,11 @@ export type AnalyticsBundle = {
   missingFxPairs: readonly string[]
   trades: RealizedTrade[]
   cash: CashSummary
+  /**
+   * One balance per currency, with no exchange rate in any of them. This is what a broker statement
+   * can be reconciled against; `cash` above is the translated total the dashboard shows.
+   */
+  cashByCurrency: CurrencyCashBalance[]
   /** Stock market value + cash. The number that answers "what is this portfolio worth". */
   totalValue: number
   allocation: AllocationSlice[]
@@ -132,13 +147,15 @@ export type AnalyticsBundle = {
  */
 export const loadAnalytics = cache(
   async (portfolioId: string, grouping: PeriodGrouping = "month"): Promise<AnalyticsBundle> => {
-    const [portfolio, transactionRows, cashRows, dividendRows, snapshots] = await Promise.all([
-      readPortfolio(portfolioId),
-      listTransactions(portfolioId),
-      listCashTransactions(portfolioId),
-      listDividends(portfolioId),
-      listSnapshots(portfolioId),
-    ])
+    const [portfolio, transactionRows, cashRows, dividendRows, snapshots, adjustments] =
+      await Promise.all([
+        readPortfolio(portfolioId),
+        listTransactions(portfolioId),
+        listCashTransactions(portfolioId),
+        listDividends(portfolioId),
+        listSnapshots(portfolioId),
+        adjustmentsFor(portfolioId),
+      ])
 
     const baseCurrency = baseCurrencyOf(portfolio?.currency)
     /**
@@ -172,7 +189,12 @@ export const loadAnalytics = cache(
      * them. They simply never reach a number.
      */
     const measurableSnapshots = ownSnapshots.filter((row) => row.quality === "COMPLETE")
-    const domainTransactions = toDomain(transactionRows)
+    /*
+     * Splits restate the history in front of the engine; the stored rows are never rewritten.
+     * `transactionRows` remains exactly what the user recorded, and is what the transactions table
+     * and the audit trail read.
+     */
+    const domainTransactions = applyShareAdjustments(toDomain(transactionRows), adjustments)
     const domainDividends = toDomainDividends(dividendRows)
     const instruments = dedupeInstruments(transactionRows)
 
@@ -281,6 +303,25 @@ export const loadAnalytics = cache(
         .filter((row) => row !== null),
     )
 
+    /**
+     * The same movements again, **untranslated**, one balance per currency.
+     *
+     * `cash` above is the base-currency answer to "what is this portfolio worth"; this is the
+     * answer to "what does the broker hold for me in dollars, and in baht". A statement reports the
+     * second and never the first, so reconciling against a translated total would report today's
+     * exchange rate as a discrepancy. Nothing here is converted and nothing is summed across
+     * currencies — see `computeCashByCurrency`.
+     */
+    const cashByCurrency = computeCashByCurrency(
+      domainTransactions,
+      toDomainCash(cashRows),
+      domainDividends.map((d) => ({
+        netAmount: d.shares * d.dividendPerShare - d.tax - d.fee,
+        paidOn: d.paidOn,
+        currency: d.currency,
+      })),
+    )
+
     const factOf = (symbol: string) => facts.get(symbol)
     const sectors = allocateBy(holdings, factOf, "sector")
     const industries = allocateBy(holdings, factOf, "industry")
@@ -296,6 +337,7 @@ export const loadAnalytics = cache(
       // "+฿4,200" honestly instead of a translated approximation.
       trades,
       cash,
+      cashByCurrency,
       totalValue: add(summary.marketValue, Math.max(cash.balance, 0)),
       allocation: allocateByHolding(holdings, cash.balance),
       sectors,
@@ -328,11 +370,15 @@ export const loadAnalytics = cache(
       },
       capital: investedCapitalSeries(baseTransactions),
       valuations: buildValuations(measurableSnapshots, baseFlows),
-      capitalFlows: baseFlows.map((flow) => ({
-        date: flow.occurredOn,
-        // An IRR solver reads money paid in as negative and money taken out as positive.
-        amount: flow.kind === "deposit" ? -flow.amount : flow.amount,
-      })),
+      capitalFlows: baseFlows
+        .filter((flow) => isCapitalFlow(flow.kind))
+        .map((flow) => ({
+          date: flow.occurredOn,
+          // An IRR solver reads money paid in as negative and money taken out as positive. The
+          // sign comes from the shared direction table; a fee is an outflow and not a capital
+          // flow, so it is filtered out above rather than counted as a withdrawal here.
+          amount: -signedAmount(flow),
+        })),
       quoteAgeMinutes: oldestQuote(quotes)?.ageMinutes ?? null,
       quoteAsOf: oldestQuote(quotes)?.asOf ?? null,
       performance: performanceSeries(
@@ -369,7 +415,7 @@ export const loadAnalytics = cache(
  */
 function buildValuations(
   snapshots: readonly PortfolioSnapshotRow[],
-  flows: readonly { occurredOn: string; kind: "deposit" | "withdrawal"; amount: number }[],
+  flows: readonly DomainCashTransaction[],
 ): ValuationPoint[] {
   const ordered = [...snapshots].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
   if (ordered.length === 0) return []
@@ -380,15 +426,14 @@ function buildValuations(
     const inInterval =
       previous === null
         ? []
-        : flows.filter((f) => f.occurredOn > previous && f.occurredOn <= date)
+        : flows.filter(
+            (f) => isCapitalFlow(f.kind) && f.occurredOn > previous && f.occurredOn <= date,
+          )
 
     return {
       date,
       value: Number(snapshot.total_value),
-      flow: inInterval.reduce(
-        (total, f) => total + (f.kind === "deposit" ? f.amount : -f.amount),
-        0,
-      ),
+      flow: inInterval.reduce((total, f) => total + signedAmount(f), 0),
     }
   })
 }

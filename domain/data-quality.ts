@@ -29,6 +29,9 @@ export const DATA_QUALITY_CATEGORIES = [
   "IMPORT_UNRESOLVED",
   "IMPORT_CONFLICT",
   "CALENDAR_UNVERIFIED",
+  "RECONCILIATION_UNRESOLVED",
+  "RECONCILIATION_STALE",
+  "RECONCILIATION_NEVER_RUN",
 ] as const
 export type DataQualityCategory = (typeof DATA_QUALITY_CATEGORIES)[number]
 
@@ -44,6 +47,9 @@ export const CATEGORY_LABELS: Record<DataQualityCategory, string> = {
   IMPORT_UNRESOLVED: "Unresolved import rows",
   IMPORT_CONFLICT: "Import conflicts",
   CALENDAR_UNVERIFIED: "Unverified trading calendar",
+  RECONCILIATION_UNRESOLVED: "Unresolved reconciliation findings",
+  RECONCILIATION_STALE: "Reconciliation is out of date",
+  RECONCILIATION_NEVER_RUN: "Never reconciled",
 }
 
 export type DataQualityIssue = {
@@ -73,6 +79,14 @@ export const DATA_QUALITY_THRESHOLDS = {
    */
   stalePriceMinutes: staleAfterMinutes("quote"),
   staleFxMinutes: staleAfterMinutes("fx"),
+  /**
+   * How long a reconciliation stays current.
+   *
+   * A quarter, because that is the rhythm a statement arrives on. Deliberately not a market
+   * freshness policy: `domain/freshness.ts` answers "how old may a *reading* be", and this is not a
+   * reading — it is how long ago somebody last checked their own records against a third party.
+   */
+  staleReconciliationDays: 92,
 } as const
 
 /**
@@ -95,6 +109,17 @@ export type DataQualityInput = {
   unresolvedImportRows: number
   /** Reconciliation findings a user has not looked at. */
   importConflicts: number
+  /** Unresolved findings from the portfolio's most recent reconciliation run. */
+  unresolvedReconciliationItems: number
+  /**
+   * Whole days since the last reconciliation finished, or null when there has never been one.
+   *
+   * Null is not "zero days ago" and the two produce different issues — a portfolio nobody has ever
+   * reconciled and one reconciled this morning are opposite states.
+   */
+  daysSinceReconciliation: number | null
+  /** How many transactions the portfolio holds; an empty one is not overdue for anything. */
+  transactionCount: number
   /** Markets whose holiday table no longer covers today. */
   unverifiedCalendars: MarketId[]
   observedAt: string
@@ -156,6 +181,56 @@ export function scanDataQuality(input: DataQualityInput): DataQualityIssue[] {
         "been changed — Stockly never overwrites a transaction to match a file.",
       count: input.importConflicts,
       href: "/imports",
+      observedAt: at,
+    })
+  }
+
+  /*
+   * Reconciliation findings nobody has looked at.
+   *
+   * A WARNING rather than an ERROR, and the wording is careful about why: a difference is not proof
+   * that Stockly is wrong. It is proof that two records disagree, and which one is right is
+   * something only the user can say.
+   */
+  if (input.unresolvedReconciliationItems > 0) {
+    issues.push({
+      category: "RECONCILIATION_UNRESOLVED",
+      severity: "WARNING",
+      title: `${input.unresolvedReconciliationItems} reconciliation finding${input.unresolvedReconciliationItems === 1 ? "" : "s"} to review`,
+      detail:
+        "Your last reconciliation found differences between a statement and this portfolio. " +
+        "Nothing has been changed — a difference becomes a change only when you approve one.",
+      count: input.unresolvedReconciliationItems,
+      href: "/operations",
+      observedAt: at,
+    })
+  }
+
+  if (input.daysSinceReconciliation === null && input.transactionCount > 0) {
+    issues.push({
+      category: "RECONCILIATION_NEVER_RUN",
+      severity: "INFO",
+      title: "This portfolio has never been reconciled",
+      detail:
+        "Comparing a broker statement against these records is the only way to find a trade that " +
+        "was never entered. It changes nothing on its own.",
+      count: 1,
+      href: "/operations",
+      observedAt: at,
+    })
+  } else if (
+    input.daysSinceReconciliation !== null &&
+    input.daysSinceReconciliation > DATA_QUALITY_THRESHOLDS.staleReconciliationDays
+  ) {
+    issues.push({
+      category: "RECONCILIATION_STALE",
+      severity: "NOTICE",
+      title: `Last reconciled ${input.daysSinceReconciliation} days ago`,
+      detail:
+        "A missing trade is easiest to find close to when it happened. This is a reminder rather " +
+        "than a finding: nothing has been compared.",
+      count: 1,
+      href: "/operations",
       observedAt: at,
     })
   }

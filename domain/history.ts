@@ -1,5 +1,10 @@
 import { replayPortfolio } from "./holdings"
-import { computeCash, type DomainCashTransaction } from "./cash"
+import {
+  CASH_FLOW_DIRECTION,
+  computeCash,
+  isCapitalFlow,
+  type DomainCashTransaction,
+} from "./cash"
 import { add, sumBy } from "./money"
 import type { DomainTransaction, Position, RealizedTrade } from "./types"
 import type { Currency } from "./market"
@@ -122,7 +127,7 @@ export type CapitalFlow = { date: string; kind: FlowKind; amount: number }
  * External money moving in and out, between two dates.
  *
  * **A buy is not a capital flow.** Moving cash into a stock changes the shape of a portfolio, not
- * its size — the money was already inside. Only a deposit or a withdrawal crosses the boundary, and
+ * its size — the money was already inside. Only a capital flow crosses the boundary, and
  * that distinction is what separates "the portfolio grew" from "the portfolio was fed".
  *
  * `from` is exclusive and `to` inclusive, so consecutive periods neither double-count a flow nor
@@ -136,11 +141,13 @@ export function capitalFlowsBetween(
   return cashTransactions
     .filter((c) => {
       const at = c.occurredOn.slice(0, 10)
-      return at > from && at <= to && (c.kind === "deposit" || c.kind === "withdrawal")
+      return at > from && at <= to && isCapitalFlow(c.kind)
     })
     .map((c) => ({
       date: c.occurredOn.slice(0, 10),
-      kind: c.kind === "deposit" ? ("DEPOSIT" as const) : ("WITHDRAWAL" as const),
+      // Direction comes from the shared table, never from a test for one kind: a fee is an
+      // outflow but not a capital flow, and an unrecognised kind must not default to either.
+      kind: CASH_FLOW_DIRECTION[c.kind] === 1 ? ("DEPOSIT" as const) : ("WITHDRAWAL" as const),
       amount: c.amount,
     }))
     .sort((a, b) => a.date.localeCompare(b.date))

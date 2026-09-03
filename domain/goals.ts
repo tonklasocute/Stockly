@@ -12,6 +12,7 @@
  *
  * Pure: no clock beyond what is passed in, no database, no framework.
  */
+import { isCapitalFlow, signedAmount, type DomainCashTransaction } from "./cash"
 import { percentOf, quantize, roundTo } from "./money"
 import type { Currency } from "./market"
 
@@ -215,19 +216,21 @@ function progressOf(current: number, target: number): number | null {
  * form with a blank.
  */
 export function averageMonthlyContribution(
-  flows: readonly { occurredOn: string; kind: "deposit" | "withdrawal"; amount: number }[],
+  flows: readonly Pick<DomainCashTransaction, "occurredOn" | "kind" | "amount">[],
   { months = 12, now = new Date() }: { months?: number; now?: Date } = {},
 ): number | null {
   const cutoff = new Date(now)
   cutoff.setUTCMonth(cutoff.getUTCMonth() - months)
   const since = cutoff.toISOString().slice(0, 10)
 
-  const inWindow = flows.filter((f) => f.occurredOn >= since)
+  /*
+   * Only capital flows. A contribution is money the user put in; a custody fee left the account
+   * without being a withdrawal, and counting it as one would understate what they actually
+   * contribute every month — and then feed that understatement into a goal projection.
+   */
+  const inWindow = flows.filter((f) => f.occurredOn >= since && isCapitalFlow(f.kind))
   if (inWindow.length === 0) return null
 
-  const net = inWindow.reduce(
-    (total, f) => total + (f.kind === "deposit" ? f.amount : -f.amount),
-    0,
-  )
+  const net = inWindow.reduce((total, f) => total + signedAmount(f), 0)
   return roundTo(net / months, 2)
 }

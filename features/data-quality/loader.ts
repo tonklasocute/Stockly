@@ -14,6 +14,7 @@ import {
 import { loadIntelligence } from "@/features/intelligence/loader"
 import { unresolvedImportRowCount } from "@/features/imports/queries"
 import { lastRun } from "@/features/automation/refresh"
+import { listRuns, unresolvedCount } from "@/features/operations/queries"
 import { createClient } from "@/lib/supabase/server"
 import type { JobExecutionRow } from "@/types/database"
 
@@ -41,13 +42,20 @@ export const loadDataQuality = cache(
     const now = new Date()
     const observedAt = now.toISOString()
 
-    const [bundle, unresolvedImportRows, refresh] = await Promise.all([
+    const [bundle, unresolvedImportRows, refresh, runs, unresolvedFindings] = await Promise.all([
       loadIntelligence(portfolioId),
       unresolvedImportRowCount().catch(() => 0),
       lastRun(supabase, "data-refresh").catch(() => null),
+      // Both degrade to "never reconciled" rather than taking the page down: a data-quality page
+      // that cannot render because one of its inputs failed is the least useful failure available.
+      listRuns(portfolioId, 1).catch(() => []),
+      unresolvedCount(portfolioId).catch(() => 0),
     ])
 
     const { analytics } = bundle
+    const lastCompleted = runs.find(
+      (run) => run.status === "COMPLETED" || run.status === "COMPLETED_WITH_WARNINGS",
+    )
 
     const unverifiedCalendars: MarketId[] = MARKETS.filter(
       (market) => !calendarCovers(market, marketDate(market, now)),
@@ -67,10 +75,20 @@ export const loadDataQuality = cache(
         .map((exposure) => `${exposure.currency}/${bundle.baseCurrency}`),
       holdingsWithoutMetadata: analytics.holdingsWithoutMetadata,
       unresolvedImportRows,
-      // Reconciliation is run on demand against a file, so there is no stored conflict count to
-      // report here. Reported as zero rather than invented — the imports page is where a conflict
-      // surfaces, with both sides visible.
+      // An import conflict is found on demand against a file and never stored, so there is no
+      // count to report here. Zero rather than invented — the imports page is where one surfaces,
+      // with both sides visible.
       importConflicts: 0,
+      unresolvedReconciliationItems: unresolvedFindings,
+      /*
+       * Null when there has never been a completed run, and it must stay null: "never reconciled"
+       * and "reconciled today" are opposite states, and a zero would report the second.
+       *
+       * A run still in PROGRESS or one that FAILED does not count as a reconciliation having
+       * happened — which is exactly what makes a stuck run visible here.
+       */
+      daysSinceReconciliation: daysSince(lastCompleted?.completed_at ?? null, now),
+      transactionCount: analytics.transactionCount,
       unverifiedCalendars,
       observedAt,
     })
@@ -86,3 +104,11 @@ export const loadDataQuality = cache(
 )
 
 export { DATA_QUALITY_THRESHOLDS }
+
+/** Whole days between an ISO timestamp and now, or null when there is no timestamp at all. */
+function daysSince(at: string | null, now: Date): number | null {
+  if (!at) return null
+  const then = Date.parse(at)
+  if (Number.isNaN(then)) return null
+  return Math.max(0, Math.floor((now.getTime() - then) / 86_400_000))
+}

@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   History,
   Newspaper,
+  Scale,
   Sparkles,
   Target,
   Telescope,
@@ -49,6 +50,9 @@ export const NAV_ITEMS = [
   // somewhere you go when a figure reads N/A — neither belongs on the four-item bottom bar.
   { href: "/imports", label: "Import", icon: FileUp, mobile: false, badge: null },
   { href: "/data-quality", label: "Data quality", icon: ShieldCheck, mobile: false, badge: null },
+  // Phase 19. Beside import and data quality — the three places you go when you are checking
+  // records rather than reading numbers. Reconciliation is a sit-down task, not a tab.
+  { href: "/operations", label: "Reconciliation", icon: Scale, mobile: false, badge: null },
   // Phase 13. Sharing is a settings-shaped decision made once and revisited rarely, so it sits
   // beside the other configuration rather than on the bottom bar.
   { href: "/sharing", label: "Sharing", icon: Share2, mobile: false, badge: null },

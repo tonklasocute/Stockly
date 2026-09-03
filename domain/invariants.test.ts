@@ -101,6 +101,9 @@ function everyNonMutatingOperation(): void {
     holdingsWithoutMetadata: [],
     unresolvedImportRows: 0,
     importConflicts: 0,
+  unresolvedReconciliationItems: 0,
+  daysSinceReconciliation: null,
+  transactionCount: 0,
     unverifiedCalendars: [],
     observedAt: "2026-09-02T00:00:00.000Z",
   })

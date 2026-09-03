@@ -2,10 +2,12 @@ import "server-only"
 
 import { cache } from "react"
 import { buildPortfolio } from "@/domain/holdings"
+import { applyShareAdjustments } from "@/domain/corporate-actions"
 import { converterTo } from "@/domain/fx"
-import { baseCurrencyOf, currencyOf, symbolKey, type Currency, type MarketId } from "@/domain/market"
+import { baseCurrencyOf, currencyOf, symbolKey, toMarket, type Currency, type MarketId } from "@/domain/market"
 import type { Holding, PortfolioSummary } from "@/domain/types"
 import { listTransactions, toDomain } from "@/features/transactions/queries"
+import { adjustmentsFor } from "@/features/operations/queries"
 import { loadFxTable } from "@/services/fx"
 import { getQuotesFor, type Quote } from "@/services/market-data"
 import { createClient } from "@/lib/supabase/server"
@@ -41,13 +43,21 @@ export function portfolioBaseCurrency(portfolio: Pick<PortfolioRow, "currency">)
  * holding. A fifty-holding portfolio spanning two markets is two quote requests and one rate.
  */
 export const loadPortfolioView = cache(async (portfolioId: string): Promise<PortfolioView> => {
-  const [transactions, baseCurrency] = await Promise.all([
+  const [transactions, baseCurrency, adjustments] = await Promise.all([
     listTransactions(portfolioId),
     baseCurrencyFor(portfolioId),
+    adjustmentsFor(portfolioId),
   ])
 
   const instruments = dedupeInstruments(transactions)
-  const domainTransactions = toDomain(transactions)
+  /*
+   * Splits are applied in front of the engine, never by rewriting a stored transaction.
+   *
+   * `transactions` above is still exactly what the user recorded — that is what the transactions
+   * table renders — and this restated copy is what the replay sees. Delete the adjustment rows and
+   * every figure below returns to what it was.
+   */
+  const domainTransactions = applyShareAdjustments(toDomain(transactions), adjustments)
 
   // Quotes and rates are independent, so they go out together. Neither can take the page down.
   const [priced, fx] = await Promise.all([
@@ -90,7 +100,15 @@ export function dedupeInstruments(
 ): { symbol: string; market: MarketId }[] {
   const out = new Map<string, { symbol: string; market: MarketId }>()
   for (const row of transactions) {
-    const market = (row.market as MarketId) ?? "US"
+    /*
+     * `toMarket`, matching `toDomain` exactly.
+     *
+     * The two must agree or nothing works: quotes are fetched and keyed by the market resolved
+     * here, and positions are keyed by the market resolved there. A cast plus `?? "US"` does not
+     * agree — `""` is not nullish, so an empty column would key a quote as `":AAPL"` against a
+     * position at `"US:AAPL"`, and the holding would silently price from cost.
+     */
+    const market = toMarket(row.market)
     out.set(symbolKey(row.symbol, market), { symbol: row.symbol, market })
   }
   return [...out.values()]

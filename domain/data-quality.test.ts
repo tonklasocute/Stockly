@@ -18,6 +18,9 @@ const clean: DataQualityInput = {
   holdingsWithoutMetadata: [],
   unresolvedImportRows: 0,
   importConflicts: 0,
+  unresolvedReconciliationItems: 0,
+  daysSinceReconciliation: null,
+  transactionCount: 0,
   unverifiedCalendars: [],
   observedAt: AT,
 }
@@ -122,5 +125,65 @@ describe("ordering and summary", () => {
   it("is deterministic", () => {
     const input = { missingFxPairs: ["THB/USD"], importConflicts: 1 }
     expect(scan(input)).toEqual(scan(input))
+  })
+})
+
+// ---------------------------------------------------------------- phase 19: reconciliation
+
+describe("reconciliation findings", () => {
+  it("lists unresolved findings as something to review, not as an error in the portfolio", () => {
+    const [issue] = scan({ unresolvedReconciliationItems: 3, transactionCount: 10 })
+    expect(issue.category).toBe("RECONCILIATION_UNRESOLVED")
+    expect(issue.count).toBe(3)
+    expect(issue.href).toBe("/operations")
+    // The wording has to survive a reader who is worried their numbers are wrong.
+    expect(issue.detail).toContain("Nothing has been changed")
+  })
+
+  it("says nothing when there is nothing unresolved", () => {
+    expect(scan({ unresolvedReconciliationItems: 0, transactionCount: 10 }).map((i) => i.category))
+      .not.toContain("RECONCILIATION_UNRESOLVED")
+  })
+
+  it("distinguishes never reconciled from reconciled today", () => {
+    const never = scan({ daysSinceReconciliation: null, transactionCount: 5 })
+    expect(never.map((i) => i.category)).toContain("RECONCILIATION_NEVER_RUN")
+
+    const today = scan({ daysSinceReconciliation: 0, transactionCount: 5 })
+    expect(today.map((i) => i.category)).not.toContain("RECONCILIATION_NEVER_RUN")
+    expect(today.map((i) => i.category)).not.toContain("RECONCILIATION_STALE")
+  })
+
+  it("does not nag an empty portfolio", () => {
+    expect(scan({ daysSinceReconciliation: null, transactionCount: 0 })).toEqual([])
+  })
+
+  it("reports a reconciliation older than the threshold, and not one just inside it", () => {
+    const days = DATA_QUALITY_THRESHOLDS.staleReconciliationDays
+    expect(scan({ daysSinceReconciliation: days, transactionCount: 5 }).map((i) => i.category))
+      .not.toContain("RECONCILIATION_STALE")
+    expect(scan({ daysSinceReconciliation: days + 1, transactionCount: 5 }).map((i) => i.category))
+      .toContain("RECONCILIATION_STALE")
+  })
+
+  /** A reminder is not a finding, and must not be dressed as one. */
+  it("keeps a stale reminder below a real difference in severity", () => {
+    const [stale] = scan({ daysSinceReconciliation: 200, transactionCount: 5 })
+    const [unresolved] = scan({ unresolvedReconciliationItems: 1, transactionCount: 5 })
+    expect(stale.severity).toBe("NOTICE")
+    expect(unresolved.severity).toBe("WARNING")
+  })
+
+  it("never says the portfolio is wrong", () => {
+    const forbidden = /\b(wrong|incorrect|invalid|you should|must fix)\b/i
+    const issues = scan({
+      unresolvedReconciliationItems: 2,
+      daysSinceReconciliation: 400,
+      transactionCount: 5,
+    })
+    for (const issue of issues) {
+      expect(issue.title, issue.category).not.toMatch(forbidden)
+      expect(issue.detail, issue.category).not.toMatch(forbidden)
+    }
   })
 })

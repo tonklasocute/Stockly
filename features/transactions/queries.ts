@@ -2,6 +2,7 @@ import "server-only"
 
 import { pageRange, toPageResult, type Page, PAGE_SIZE } from "@/lib/pagination"
 import { createClient } from "@/lib/supabase/server"
+import { toMarket } from "@/domain/market"
 import type { DomainTransaction } from "@/domain/types"
 import type { TransactionRow } from "@/types/database"
 
@@ -25,10 +26,18 @@ export async function listTransactions(portfolioId: string): Promise<Transaction
   }))
 }
 
-/** The engine only needs these fields; created_at breaks ties within a trade date. */
+/**
+ * The engine only needs these fields; created_at breaks ties within a trade date.
+ *
+ * **`market` is mapped, and must stay mapped.** Without it every row reaches the engine as `US`:
+ * positions key as `US:PTT` while quotes arrive keyed `SET:PTT`, so a Thai holding finds no price,
+ * falls back to cost, and is valued in dollars. That was the state before phase 19 — a whole market
+ * silently mispriced by one absent field.
+ */
 export function toDomain(rows: readonly TransactionRow[]): DomainTransaction[] {
   return rows.map((row) => ({
     symbol: row.symbol,
+    market: toMarket(row.market),
     side: row.side,
     tradeDate: row.trade_date.slice(0, 10),
     quantity: row.quantity,
