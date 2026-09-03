@@ -25,6 +25,15 @@ import { formatCompact, formatDate } from "@/lib/format"
  *    is never something to take on faith.
  */
 export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
+  /*
+   * The currency the COMPANY reports in — not the market's and not the portfolio's.
+   *
+   * Every money figure below carries it. Phase 17.5 found them rendered bare (CUR-001), which put a
+   * ฿12B revenue and a $12B revenue on screen as the same "12.0B": a thirty-two-fold error in the
+   * reader's head, and exactly what the multi-currency rule exists to prevent.
+   */
+  const reportingCurrency =
+    data.ttm?.currency ?? data.annual[0]?.currency ?? data.quarterly[0]?.currency ?? null
   if (!data.covered || data.unavailableReason !== null) {
     return (
       <Section title="Fundamentals">
@@ -68,7 +77,7 @@ export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
               <Metric
                 key={key}
                 label={METRIC_DEFINITIONS[key].label}
-                value={renderMetric(metrics[key], METRIC_DEFINITIONS[key].unit)}
+                value={renderMetric(metrics[key], METRIC_DEFINITIONS[key].unit, reportingCurrency)}
                 // The formula, on the tile. A figure a reader cannot check is one they have to
                 // take on faith, and this codebase does not ask for faith.
                 hint={
@@ -128,7 +137,11 @@ export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
                 <Metric label="Dividend yield" value={renderPercent(valuation.dividendYield)} />
                 <Metric
                   label="Market cap"
-                  value={valuation.marketCap === null ? "N/A" : formatCompact(valuation.marketCap)}
+                  value={
+                    valuation.marketCap === null
+                      ? "N/A"
+                      : formatCompact(valuation.marketCap, reportingCurrency ?? undefined)
+                  }
                 />
               </dl>
               <p className="text-muted-foreground mt-3 text-xs">{VALUATION_DISCLAIMER}</p>
@@ -156,6 +169,7 @@ export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
 
       <p className="text-muted-foreground text-xs">
         {FUNDAMENTALS_DISCLAIMER}
+        {reportingCurrency && ` Figures are as reported by the company, in ${reportingCurrency}.`}
         {data.fetchedAt && ` Source: ${data.providerName}. Fetched ${formatDate(data.fetchedAt)}.`}
       </p>
     </div>
@@ -163,10 +177,16 @@ export function FundamentalsPanel({ data }: { data: FundamentalBundle }) {
 }
 
 /** N/A rather than 0 for every unavailable figure, without exception. */
-function renderMetric(value: number | null, unit: "percent" | "ratio" | "money"): React.ReactNode {
+function renderMetric(
+  value: number | null,
+  unit: "percent" | "ratio" | "money",
+  currency: string | null,
+): React.ReactNode {
   if (value === null) return <span className="text-muted-foreground">N/A</span>
   if (unit === "percent") return <Percent value={value} />
-  if (unit === "money") return formatCompact(value)
+  // A money figure always names its unit. Free cash flow and net debt are the two here, and both
+  // are read beside figures from companies reporting in another currency.
+  if (unit === "money") return formatCompact(value, currency ?? undefined)
   return value.toFixed(2)
 }
 

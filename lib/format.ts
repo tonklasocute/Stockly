@@ -106,7 +106,15 @@ export function toneOf(value: number): "gain" | "loss" | "flat" {
 
 /** Compact money for market cap and volume: $4.4T, 38.0M. Null renders as an em dash. */
 export function formatCompact(value: number | null, currency?: string): string {
-  if (value === null || !Number.isFinite(value)) return "—"
+  /*
+   * "N/A", not an em dash.
+   *
+   * Phase 17.5 found two representations of one meaning in the codebase (UX-001): 82 places said
+   * N/A and this said "—". An em dash reads as a separator, a placeholder or a zero depending on
+   * the reader, and in a column of numbers that ambiguity is worst. `CLAUDE.md` says a figure that
+   * cannot be computed renders as N/A; this now does.
+   */
+  if (value === null || !Number.isFinite(value)) return "N/A"
   const formatted = new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -124,7 +132,7 @@ export function formatOptional(
 
 export function formatTime(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "—"
+  if (Number.isNaN(date.getTime())) return "N/A"
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",

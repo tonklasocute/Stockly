@@ -99,9 +99,16 @@ export async function refreshFundamentals(
           limit: 4,
         })
 
-        for (const statement of statements) {
+        /*
+         * One upsert for the instrument's statements, not one per statement.
+         *
+         * Phase 17.5 found these written row by row inside a loop that is itself inside a loop over
+         * instruments — up to 240 sequential round trips per run (PERF-002). supabase-js takes an
+         * array, and the conflict target is the same either way.
+         */
+        if (statements.length > 0) {
           const { error } = await supabase.from("financial_statements").upsert(
-            {
+            statements.map((statement) => ({
               symbol: statement.symbol,
               market: statement.market,
               period_type: statement.period.type === "QUARTERLY" ? "QUARTERLY" : "ANNUAL",
@@ -132,23 +139,23 @@ export async function refreshFundamentals(
               dividends_paid: statement.cashFlow.dividendsPaid,
               source: statement.source,
               fetched_at: statement.fetchedAt,
-            },
+            })),
             { onConflict: "market,symbol,period_type,fiscal_year,fiscal_quarter" },
           )
           if (error) {
             logger.warn("fundamentals.statement_write_failed", { code: error.code })
             run.failed += 1
           } else {
-            run.statementsWritten += 1
+            run.statementsWritten += statements.length
           }
         }
       }
 
       if (provider.capabilities.corporateEvents) {
         const events = dedupeEvents(await provider.getCorporateEvents(instrument.symbol, instrument.market))
-        for (const event of events) {
+        if (events.length > 0) {
           const { error } = await supabase.from("corporate_events").upsert(
-            {
+            events.map((event) => ({
               symbol: event.symbol,
               market: event.market,
               event_type: event.type,
@@ -161,7 +168,7 @@ export async function refreshFundamentals(
               ratio: event.ratio,
               source: event.source,
               fetched_at: event.fetchedAt,
-            },
+            })),
             // The identity index, not the exact date: a re-dated event updates in place.
             { onConflict: "market,symbol,event_type" },
           )
@@ -169,7 +176,7 @@ export async function refreshFundamentals(
             logger.warn("fundamentals.event_write_failed", { code: error.code })
             run.failed += 1
           } else {
-            run.eventsWritten += 1
+            run.eventsWritten += events.length
           }
         }
       }

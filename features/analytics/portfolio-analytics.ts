@@ -151,6 +151,27 @@ export const loadAnalytics = cache(
      * they are still true about the currency they were taken in.
      */
     const ownSnapshots = snapshots.filter((row) => baseCurrencyOf(row.currency) === baseCurrency)
+
+    /*
+     * **Only readings Stockly can stand behind reach a calculation.**
+     *
+     * Phase 16 changed `recordSnapshot` from refusing an incomplete day to recording it with a
+     * quality label, because a hole in the history is indistinguishable from a day the portfolio
+     * was not held. That is right for *display* and wrong for *arithmetic*, and phase 17.5 found
+     * the consumer had never been updated to match — see FIN-001 in docs/phase-17.5-audit.md.
+     *
+     * What the two excluded qualities would do to a return series:
+     *
+     *   STALE    the end-of-day job carries the previous value forward, so the interval has a
+     *            return of exactly 0% — which suppresses measured volatility and inflates Sharpe.
+     *   PARTIAL  the total excludes holdings no exchange rate reached, so the day it appears shows
+     *            an artificial drop and the next complete day an artificial recovery. The drawdown
+     *            engine reads that fabricated round trip as a real fall.
+     *
+     * The labelled rows are still returned to the history page, which shows their quality beside
+     * them. They simply never reach a number.
+     */
+    const measurableSnapshots = ownSnapshots.filter((row) => row.quality === "COMPLETE")
     const domainTransactions = toDomain(transactionRows)
     const domainDividends = toDomainDividends(dividendRows)
     const instruments = dedupeInstruments(transactionRows)
@@ -306,7 +327,7 @@ export const loadAnalytics = cache(
         ),
       },
       capital: investedCapitalSeries(baseTransactions),
-      valuations: buildValuations(ownSnapshots, baseFlows),
+      valuations: buildValuations(measurableSnapshots, baseFlows),
       capitalFlows: baseFlows.map((flow) => ({
         date: flow.occurredOn,
         // An IRR solver reads money paid in as negative and money taken out as positive.
@@ -315,7 +336,10 @@ export const loadAnalytics = cache(
       quoteAgeMinutes: oldestQuote(quotes)?.ageMinutes ?? null,
       quoteAsOf: oldestQuote(quotes)?.asOf ?? null,
       performance: performanceSeries(
-        ownSnapshots.map((s) => ({
+        // The chart reads the same complete-only series as the return figures. A flat segment drawn
+        // from a carried-forward value would say "nothing happened" where the truth is "this was
+        // not measured".
+        measurableSnapshots.map((s) => ({
           date: s.snapshot_date.slice(0, 10),
           totalValue: s.total_value,
           investedValue: s.invested_value,

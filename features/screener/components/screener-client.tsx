@@ -415,21 +415,21 @@ export function ScreenerClient({
                   <dl className="text-muted-foreground mt-2.5 grid grid-cols-4 gap-2 border-t pt-2.5 text-xs">
                     <div>
                       <dt>RSI</dt>
-                      <dd className="tabular text-foreground">{row.rsi?.toFixed(0) ?? "—"}</dd>
+                      <dd className="tabular text-foreground">{row.rsi?.toFixed(0) ?? "N/A"}</dd>
                     </div>
                     <div>
                       <dt>ADX</dt>
-                      <dd className="tabular text-foreground">{row.adx?.toFixed(0) ?? "—"}</dd>
+                      <dd className="tabular text-foreground">{row.adx?.toFixed(0) ?? "N/A"}</dd>
                     </div>
                     <div>
                       <dt>RVOL</dt>
                       <dd className="tabular text-foreground">
-                        {row.relativeVolume ? `${row.relativeVolume.toFixed(1)}×` : "—"}
+                        {row.relativeVolume === null ? "N/A" : `${row.relativeVolume.toFixed(1)}×`}
                       </dd>
                     </div>
                     <div>
                       <dt>Score</dt>
-                      <dd className="tabular text-foreground">{row.score ?? "—"}</dd>
+                      <dd className="tabular text-foreground">{row.score ?? "N/A"}</dd>
                     </div>
                   </dl>
                 </li>
@@ -461,12 +461,12 @@ export function ScreenerClient({
                       <TableCell className="tabular text-right">
                         {row.price === null ? "N/A" : formatCurrency(row.price, row.currency)}
                       </TableCell>
-                      <TableCell className="tabular text-right">{row.rsi?.toFixed(0) ?? "—"}</TableCell>
-                      <TableCell className="tabular text-right">{row.adx?.toFixed(0) ?? "—"}</TableCell>
+                      <TableCell className="tabular text-right">{row.rsi?.toFixed(0) ?? "N/A"}</TableCell>
+                      <TableCell className="tabular text-right">{row.adx?.toFixed(0) ?? "N/A"}</TableCell>
                       <TableCell className="tabular text-right">
-                        {row.relativeVolume ? `${row.relativeVolume.toFixed(1)}×` : "—"}
+                        {row.relativeVolume === null ? "N/A" : `${row.relativeVolume.toFixed(1)}×`}
                       </TableCell>
-                      <TableCell className="tabular text-right font-medium">{row.score ?? "—"}</TableCell>
+                      <TableCell className="tabular text-right font-medium">{row.score ?? "N/A"}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"

@@ -4,7 +4,7 @@ import { marketDate, marketSessionStatus } from "@/domain/calendar"
 import { MARKET_REGISTRY, type MarketId } from "@/domain/market"
 import { logger } from "@/lib/log"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "@/types/database"
+import type { Database, PortfolioSnapshotRow } from "@/types/database"
 
 /**
  * The scheduled end-of-day snapshot.
@@ -94,6 +94,35 @@ export async function recordEndOfDaySnapshots(
 
   run.portfolios = portfolios?.length ?? 0
 
+  /*
+   * Every portfolio's latest reading, in **one** query.
+   *
+   * Phase 17.5 found this as a `select … limit 1` per portfolio — 200 sequential round trips over
+   * HTTP inside a function with a 60-second budget, degrading exactly as the deployment grows
+   * (PERF-001). One indexed read ordered by date, then the first row seen per portfolio, is the
+   * same answer for one round trip.
+   */
+  const latestByPortfolio = new Map<string, PortfolioSnapshotRow>()
+  if ((portfolios?.length ?? 0) > 0) {
+    const { data: recent, error: recentError } = await supabase
+      .from("portfolio_snapshots")
+      .select("*")
+      .in("portfolio_id", (portfolios ?? []).map((p) => p.id))
+      .order("snapshot_date", { ascending: false })
+      // Generous: the newest rows across every portfolio in one pass. Ordered by date descending,
+      // so the first row seen for a portfolio is its latest.
+      .limit(MAX_SNAPSHOT_PORTFOLIOS * 4)
+
+    if (recentError) {
+      logger.error("snapshots.snapshot_read_failed", { code: recentError.code })
+      run.failed += 1
+      return run
+    }
+    for (const row of recent ?? []) {
+      if (!latestByPortfolio.has(row.portfolio_id)) latestByPortfolio.set(row.portfolio_id, row)
+    }
+  }
+
   for (const portfolio of portfolios ?? []) {
     /*
      * The previous reading, carried forward as the day's row.
@@ -103,14 +132,11 @@ export async function recordEndOfDaySnapshots(
      * valuation. A stale row that says so is more useful than a gap that says nothing — and it is
      * replaced the moment a real valuation for that date arrives, because the upsert is keyed on
      * the date.
+     *
+     * Since phase 17.5 a STALE row is also excluded from every return and risk calculation
+     * (FIN-001): it is a record that the day existed, never an input to a figure.
      */
-    const { data: latest } = await supabase
-      .from("portfolio_snapshots")
-      .select("*")
-      .eq("portfolio_id", portfolio.id)
-      .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const latest = latestByPortfolio.get(portfolio.id)
 
     if (!latest) {
       run.skipped += 1
