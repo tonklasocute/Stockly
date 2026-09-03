@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -71,25 +72,34 @@ export function LanguageSwitcher({
         <Languages className="size-4" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-          {label}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {SUPPORTED_LOCALES.map((locale) => (
-          <DropdownMenuItem
-            key={locale}
-            className="gap-2"
-            onSelect={() => choose(locale)}
-            aria-current={locale === active ? "true" : undefined}
-          >
-            <Check
-              className={locale === active ? "size-4" : "size-4 opacity-0"}
-              aria-hidden
-            />
-            <span className="flex-1">{LOCALE_META[locale].label}</span>
-            <span className="text-muted-foreground text-xs">{LOCALE_META[locale].short}</span>
-          </DropdownMenuItem>
-        ))}
+        {/*
+          The group is not decoration. `DropdownMenuLabel` is Base UI's `Menu.GroupLabel`, which
+          reads the group's context to associate itself with the items it names — outside one it
+          throws rather than degrading, and it is what gives a screen reader "Language, list, 2
+          items" instead of two unattached options.
+        */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+            {label}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {SUPPORTED_LOCALES.map((locale) => (
+            <DropdownMenuItem
+              key={locale}
+              className="gap-2"
+              onSelect={() => choose(locale)}
+              aria-current={locale === active ? "true" : undefined}
+              lang={locale}
+            >
+              <Check
+                className={locale === active ? "size-4" : "size-4 opacity-0"}
+                aria-hidden
+              />
+              <span className="flex-1">{LOCALE_META[locale].label}</span>
+              <span className="text-muted-foreground text-xs">{LOCALE_META[locale].short}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

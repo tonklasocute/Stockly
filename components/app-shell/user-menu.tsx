@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -47,10 +48,13 @@ export function UserMenu({ email }: { email: string }) {
         <User className="size-4" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="truncate font-normal">
-          <span className="text-muted-foreground block text-xs">{t("signedInAs")}</span>
-          <span className="truncate text-sm font-medium">{email}</span>
-        </DropdownMenuLabel>
+        {/* Same reason as the language switcher: `Menu.GroupLabel` requires a group context. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="truncate font-normal">
+            <span className="text-muted-foreground block text-xs">{t("signedInAs")}</span>
+            <span className="truncate text-sm font-medium">{email}</span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="gap-2"
